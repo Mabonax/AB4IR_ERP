@@ -29,7 +29,7 @@ return new class extends Migration
             $table->string('street_address')->nullable();
             $table->string('address_line_2')->nullable();
             $table->string('city')->nullable();
-            $table->foreignId('location_id')->nullable()->constrained();
+            $table->foreignId('province_id')->nullable()->constrained();
             $table->string('postal_code')->nullable();
 
             // Education
