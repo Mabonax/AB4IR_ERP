@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Domains\Beneficiaries\Models\Beneficiary;
 
-class Next_of_kin extends Model
+class NextOfKin extends Model
 {
     protected $fillable = [
         'name',

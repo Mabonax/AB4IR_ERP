@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use App\Domains\Beneficiaries\Repositories\BeneficiaryRepository;
+use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;   
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +18,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+               $this->app->bind(
+            BeneficiaryRepositoryInterface::class,
+            BeneficiaryRepository::class
+        );
     }
 
     /**

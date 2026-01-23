@@ -7,6 +7,10 @@ use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Services\BeneficiaryService;
 use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
+
+use App\Models\Provinces;
+
+
 use App\Domains\Beneficiaries\Resources\BeneficiaryResource;
 use Inertia\Inertia;
 
@@ -16,14 +20,13 @@ class BeneficiaryController extends Controller
         protected BeneficiaryService $service
     ) {}
 
-    public function index()
-    {
-        return Inertia::render('Beneficiaries/Index', [
-            'beneficiaries' => BeneficiaryResource::collection(
-                $this->service->list()
-            )
-        ]);
-    }
+public function index()
+{
+    return Inertia::render('Beneficiaries/Index', [
+        'beneficiary' => Beneficiary::with('nextOfKin')->paginate(),
+        'provinces' => Provinces::select('id', 'name')->get(),
+    ]);
+}
 
     public function store(StoreBeneficiaryRequest $request)
     {

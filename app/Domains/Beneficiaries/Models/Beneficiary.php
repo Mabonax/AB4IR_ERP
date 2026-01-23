@@ -4,6 +4,7 @@ namespace App\Domains\Beneficiaries\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\NextOfKin;
 
 class Beneficiary extends Model
 {
@@ -23,12 +24,21 @@ protected $fillable = [
     'street_address',
     'address_line_2',
     'city',
-    'location_id',
+    'province_id',
     'postal_code',
     'highest_qualification',
     'next_of_kin_id',
     'created_by',
     'updated_by',
 ];
+
+ protected $casts = [
+        'dob' => 'date:Y-m-d',
+    ];
+
+    public function nextOfKin()
+    {
+        return $this->belongsTo(NextOfKin::class, 'next_of_kin_id');
+    }
 
 }

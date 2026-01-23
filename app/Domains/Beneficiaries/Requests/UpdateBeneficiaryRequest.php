@@ -17,41 +17,44 @@ class UpdateBeneficiaryRequest extends FormRequest
         $beneficiaryId = $this->route('beneficiary')->id ?? null;
 
         return [
-            // Personal info
-            'name'     => 'sometimes|string|max:100',
-            'surname'  => 'sometimes|string|max:100',
-            'dob'      => 'sometimes|date',
-            'age'      => 'sometimes|integer|min:0',
+            // =========================
+            // Beneficiary
+            // =========================
+            'name'      => 'required|string|max:100',
+            'surname'   => 'required|string|max:100',
+            'dob'       => 'required|date',
+            'age'       => 'required|integer|min:0',
 
-            // Identification
-            'id_number'=> [
-                'sometimes',
+            'id_number' => [
+                'required',
                 'string',
                 'size:13',
                 Rule::unique('beneficiaries', 'id_number')->ignore($beneficiaryId),
             ],
-            'email'    => [
-                'sometimes',
+            'email' => [
+                'required',
                 'email',
                 Rule::unique('beneficiaries', 'email')->ignore($beneficiaryId),
             ],
-            'phone'    => 'nullable|string|max:20',
 
-            // Demographics
-            'gender'   => 'sometimes|in:male,female',
+            'phone'   => 'nullable|string|max:20',
+            'gender'  => 'required|in:male,female',
 
-            // Address
-            'street_address'   => 'nullable|string|max:255',
-            'address_line_2'   => 'nullable|string|max:255',
-            'city'             => 'nullable|string|max:100',
-            'location_id'      => 'nullable|exists:locations,id',
-            'postal_code'      => 'nullable|string|max:20',
-
-            // Education
+            'street_address' => 'nullable|string|max:255',
+            'address_line_2' => 'nullable|string|max:255',
+            'city'           => 'nullable|string|max:100',
+            'province_id' => 'nullable|integer|exists:provinces,id',
+            'postal_code'    => 'nullable|string|max:20',
             'highest_qualification' => 'nullable|string|max:150',
 
-            // Relations
-            'next_of_kin_id'   => 'nullable|exists:next_of_kin,id',
+            // =========================
+            // Next of Kin
+            // =========================
+            'nok_name'         => 'required|string|max:100',
+            'nok_surname'      => 'required|string|max:100',
+            'nok_relationship' => 'required|string|max:100',
+            'nok_phone'        => 'nullable|string|max:20',
+            'nok_email'        => 'nullable|email',
         ];
     }
 }
