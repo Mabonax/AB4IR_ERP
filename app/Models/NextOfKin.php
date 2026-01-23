@@ -16,9 +16,10 @@ class NextOfKin extends Model
     ];
     
 
-    public function beneficiaries()
-    {
-        return $this->belongsTo(Beneficiary::class, 'next_of_kin_id');
-    }
+public function beneficiary()
+{
+    return $this->hasOne(Beneficiary::class);
+}
+
 
 }

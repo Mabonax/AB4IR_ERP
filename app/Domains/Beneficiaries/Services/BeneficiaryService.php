@@ -102,8 +102,18 @@ class BeneficiaryService
         });
     }
 
-    public function delete(Beneficiary $beneficiary): bool
-    {
+public function delete(Beneficiary $beneficiary): bool
+{
+    return DB::transaction(function () use ($beneficiary) {
+
+        // 1️⃣ Delete Next of Kin first (if exists)
+        if ($beneficiary->nextOfKin) {
+            $beneficiary->nextOfKin->delete();
+        }
+
+        // 2️⃣ Delete Beneficiary
         return $this->repository->delete($beneficiary);
-    }
+    });
+}
+
 }
