@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useForm } from "@inertiajs/react";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,34 @@ type CustomModalFormProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
+};
+
+const buildNestedPayload = (flat: Record<string, any>) => {
+  const result: Record<string, any> = {};
+
+  Object.entries(flat).forEach(([key, value]) => {
+    if (!key.includes(".")) {
+      result[key] = value;
+      return;
+    }
+
+    const parts = key.split(".");
+    let current = result as Record<string, any>;
+
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const part = parts[i];
+
+      if (current[part] === undefined || typeof current[part] !== "object") {
+        current[part] = {};
+      }
+
+      current = current[part];
+    }
+
+    current[parts[parts.length - 1]] = value;
+  });
+
+  return result;
 };
 
 /* =========================================================
@@ -131,10 +159,12 @@ useEffect(() => {
       }
     });
 
+    const nestedPayload = buildNestedPayload(payload);
+
     const routeDef = submitRoute(routeParams);
 
     form.submit(routeDef.method, routeDef.url, {
-      data: payload,
+      data: nestedPayload,
       preserveScroll: true,
       onSuccess: () => {
         reset();
@@ -213,14 +243,14 @@ useEffect(() => {
                   >
                     <option value="">Select option</option>
 
-                    {/* 🔹 STATIC OPTIONS (gender, enums, etc.) */}
+                    {/* ðŸ”¹ STATIC OPTIONS (gender, enums, etc.) */}
                     {field.options?.map((opt: any) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
                     ))}
 
-                    {/* 🔹 DYNAMIC OPTIONS (provinces, roles, etc.) */}
+                    {/* ðŸ”¹ DYNAMIC OPTIONS (provinces, roles, etc.) */}
                     {!field.options && field.optionsSource &&
                       options?.[field.optionsSource]?.map((opt: any) => (
                         <option
@@ -261,3 +291,7 @@ useEffect(() => {
     </Dialog>
   );
 };
+
+
+
+

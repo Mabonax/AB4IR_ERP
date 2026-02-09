@@ -5,6 +5,8 @@ namespace App\Domains\Beneficiaries\Services;
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Models\NextOfKin;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +19,22 @@ class BeneficiaryService
     public function list(): Collection
     {
         return $this->repository->all();
+    }
+
+    public function paginateBeneficiaries(): LengthAwarePaginator
+    {
+        return $this->repository->paginate();
+    }
+
+    public function getById(int $id): Beneficiary
+    {
+        $beneficiary = $this->repository->find($id);
+
+        if (! $beneficiary) {
+            throw new ModelNotFoundException('Beneficiary not found.');
+        }
+
+        return $beneficiary;
     }
 
     /**
@@ -64,9 +82,10 @@ class BeneficiaryService
     /**
      * Update Beneficiary + Next of Kin (transactional)
      */
-    public function update(Beneficiary $beneficiary, array $data): Beneficiary
+    public function update(int $id, array $data): Beneficiary
     {
-        return DB::transaction(function () use ($beneficiary, $data) {
+        return DB::transaction(function () use ($id, $data) {
+            $beneficiary = $this->getById($id);
 
             // 1️⃣ Update Next of Kin
             if ($beneficiary->nextOfKin) {
@@ -102,18 +121,20 @@ class BeneficiaryService
         });
     }
 
-public function delete(Beneficiary $beneficiary): bool
-{
-    return DB::transaction(function () use ($beneficiary) {
+    public function delete(int $id): bool
+    {
+        return DB::transaction(function () use ($id) {
+            $beneficiary = $this->getById($id);
 
-        // 1️⃣ Delete Next of Kin first (if exists)
-        if ($beneficiary->nextOfKin) {
-            $beneficiary->nextOfKin->delete();
-        }
+            // 1️⃣ Delete Next of Kin first (if exists)
+            if ($beneficiary->nextOfKin) {
+                $beneficiary->nextOfKin->delete();
+            }
 
-        // 2️⃣ Delete Beneficiary
-        return $this->repository->delete($beneficiary);
-    });
+            // 2️⃣ Delete Beneficiary
+            return $this->repository->delete($beneficiary);
+        });
+    }
+
 }
 
-}

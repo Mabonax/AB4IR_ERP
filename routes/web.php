@@ -1,16 +1,18 @@
 <?php
 
+use App\Domains\Beneficiaries\Controllers\BeneficiaryController;
+use App\Domains\Stakeholders\Controllers\StakeholderController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
-use App\Domains\Beneficiaries\Controllers\BeneficiaryController;
 
 Route::redirect('/', 'dashboard')->name('home');
 
-
-//Beneficiaries Routes 
+// Beneficiaries Routes
 Route::resource('beneficiaries', BeneficiaryController::class);
 
+// Stakeholders Routes
+Route::resource('stakeholders', StakeholderController::class);
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {

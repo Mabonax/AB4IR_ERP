@@ -38,6 +38,16 @@ class BeneficiaryResource extends JsonResource
 
             // Relations
             'next_of_kin_id' => $this->next_of_kin_id,
+            'next_of_kin' => $this->whenLoaded('nextOfKin', function () {
+                return [
+                    'id' => $this->nextOfKin->id,
+                    'name' => $this->nextOfKin->name,
+                    'surname' => $this->nextOfKin->surname,
+                    'relationship' => $this->nextOfKin->relationship,
+                    'phone' => $this->nextOfKin->phone,
+                    'email' => $this->nextOfKin->email,
+                ];
+            }),
 
             // Audit
             'created_by' => $this->created_by,

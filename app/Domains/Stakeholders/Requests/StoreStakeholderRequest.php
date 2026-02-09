@@ -1,0 +1,35 @@
+<?php
+
+namespace App\Domains\Stakeholders\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
+
+class StoreStakeholderRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge(Arr::undot($this->all()));
+    }
+
+    public function rules(): array
+    {
+        return [
+            'stakeholder.organization_name' => 'required|string|max:255',
+            'stakeholder.name' => 'required|string|max:255',
+            'stakeholder.email' => 'required|email|unique:stakeholders,email',
+            'stakeholder.contact_number' => 'required|string|max:20',
+            'stakeholder.status' => 'required|in:active,inactive',
+
+            'contact.full_name' => 'required|string|max:255',
+            'contact.email' => 'nullable|email',
+            'contact.contact_number' => 'required|string|max:20',
+            'contact.position' => 'nullable|string|max:255',
+        ];
+    }
+}

@@ -3,7 +3,6 @@
 namespace App\Domains\Beneficiaries\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Services\BeneficiaryService;
 use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
@@ -20,13 +19,15 @@ class BeneficiaryController extends Controller
         protected BeneficiaryService $service
     ) {}
 
-public function index()
-{
-    return Inertia::render('Beneficiaries/Index', [
-        'beneficiary' => Beneficiary::with('nextOfKin')->paginate(),
-        'provinces' => Provinces::select('id', 'name')->get(),
-    ]);
-}
+    public function index()
+    {
+        return Inertia::render('Beneficiaries/Index', [
+            'beneficiary' => BeneficiaryResource::collection(
+                $this->service->paginateBeneficiaries()
+            ),
+            'provinces' => Provinces::select('id', 'name')->get(),
+        ]);
+    }
 
     public function store(StoreBeneficiaryRequest $request)
     {
@@ -35,14 +36,21 @@ public function index()
         return redirect()->back()->with('success', 'Beneficiary created');
     }
 
-    public function update(UpdateBeneficiaryRequest $request, Beneficiary $beneficiary)
+    public function show(int $beneficiary)
+    {
+        $model = $this->service->getById($beneficiary);
+
+        return response()->json(new BeneficiaryResource($model));
+    }
+
+    public function update(UpdateBeneficiaryRequest $request, int $beneficiary)
     {
         $this->service->update($beneficiary, $request->validated());
 
         return redirect()->back()->with('success', 'Beneficiary updated');
     }
 
-    public function destroy(Beneficiary $beneficiary)
+    public function destroy(int $beneficiary)
     {
         $this->service->delete($beneficiary);
 

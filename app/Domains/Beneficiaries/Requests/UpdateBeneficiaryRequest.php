@@ -14,7 +14,7 @@ class UpdateBeneficiaryRequest extends FormRequest
 
     public function rules(): array
     {
-        $beneficiaryId = $this->route('beneficiary')->id ?? null;
+        $beneficiaryId = $this->route('beneficiary');
 
         return [
             // =========================
