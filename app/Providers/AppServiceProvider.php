@@ -6,6 +6,12 @@ use App\Domains\Beneficiaries\Repositories\BeneficiaryRepository;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
+use App\Domains\Programs\Repositories\ProgramRepository;
+use App\Domains\Programs\Repositories\ProgramRepositoryInterface;
+use App\Domains\Staff\Repositories\StaffDepartmentRepository;
+use App\Domains\Staff\Repositories\StaffDepartmentRepositoryInterface;
+use App\Domains\Staff\Repositories\StaffRepository;
+use App\Domains\Staff\Repositories\StaffRepositoryInterface;
 use App\Domains\Stakeholders\Repositories\StakeholderRepository;
 use App\Domains\Stakeholders\Repositories\StakeholderRepositoryInterface;
 use Carbon\CarbonImmutable;
@@ -34,6 +40,21 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             FacilitatorRepositoryInterface::class,
             FacilitatorRepository::class
+        );
+
+        $this->app->bind(
+            ProgramRepositoryInterface::class,
+            ProgramRepository::class
+        );
+
+        $this->app->bind(
+            StaffRepositoryInterface::class,
+            StaffRepository::class
+        );
+
+        $this->app->bind(
+            StaffDepartmentRepositoryInterface::class,
+            StaffDepartmentRepository::class
         );
     }
 
