@@ -26,7 +26,7 @@ class StoreStaffRequest extends FormRequest
             'staff.phone' => 'nullable|string|max:20',
             'staff.employee_number' => 'required|string|max:50|unique:staff_members,employee_number',
             'staff.status' => 'required|in:active,inactive',
-            'staff.department_id' => 'nullable|exists:staff_departments,id',
+            'staff.department_id' => 'required|exists:staff_departments,id',
             'staff.user_id' => 'nullable|exists:users,id',
 
             'next_of_kin.full_name' => 'required|string|max:255',

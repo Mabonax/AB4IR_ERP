@@ -38,7 +38,7 @@ class UpdateStaffRequest extends FormRequest
                 Rule::unique('staff_members', 'employee_number')->ignore($staffId),
             ],
             'staff.status' => 'required|in:active,inactive',
-            'staff.department_id' => 'nullable|exists:staff_departments,id',
+            'staff.department_id' => 'required|exists:staff_departments,id',
             'staff.user_id' => 'nullable|exists:users,id',
 
             'next_of_kin.full_name' => 'required|string|max:255',

@@ -66,6 +66,7 @@ export const StaffModelFormConfig = {
       optionsSource: "departments",
       optionLabel: "name",
       optionValue: "id",
+      required: true,
     },
     {
       id: "staff-status",

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('staff_members', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('department_id')->nullable()->constrained('staff_departments')->nullOnDelete();
+            $table->foreignId('department_id')->constrained('staff_departments')->restrictOnDelete();
             $table->string('first_name');
             $table->string('last_name');
             $table->string('email')->unique();
