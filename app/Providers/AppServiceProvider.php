@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepository;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
+use App\Domains\Facilitators\Repositories\FacilitatorRepository;
+use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Stakeholders\Repositories\StakeholderRepository;
 use App\Domains\Stakeholders\Repositories\StakeholderRepositoryInterface;
 use Carbon\CarbonImmutable;
@@ -27,6 +29,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             StakeholderRepositoryInterface::class,
             StakeholderRepository::class
+        );
+
+        $this->app->bind(
+            FacilitatorRepositoryInterface::class,
+            FacilitatorRepository::class
         );
     }
 

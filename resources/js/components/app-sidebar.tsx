@@ -36,6 +36,11 @@ const mainNavItems: NavItem[] = [
         icon: UserCircle,
     },
     {
+        title: 'Facilitators',
+        href: '/facilitators',
+        icon: UserCircle,
+    },
+    {
         title: 'Project Management',
         href: '/projects',
         icon: Briefcase,
