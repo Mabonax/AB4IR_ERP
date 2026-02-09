@@ -4,6 +4,10 @@ namespace App\Providers;
 
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepository;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
+use App\Domains\Assets\Repositories\AssetCategoryRepository;
+use App\Domains\Assets\Repositories\AssetCategoryRepositoryInterface;
+use App\Domains\Assets\Repositories\AssetRepository;
+use App\Domains\Assets\Repositories\AssetRepositoryInterface;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Programs\Repositories\ProgramRepository;
@@ -45,6 +49,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             ProgramRepositoryInterface::class,
             ProgramRepository::class
+        );
+
+        $this->app->bind(
+            AssetRepositoryInterface::class,
+            AssetRepository::class
+        );
+
+        $this->app->bind(
+            AssetCategoryRepositoryInterface::class,
+            AssetCategoryRepository::class
         );
 
         $this->app->bind(

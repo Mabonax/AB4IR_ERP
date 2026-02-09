@@ -3,6 +3,8 @@
 use App\Domains\Beneficiaries\Controllers\BeneficiaryController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\Programs\Controllers\ProgramController;
+use App\Domains\Assets\Controllers\AssetCategoryController;
+use App\Domains\Assets\Controllers\AssetController;
 use App\Domains\Staff\Controllers\StaffDepartmentController;
 use App\Domains\Staff\Controllers\StaffController;
 use App\Domains\Stakeholders\Controllers\StakeholderController;
@@ -23,6 +25,10 @@ Route::resource('facilitators', FacilitatorController::class);
 
 // Programs Routes
 Route::resource('programs', ProgramController::class);
+
+// Assets Routes
+Route::resource('assets', AssetController::class);
+Route::resource('asset-categories', AssetCategoryController::class);
 
 // Staff Routes
 Route::resource('staff', StaffController::class);
