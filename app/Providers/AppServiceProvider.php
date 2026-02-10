@@ -8,6 +8,12 @@ use App\Domains\Assets\Repositories\AssetCategoryRepository;
 use App\Domains\Assets\Repositories\AssetCategoryRepositoryInterface;
 use App\Domains\Assets\Repositories\AssetRepository;
 use App\Domains\Assets\Repositories\AssetRepositoryInterface;
+use App\Domains\Projects\Repositories\ProjectRepository;
+use App\Domains\Projects\Repositories\ProjectRepositoryInterface;
+use App\Domains\Projects\Repositories\ProjectLocationRepository;
+use App\Domains\Projects\Repositories\ProjectLocationRepositoryInterface;
+use App\Domains\Projects\Repositories\ProjectEnrollmentRepository;
+use App\Domains\Projects\Repositories\ProjectEnrollmentRepositoryInterface;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Programs\Repositories\ProgramRepository;
@@ -59,6 +65,21 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             AssetCategoryRepositoryInterface::class,
             AssetCategoryRepository::class
+        );
+
+        $this->app->bind(
+            ProjectRepositoryInterface::class,
+            ProjectRepository::class
+        );
+
+        $this->app->bind(
+            ProjectLocationRepositoryInterface::class,
+            ProjectLocationRepository::class
+        );
+
+        $this->app->bind(
+            ProjectEnrollmentRepositoryInterface::class,
+            ProjectEnrollmentRepository::class
         );
 
         $this->app->bind(

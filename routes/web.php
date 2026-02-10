@@ -8,6 +8,9 @@ use App\Domains\Assets\Controllers\AssetController;
 use App\Domains\Staff\Controllers\StaffDepartmentController;
 use App\Domains\Staff\Controllers\StaffController;
 use App\Domains\Stakeholders\Controllers\StakeholderController;
+use App\Domains\Projects\Controllers\ProjectController;
+use App\Domains\Projects\Controllers\ProjectLocationController;
+use App\Domains\Projects\Controllers\ProjectEnrollmentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -29,6 +32,11 @@ Route::resource('programs', ProgramController::class);
 // Assets Routes
 Route::resource('assets', AssetController::class);
 Route::resource('asset-categories', AssetCategoryController::class);
+
+// Projects Routes
+Route::resource('projects', ProjectController::class);
+Route::resource('project-locations', ProjectLocationController::class);
+Route::resource('project-enrollments', ProjectEnrollmentController::class);
 
 // Staff Routes
 Route::resource('staff', StaffController::class);
