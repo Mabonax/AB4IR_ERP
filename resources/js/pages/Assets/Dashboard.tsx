@@ -32,7 +32,7 @@ export default function AssetsDashboard({
       <Head title="Assets Dashboard" />
 
       <div className="p-4 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-semibold">Assets Dashboard</h1>
           <DomainNav items={assetNavItems} />
         </div>

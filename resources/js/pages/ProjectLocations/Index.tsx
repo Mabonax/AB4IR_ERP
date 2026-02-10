@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
@@ -91,9 +91,7 @@ export default function ProjectLocationIndex({
             {
               icon: "Eye",
               onClick: (row) => {
-                setSelectedLocation(row);
-                setMode("view");
-                setOpen(true);
+                router.visit(`/project-locations/${row.id}/progress`);
               },
             },
             {

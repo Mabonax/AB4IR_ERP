@@ -71,14 +71,8 @@ export default function AssetIndex({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Assets</h1>
           <DomainNav items={assetNavItems} />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white">
-              <Link href="/asset-categories">Asset Categories</Link>
-            </Button>
-          </div>
+   
+       
 
           <CustomModelForm
             addButton={AssetModelFormConfig.addButton}

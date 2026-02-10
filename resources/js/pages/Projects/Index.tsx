@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
@@ -78,9 +78,32 @@ export default function ProjectIndex({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Projects</h1>
           <DomainNav items={projectNavItems} />
-      
+        </div>
 
-       
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              asChild
+              variant="outline"
+              className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+            >
+              <Link href="/project-locations">Project Locations</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+            >
+              <Link href="/project-enrollments">Project Enrollments</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+            >
+              <Link href="/milestone-templates">Milestone Templates</Link>
+            </Button>
+          </div>
 
           <CustomModelForm
             addButton={ProjectModelFormConfig.addButton}
@@ -99,9 +122,7 @@ export default function ProjectIndex({
             {
               icon: "Eye",
               onClick: (row) => {
-                setSelectedProject(row);
-                setMode("view");
-                setOpen(true);
+                router.visit(`/projects/${row.id}`);
               },
             },
             {

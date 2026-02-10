@@ -32,7 +32,7 @@ export default function ProjectsDashboard({
       <Head title="Projects Dashboard" />
 
       <div className="p-4 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center jusify-start gap-3">
           <h1 className="text-xl font-semibold">Projects Dashboard</h1>
           <DomainNav items={projectNavItems} />
         </div>

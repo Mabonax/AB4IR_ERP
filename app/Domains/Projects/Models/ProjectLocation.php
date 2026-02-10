@@ -38,4 +38,9 @@ class ProjectLocation extends Model
     {
         return $this->hasMany(ProjectEnrollment::class);
     }
+
+    public function milestoneAssessments()
+    {
+        return $this->hasMany(ProjectMilestoneAssessment::class, 'project_location_id');
+    }
 }

@@ -11,6 +11,7 @@ use App\Domains\Projects\Services\ProjectLocationService;
 use App\Http\Controllers\Controller;
 use App\Models\Provinces;
 use Inertia\Inertia;
+use App\Domains\Projects\Models\ProjectMilestone;
 
 class ProjectLocationController extends Controller
 {
@@ -65,5 +66,61 @@ class ProjectLocationController extends Controller
         $this->service->deleteLocation($project_location);
 
         return redirect()->back()->with('success', 'Project location deleted');
+    }
+
+    public function progress(int $project_location)
+    {
+        $location = \App\Domains\Projects\Models\ProjectLocation::with([
+                'project',
+                'facilitator',
+                'province',
+                'enrollments.beneficiary',
+                'milestoneAssessments',
+            ])
+            ->findOrFail($project_location);
+
+        $milestones = ProjectMilestone::with('assessments')
+            ->where('project_id', $location->project_id)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function ($milestone) use ($location) {
+                $assessments = $milestone->assessments
+                    ->where('project_location_id', $location->id);
+
+                return [
+                    'id' => $milestone->id,
+                    'title' => $milestone->title,
+                    'total' => $location->enrollments->count(),
+                    'completed' => $assessments->where('status', 'completed')->count(),
+                ];
+            });
+
+        $beneficiaries = $location->enrollments->map(function ($enrollment) use ($location) {
+            $completed = $location->milestoneAssessments
+                ->where('beneficiary_id', $enrollment->beneficiary_id)
+                ->where('status', 'completed')
+                ->count();
+
+            return [
+                'id' => $enrollment->beneficiary_id,
+                'name' => $enrollment->beneficiary
+                    ? trim($enrollment->beneficiary->name.' '.$enrollment->beneficiary->surname)
+                    : null,
+                'completed_milestones' => $completed,
+            ];
+        })->filter(fn ($b) => $b['name'] !== null)->values();
+
+        return Inertia::render('ProjectLocations/Progress', [
+            'location' => [
+                'id' => $location->id,
+                'project_name' => $location->project?->name,
+                'province' => $location->province?->name,
+                'facilitator_name' => $location->facilitator
+                    ? trim($location->facilitator->name.' '.$location->facilitator->surname)
+                    : null,
+            ],
+            'milestones' => $milestones,
+            'beneficiaries' => $beneficiaries,
+        ]);
     }
 }

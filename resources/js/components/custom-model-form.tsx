@@ -194,19 +194,26 @@ useEffect(() => {
         </DialogTrigger>
       )}
 
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0">
         <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
+          <DialogHeader className="bg-gradient-to-r border-red-600 bg-red-600  text-white px-6 py-4 rounded-t-lg">
+            <DialogTitle className="text-lg font-semibold">
+              {title}
+            </DialogTitle>
+
             {description && (
-              <DialogDescription>{description}</DialogDescription>
+              <DialogDescription className="text-white/90">
+                {description}
+              </DialogDescription>
             )}
           </DialogHeader>
 
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {fields.map((field) => (
-              <div key={field.id} className="grid gap-2">
-                <Label>{field.label}</Label>
+
+          <div className="p-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {fields.map((field) => (
+                <div key={field.id} className="grid gap-2">
+                  <Label>{field.label}</Label>
 
                 {/* TEXT INPUTS */}
                 {["text", "email", "number", "tel", "date"].includes(
@@ -271,27 +278,28 @@ useEffect(() => {
                     {errors[field.name]}
                   </p>
                 )}
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
 
-          {children && (
-            <div className="mt-6">{children}</div>
-          )}
-
-          <DialogFooter className="mt-6">
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Close
-              </Button>
-            </DialogClose>
-
-            {!isView && (
-              <Button type="submit" disabled={processing}>
-                {processing ? "Saving..." : "Save"}
-              </Button>
+            {children && (
+              <div className="mt-6">{children}</div>
             )}
-          </DialogFooter>
+
+            <DialogFooter className="mt-6">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Close
+                </Button>
+              </DialogClose>
+
+              {!isView && (
+                <Button type="submit" disabled={processing}>
+                  {processing ? "Saving..." : "Save"}
+                </Button>
+              )}
+            </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

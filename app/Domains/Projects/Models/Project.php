@@ -52,4 +52,9 @@ class Project extends Model
     {
         return $this->hasMany(ProjectEnrollment::class);
     }
+
+    public function milestones()
+    {
+        return $this->hasMany(ProjectMilestone::class);
+    }
 }

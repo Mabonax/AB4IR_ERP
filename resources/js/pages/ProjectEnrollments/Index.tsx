@@ -59,7 +59,7 @@ export default function ProjectEnrollmentIndex({
       <Head title="Project Enrollments" />
 
       <div className="p-4 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-start gap-3">
           <h1 className="text-xl font-semibold">Project Enrollments</h1>
           <DomainNav items={projectNavItems} />
         </div>

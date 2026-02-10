@@ -70,14 +70,7 @@ export default function StaffIndex({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Staff</h1>
           <DomainNav items={staffNavItems} />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white">
-              <Link href="/staff-departments">Staff Departments</Link>
-            </Button>
-          </div>
+        
 
           <CustomModelForm
             addButton={StaffModelFormConfig.addButton}
