@@ -8,7 +8,7 @@ export const ProgramModelFormConfig = {
   addButton: {
     id: "add-program-button",
     label: "Add Program",
-    className: "rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700",
+    className: "rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700",
     icon: CirclePlus,
     type: "button",
     variant: "default",

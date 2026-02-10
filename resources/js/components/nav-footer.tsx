@@ -36,7 +36,7 @@ export function NavFooter({
                                     rel="noopener noreferrer"
                                 >
                                     {item.icon && (
-                                        <item.icon className="h-5 w-5" />
+                                        <item.icon className="h-5 w-5 text-red-500" />
                                     )}
                                     <span>{item.title}</span>
                                 </a>

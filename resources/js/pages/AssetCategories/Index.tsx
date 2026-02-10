@@ -10,6 +10,8 @@ import { AssetCategoryModelFormConfig } from "@/config/forms/asset-category-mode
 import { AssetCategoryTableConfig } from "@/config/tables/asset-category-table";
 
 import assetCategories from "@/routes/asset-categories";
+import { DomainNav } from "@/components/domain-nav";
+import { assetNavItems } from "@/config/domain-nav/assets";
 import { type BreadcrumbItem } from "@/types";
 
 /* =========================================================
@@ -17,7 +19,8 @@ import { type BreadcrumbItem } from "@/types";
 ========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: "Asset Categories", href: assetCategories.index() },
+  { title: "Assets", href: "/assets" },
+  { title: "Categories", href: "/asset-categories" },
 ];
 
 /* =========================================================
@@ -48,8 +51,9 @@ export default function AssetCategoryIndex({
       <Head title="Asset Categories" />
 
       <div className="p-4 space-y-4">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Asset Categories</h1>
+          <DomainNav items={assetNavItems} />
 
           <CustomModelForm
             addButton={AssetCategoryModelFormConfig.addButton}

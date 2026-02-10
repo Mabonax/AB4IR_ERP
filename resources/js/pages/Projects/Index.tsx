@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
 import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { DomainNav } from "@/components/domain-nav";
+import { projectNavItems } from "@/config/domain-nav/projects";
+import { Button } from "@/components/ui/button";
 
 import { ProjectModelFormConfig } from "@/config/forms/project-model-form";
 import { ProjectTableConfig } from "@/config/tables/project-table";
@@ -17,7 +20,8 @@ import { type BreadcrumbItem } from "@/types";
 ========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: "Projects", href: projects.index() },
+  { title: "Projects", href: "/projects" },
+  { title: "List", href: "/projects/list" },
 ];
 
 /* =========================================================
@@ -71,8 +75,12 @@ export default function ProjectIndex({
       <Head title="Projects" />
 
       <div className="p-4 space-y-4">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Projects</h1>
+          <DomainNav items={projectNavItems} />
+      
+
+       
 
           <CustomModelForm
             addButton={ProjectModelFormConfig.addButton}

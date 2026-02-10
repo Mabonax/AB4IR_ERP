@@ -3,10 +3,13 @@
 namespace App\Domains\Projects\Controllers;
 
 use App\Domains\Programs\Models\Program;
+use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Requests\StoreProjectRequest;
 use App\Domains\Projects\Requests\UpdateProjectRequest;
 use App\Domains\Projects\Resources\ProjectResource;
 use App\Domains\Projects\Services\ProjectService;
+use App\Domains\Projects\Models\ProjectEnrollment;
+use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
@@ -42,6 +45,19 @@ class ProjectController extends Controller
             'programs' => $programs,
             'stakeholders' => $stakeholders,
             'staffMembers' => $staffMembers,
+        ]);
+    }
+
+    public function dashboard()
+    {
+        return Inertia::render('Projects/Dashboard', [
+            'stats' => [
+                'totalProjects' => Project::count(),
+                'activeProjects' => Project::where('status', 'active')->count(),
+                'completedProjects' => Project::where('status', 'completed')->count(),
+                'totalBeneficiaries' => ProjectEnrollment::count(),
+                'totalLocations' => ProjectLocation::count(),
+            ],
         ]);
     }
 

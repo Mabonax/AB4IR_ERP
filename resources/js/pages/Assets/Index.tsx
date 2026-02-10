@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
 import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { DomainNav } from "@/components/domain-nav";
+import { assetNavItems } from "@/config/domain-nav/assets";
+import { Button } from "@/components/ui/button";
 
 import { AssetModelFormConfig } from "@/config/forms/asset-model-form";
 import { AssetTableConfig } from "@/config/tables/asset-table";
@@ -17,7 +20,8 @@ import { type BreadcrumbItem } from "@/types";
 ========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: "Assets", href: assets.index() },
+  { title: "Assets", href: "/assets" },
+  { title: "List", href: "/assets/list" },
 ];
 
 /* =========================================================
@@ -64,8 +68,17 @@ export default function AssetIndex({
       <Head title="Assets" />
 
       <div className="p-4 space-y-4">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Assets</h1>
+          <DomainNav items={assetNavItems} />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white">
+              <Link href="/asset-categories">Asset Categories</Link>
+            </Button>
+          </div>
 
           <CustomModelForm
             addButton={AssetModelFormConfig.addButton}

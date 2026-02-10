@@ -28,7 +28,7 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
                 ${
                   action.variant === "danger"
                     ? "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
-                    : "border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                    : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
                 }
               `}
             >
@@ -51,7 +51,7 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
                 ${
                   action.variant === "danger"
                     ? "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
-                    : "border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+                    : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
                 }
               `}
             >
@@ -75,7 +75,7 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
     >
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         {/* ===================== HEADER (BLUE – DO NOT DARKEN) ===================== */}
-        <thead className="bg-blue-600 text-white">
+        <thead className="bg-gradient-to-r from-red-600 to-orange-500 text-white">
           <tr>
             {columns.map((col: any) => (
               <th

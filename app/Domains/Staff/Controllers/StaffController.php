@@ -2,11 +2,11 @@
 
 namespace App\Domains\Staff\Controllers;
 
-use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Requests\StoreStaffRequest;
 use App\Domains\Staff\Requests\UpdateStaffRequest;
 use App\Domains\Staff\Resources\StaffMemberResource;
 use App\Domains\Staff\Services\StaffService;
+use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 
@@ -19,11 +19,23 @@ class StaffController extends Controller
     public function index()
     {
         $staffMembers = $this->service->paginateStaffMembers();
-        $departments = StaffDepartment::select('id', 'name')->orderBy('name')->get();
+        $departments = \App\Domains\Staff\Models\StaffDepartment::select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('Staff/Index', [
             'staffMembers' => StaffMemberResource::collection($staffMembers),
             'departments' => $departments,
+        ]);
+    }
+
+    public function dashboard()
+    {
+        return Inertia::render('Staff/Dashboard', [
+            'stats' => [
+                'totalStaff' => StaffMember::count(),
+                'activeStaff' => StaffMember::where('status', 'active')->count(),
+                'inactiveStaff' => StaffMember::where('status', 'inactive')->count(),
+                'departmentCount' => \App\Domains\Staff\Models\StaffDepartment::count(),
+            ],
         ]);
     }
 

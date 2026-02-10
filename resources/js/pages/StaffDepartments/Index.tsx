@@ -10,6 +10,8 @@ import { StaffDepartmentModelFormConfig } from "@/config/forms/staff-department-
 import { StaffDepartmentTableConfig } from "@/config/tables/staff-department-table";
 
 import staffDepartments from "@/routes/staff-departments";
+import { DomainNav } from "@/components/domain-nav";
+import { staffNavItems } from "@/config/domain-nav/staff";
 import { type BreadcrumbItem } from "@/types";
 
 /* =========================================================
@@ -17,7 +19,8 @@ import { type BreadcrumbItem } from "@/types";
 ========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: "Staff Departments", href: staffDepartments.index() },
+  { title: "Staff", href: "/staff" },
+  { title: "Departments", href: "/staff-departments" },
 ];
 
 /* =========================================================
@@ -48,8 +51,9 @@ export default function StaffDepartmentIndex({
       <Head title="Staff Departments" />
 
       <div className="p-4 space-y-4">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Staff Departments</h1>
+          <DomainNav items={staffNavItems} />
 
           <CustomModelForm
             addButton={StaffDepartmentModelFormConfig.addButton}

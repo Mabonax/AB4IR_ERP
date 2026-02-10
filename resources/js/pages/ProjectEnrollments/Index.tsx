@@ -5,6 +5,8 @@ import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
 
 import { ProjectEnrollmentTableConfig } from "@/config/tables/project-enrollment-table";
+import { DomainNav } from "@/components/domain-nav";
+import { projectNavItems } from "@/config/domain-nav/projects";
 
 import { type BreadcrumbItem } from "@/types";
 import {
@@ -22,7 +24,8 @@ import { Button } from "@/components/ui/button";
 ========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: "Project Enrollments", href: "/project-enrollments" },
+  { title: "Projects", href: "/projects" },
+  { title: "Enrollments", href: "/project-enrollments" },
 ];
 
 /* =========================================================
@@ -56,8 +59,9 @@ export default function ProjectEnrollmentIndex({
       <Head title="Project Enrollments" />
 
       <div className="p-4 space-y-4">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Project Enrollments</h1>
+          <DomainNav items={projectNavItems} />
         </div>
 
         <CustomTable

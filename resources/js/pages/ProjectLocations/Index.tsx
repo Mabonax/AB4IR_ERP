@@ -10,6 +10,8 @@ import { ProjectLocationModelFormConfig } from "@/config/forms/project-location-
 import { ProjectLocationTableConfig } from "@/config/tables/project-location-table";
 
 import projectLocations from "@/routes/project-locations";
+import { DomainNav } from "@/components/domain-nav";
+import { projectNavItems } from "@/config/domain-nav/projects";
 import { type BreadcrumbItem } from "@/types";
 
 /* =========================================================
@@ -17,7 +19,8 @@ import { type BreadcrumbItem } from "@/types";
 ========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: "Project Locations", href: projectLocations.index() },
+  { title: "Projects", href: "/projects" },
+  { title: "Locations", href: "/project-locations" },
 ];
 
 /* =========================================================
@@ -67,8 +70,9 @@ export default function ProjectLocationIndex({
       <Head title="Project Locations" />
 
       <div className="p-4 space-y-4">
-        <div className="flex justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Project Locations</h1>
+          <DomainNav items={projectNavItems} />
 
           <CustomModelForm
             addButton={ProjectLocationModelFormConfig.addButton}

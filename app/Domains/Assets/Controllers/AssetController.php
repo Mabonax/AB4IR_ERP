@@ -7,6 +7,7 @@ use App\Domains\Assets\Requests\StoreAssetRequest;
 use App\Domains\Assets\Requests\UpdateAssetRequest;
 use App\Domains\Assets\Resources\AssetResource;
 use App\Domains\Assets\Services\AssetService;
+use App\Domains\Assets\Models\Asset;
 use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
@@ -34,6 +35,19 @@ class AssetController extends Controller
             'assets' => AssetResource::collection($assets),
             'categories' => $categories,
             'staffMembers' => $staffMembers,
+        ]);
+    }
+
+    public function dashboard()
+    {
+        return Inertia::render('Assets/Dashboard', [
+            'stats' => [
+                'totalAssets' => Asset::count(),
+                'assignedAssets' => Asset::where('status', 'assigned')->count(),
+                'unassignedAssets' => Asset::where('status', 'unassigned')->count(),
+                'maintenanceAssets' => Asset::where('status', 'maintenance')->count(),
+                'retiredAssets' => Asset::where('status', 'retired')->count(),
+            ],
         ]);
     }
 

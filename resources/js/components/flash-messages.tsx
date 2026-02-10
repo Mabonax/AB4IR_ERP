@@ -74,7 +74,7 @@ export default function FlashMessages() {
           className={`w-full p-3 rounded-lg shadow-md flex items-start gap-3 border break-words
             ${m.type === 'success' ? 'bg-green-600 text-white border-green-700' : ''}
             ${m.type === 'error' ? 'bg-red-600 text-white border-red-700' : ''}
-            ${m.type === 'info' ? 'bg-blue-600 text-white border-blue-700' : ''}
+            ${m.type === 'info' ? 'bg-red-600 text-white border-red-700' : ''}
             ${m.type === 'warning' ? 'bg-yellow-500 text-black border-yellow-600' : ''}
           `}
         >

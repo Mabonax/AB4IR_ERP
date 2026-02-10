@@ -20,12 +20,11 @@ export default function Register() {
             <Form
                 {...store.form()}
                 resetOnSuccess={['password', 'password_confirmation']}
-                disableWhileProcessing
                 className="flex flex-col gap-6"
             >
                 {({ processing, errors }) => (
                     <>
-                        <div className="grid gap-6">
+                        <fieldset disabled={processing} className="grid gap-6">
                             <div className="grid gap-2">
                                 <Label htmlFor="name">Name</Label>
                                 <Input
@@ -99,7 +98,7 @@ export default function Register() {
                                 {processing && <Spinner />}
                                 Create account
                             </Button>
-                        </div>
+                        </fieldset>
 
                         <div className="text-center text-sm text-muted-foreground">
                             Already have an account?{' '}

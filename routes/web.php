@@ -17,35 +17,47 @@ use Laravel\Fortify\Features;
 
 Route::redirect('/', 'dashboard')->name('home');
 
-// Beneficiaries Routes
-Route::resource('beneficiaries', BeneficiaryController::class);
-
-// Stakeholders Routes
-Route::resource('stakeholders', StakeholderController::class);
-
-// Facilitators Routes
-Route::resource('facilitators', FacilitatorController::class);
-
-// Programs Routes
-Route::resource('programs', ProgramController::class);
-
-// Assets Routes
-Route::resource('assets', AssetController::class);
-Route::resource('asset-categories', AssetCategoryController::class);
-
-// Projects Routes
-Route::resource('projects', ProjectController::class);
-Route::resource('project-locations', ProjectLocationController::class);
-Route::resource('project-enrollments', ProjectEnrollmentController::class);
-
-// Staff Routes
-Route::resource('staff', StaffController::class);
-Route::resource('staff-departments', StaffDepartmentController::class);
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+    // Beneficiaries Routes
+    Route::resource('beneficiaries', BeneficiaryController::class);
+
+    // Stakeholders Routes
+    Route::resource('stakeholders', StakeholderController::class);
+
+    // Facilitators Routes
+    Route::resource('facilitators', FacilitatorController::class);
+
+    // Programs Routes
+    Route::resource('programs', ProgramController::class);
+
+    // Assets Routes
+    Route::get('assets', [AssetController::class, 'dashboard'])->name('assets.dashboard');
+    Route::get('assets/list', [AssetController::class, 'index'])->name('assets.list');
+    Route::resource('assets', AssetController::class)
+        ->except(['index'])
+        ->whereNumber('asset');
+    Route::resource('asset-categories', AssetCategoryController::class);
+
+    // Projects Routes
+    Route::get('projects', [ProjectController::class, 'dashboard'])->name('projects.dashboard');
+    Route::get('projects/list', [ProjectController::class, 'index'])->name('projects.list');
+    Route::resource('projects', ProjectController::class)
+        ->except(['index'])
+        ->whereNumber('project');
+    Route::resource('project-locations', ProjectLocationController::class);
+    Route::resource('project-enrollments', ProjectEnrollmentController::class);
+
+    // Staff Routes
+    Route::get('staff', [StaffController::class, 'dashboard'])->name('staff.dashboard');
+    Route::get('staff/list', [StaffController::class, 'index'])->name('staff.list');
+    Route::resource('staff', StaffController::class)
+        ->except(['index'])
+        ->whereNumber('staff');
+    Route::resource('staff-departments', StaffDepartmentController::class);
 });
 
 require __DIR__.'/settings.php';
