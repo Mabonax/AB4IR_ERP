@@ -16,7 +16,7 @@ class UpdateProjectLocationRequest extends FormRequest
         return [
             'project_id' => 'required|exists:projects,id',
             'facilitator_id' => 'required|exists:facilitators,id',
-            'location' => 'required|string|max:255',
+            'province_id' => 'required|exists:provinces,id',
         ];
     }
 }

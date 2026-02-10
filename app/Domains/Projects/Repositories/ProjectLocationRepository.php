@@ -9,14 +9,14 @@ class ProjectLocationRepository implements ProjectLocationRepositoryInterface
 {
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return ProjectLocation::with(['project', 'facilitator'])
+        return ProjectLocation::with(['project', 'facilitator', 'province', 'enrollments.beneficiary'])
             ->latest()
             ->paginate($perPage);
     }
 
     public function find(int $id): ?ProjectLocation
     {
-        return ProjectLocation::with(['project', 'facilitator'])->find($id);
+        return ProjectLocation::with(['project', 'facilitator', 'province', 'enrollments.beneficiary'])->find($id);
     }
 
     public function create(array $data): ProjectLocation

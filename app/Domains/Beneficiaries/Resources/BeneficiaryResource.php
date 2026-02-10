@@ -26,6 +26,16 @@ class BeneficiaryResource extends JsonResource
             // Demographics
             'gender'    => $this->gender,
 
+            // Project
+            'project_id' => $this->project_id,
+            'project_name' => $this->project?->name,
+            'project_location_id' => $this->projectEnrollments
+                ? $this->projectEnrollments->firstWhere('project_id', $this->project_id)?->project_location_id
+                : null,
+            'project_location' => $this->projectEnrollments
+                ? $this->projectEnrollments->firstWhere('project_id', $this->project_id)?->location?->province?->name
+                : null,
+
             // Address
             'street_address' => $this->street_address,
             'address_line_2' => $this->address_line_2,

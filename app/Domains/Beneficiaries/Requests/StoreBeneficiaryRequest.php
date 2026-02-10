@@ -27,6 +27,8 @@ class StoreBeneficiaryRequest extends FormRequest
             'phone'     => 'nullable|string|max:20',
 
             'gender'    => 'required|in:male,female',
+            'project_id' => 'required|exists:projects,id',
+            'project_location_id' => 'required|exists:project_locations,id',
 
             'street_address' => 'nullable|string|max:255',
             'address_line_2' => 'nullable|string|max:255',

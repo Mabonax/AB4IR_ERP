@@ -25,6 +25,27 @@ export const ProjectModelFormConfig = {
       required: true,
     },
     {
+      id: "project-start-date",
+      name: "start_date",
+      label: "Start Date",
+      type: "date",
+      required: true,
+    },
+    {
+      id: "project-status",
+      name: "status",
+      label: "Status",
+      type: "select",
+      required: true,
+      options: [
+        { label: "Planned", value: "planned" },
+        { label: "Active", value: "active" },
+        { label: "Completed", value: "completed" },
+        { label: "On Hold", value: "on_hold" },
+        { label: "Cancelled", value: "cancelled" },
+      ],
+    },
+    {
       id: "project-program",
       name: "program_id",
       label: "Program",

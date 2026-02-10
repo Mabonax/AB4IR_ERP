@@ -26,6 +26,16 @@ export const ProjectEnrollmentModelFormConfig = {
       required: true,
     },
     {
+      id: "project-enrollment-location",
+      name: "project_location_id",
+      label: "Project Location",
+      type: "select",
+      optionsSource: "locations",
+      optionLabel: "name",
+      optionValue: "id",
+      required: true,
+    },
+    {
       id: "project-enrollment-beneficiary",
       name: "beneficiary_id",
       label: "Beneficiary",

@@ -3,21 +3,26 @@ import { Head } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
-import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 
-import { ProjectEnrollmentModelFormConfig } from "@/config/forms/project-enrollment-model-form";
 import { ProjectEnrollmentTableConfig } from "@/config/tables/project-enrollment-table";
 
-import projectEnrollments from "@/routes/project-enrollments";
 import { type BreadcrumbItem } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 /* =========================================================
 | BREADCRUMBS
 ========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: "Project Enrollments", href: projectEnrollments.index() },
+  { title: "Project Enrollments", href: "/project-enrollments" },
 ];
 
 /* =========================================================
@@ -25,39 +30,26 @@ const breadcrumbs: BreadcrumbItem[] = [
 ========================================================= */
 
 export default function ProjectEnrollmentIndex({
-  enrollments,
   projects,
-  beneficiaries,
 }: {
-  enrollments: { data: any[] };
-  projects: { id: number; name: string }[];
-  beneficiaries: { id: number; name: string }[];
+  projects: {
+    id: number;
+    name: string;
+    start_date: string | null;
+    status: string | null;
+    locations_count: number;
+    beneficiary_count: number;
+    locations: Array<{
+      id: number;
+      location: string | null;
+      facilitator_name: string | null;
+      beneficiary_count: number;
+      beneficiaries: Array<{ id: number; name: string | null }>;
+    }>;
+  }[];
 }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"create" | "edit" | "view">("create");
-  const [selectedEnrollment, setSelectedEnrollment] = useState<any | null>(null);
-
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [enrollmentToDelete, setEnrollmentToDelete] = useState<any | null>(null);
-
-  const mappedEnrollmentData = selectedEnrollment
-    ? {
-        project_id:
-          selectedEnrollment.project_id !== null &&
-          selectedEnrollment.project_id !== undefined
-            ? String(selectedEnrollment.project_id)
-            : "",
-        beneficiary_id:
-          selectedEnrollment.beneficiary_id !== null &&
-          selectedEnrollment.beneficiary_id !== undefined
-            ? String(selectedEnrollment.beneficiary_id)
-            : "",
-        status: selectedEnrollment.status ?? "enrolled",
-        enrolled_at: selectedEnrollment.enrolled_at
-          ? String(selectedEnrollment.enrolled_at).slice(0, 10)
-          : "",
-      }
-    : {};
+  const [selectedProject, setSelectedProject] = useState<any | null>(null);
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -66,71 +58,71 @@ export default function ProjectEnrollmentIndex({
       <div className="p-4 space-y-4">
         <div className="flex justify-between">
           <h1 className="text-xl font-semibold">Project Enrollments</h1>
-
-          <CustomModelForm
-            addButton={ProjectEnrollmentModelFormConfig.addButton}
-            title="Enroll Beneficiary"
-            description={ProjectEnrollmentModelFormConfig.description}
-            fields={ProjectEnrollmentModelFormConfig.fields}
-            submitRoute={projectEnrollments.store}
-            options={{ projects, beneficiaries }}
-          />
         </div>
 
         <CustomTable
           columns={ProjectEnrollmentTableConfig.columns}
-          data={enrollments.data}
+          data={projects}
           actions={[
             {
               icon: "Eye",
               onClick: (row) => {
-                setSelectedEnrollment(row);
-                setMode("view");
+                setSelectedProject(row);
                 setOpen(true);
-              },
-            },
-            {
-              icon: "PencilIcon",
-              onClick: (row) => {
-                setSelectedEnrollment(row);
-                setMode("edit");
-                setOpen(true);
-              },
-            },
-            {
-              icon: "Trash2",
-              variant: "danger",
-              onClick: (row) => {
-                setEnrollmentToDelete(row);
-                setDeleteOpen(true);
               },
             },
           ]}
         />
 
-        {selectedEnrollment && (
-          <CustomModelForm
-            hideTrigger
-            open={open}
-            onOpenChange={setOpen}
-            title={mode === "view" ? "Enrollment Details" : "Edit Enrollment"}
-            fields={ProjectEnrollmentModelFormConfig.fields}
-            mode={mode}
-            initialData={mappedEnrollmentData}
-            submitRoute={projectEnrollments.update}
-            routeParams={selectedEnrollment.id}
-            options={{ projects, beneficiaries }}
-          />
-        )}
+        {selectedProject && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Project Details</DialogTitle>
+                <DialogDescription>
+                  {selectedProject.name ?? "-"}
+                </DialogDescription>
+              </DialogHeader>
 
-        {enrollmentToDelete && (
-          <ConfirmDeleteModal
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            title="Delete Enrollment"
-            submitRoute={projectEnrollments.destroy}
-            routeParams={enrollmentToDelete.id}
-          />
+              <div className="rounded-lg border bg-white p-4 text-sm">
+                <div className="font-semibold">Project Summary</div>
+                <div className="mt-2 space-y-1 text-gray-700">
+                  <div>Project: {selectedProject.name ?? "-"}</div>
+                  <div>Start Date: {selectedProject.start_date ?? "-"}</div>
+                  <div>Locations: {selectedProject.locations_count ?? 0}</div>
+                  <div>Beneficiaries: {selectedProject.beneficiary_count ?? 0}</div>
+                </div>
+
+                <div className="mt-4 font-semibold">Locations</div>
+                <div className="mt-2 space-y-3">
+                  {(selectedProject.locations ?? []).map((loc: any) => (
+                    <div key={loc.id} className="rounded-md border p-3">
+                      <div className="font-medium">{loc.location ?? "-"}</div>
+                      <div className="text-xs text-gray-600">
+                        Facilitator: {loc.facilitator_name ?? "-"}
+                      </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        Beneficiaries: {loc.beneficiary_count ?? 0}
+                      </div>
+                      {loc.beneficiaries?.length > 0 && (
+                        <ul className="mt-2 list-disc pl-5 text-xs text-gray-700">
+                          {loc.beneficiaries.map((b: any) => (
+                            <li key={b.id}>{b.name}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
     </AppLayout>

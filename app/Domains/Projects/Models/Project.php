@@ -19,7 +19,13 @@ class Project extends Model
         'sponsor_stakeholder_id',
         'project_manager_id',
         'name',
+        'start_date',
+        'status',
         'description',
+    ];
+
+    protected $casts = [
+        'start_date' => 'date:Y-m-d',
     ];
 
     public function program()
@@ -35,5 +41,15 @@ class Project extends Model
     public function projectManager()
     {
         return $this->belongsTo(StaffMember::class, 'project_manager_id');
+    }
+
+    public function locations()
+    {
+        return $this->hasMany(ProjectLocation::class);
+    }
+
+    public function enrollments()
+    {
+        return $this->hasMany(ProjectEnrollment::class);
     }
 }

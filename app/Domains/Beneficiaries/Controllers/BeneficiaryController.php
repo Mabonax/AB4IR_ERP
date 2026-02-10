@@ -8,9 +8,11 @@ use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
 
 use App\Models\Provinces;
+use App\Domains\Projects\Models\ProjectLocation;
 
 
 use App\Domains\Beneficiaries\Resources\BeneficiaryResource;
+use App\Domains\Projects\Models\Project;
 use Inertia\Inertia;
 
 class BeneficiaryController extends Controller
@@ -26,6 +28,19 @@ class BeneficiaryController extends Controller
                 $this->service->paginateBeneficiaries()
             ),
             'provinces' => Provinces::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->orderBy('name')->get(),
+            'projectLocations' => ProjectLocation::with(['project:id,name', 'province:id,name'])
+                ->select('id', 'project_id', 'province_id')
+                ->orderBy('province_id')
+                ->get()
+                ->map(fn ($location) => [
+                    'id' => $location->id,
+                    'project_id' => $location->project_id,
+                    'name' => ($location->project?->name
+                            ? $location->project->name.' - '
+                            : '')
+                        .$location->province?->name,
+                ]),
         ]);
     }
 

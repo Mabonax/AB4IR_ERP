@@ -5,6 +5,8 @@ namespace App\Domains\Beneficiaries\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\NextOfKin;
+use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Models\ProjectEnrollment;
 
 class Beneficiary extends Model
 {
@@ -21,6 +23,7 @@ protected $fillable = [
     'email',
     'phone',
     'gender',
+    'project_id',
     'street_address',
     'address_line_2',
     'city',
@@ -39,6 +42,16 @@ protected $fillable = [
     public function nextOfKin()
     {
         return $this->belongsTo(NextOfKin::class, 'next_of_kin_id');
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function projectEnrollments()
+    {
+        return $this->hasMany(ProjectEnrollment::class);
     }
 
 }

@@ -18,6 +18,8 @@ class StoreProjectRequest extends FormRequest
             'sponsor_stakeholder_id' => 'nullable|exists:stakeholders,id',
             'project_manager_id' => 'required|exists:staff_members,id',
             'name' => 'required|string|max:255',
+            'start_date' => 'required|date',
+            'status' => 'required|in:planned,active,completed,on_hold,cancelled',
             'description' => 'nullable|string|max:1000',
         ];
     }

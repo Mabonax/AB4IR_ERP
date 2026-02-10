@@ -10,17 +10,17 @@ class BeneficiaryRepository implements BeneficiaryRepositoryInterface
 {
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return Beneficiary::with('nextOfKin')->latest()->paginate($perPage);
+        return Beneficiary::with(['nextOfKin', 'project', 'projectEnrollments.location'])->latest()->paginate($perPage);
     }
 
     public function all(): Collection
     {
-        return Beneficiary::with('nextOfKin')->latest()->get();
+        return Beneficiary::with(['nextOfKin', 'project', 'projectEnrollments.location'])->latest()->get();
     }
 
     public function find(int $id): ?Beneficiary
     {
-        return Beneficiary::with('nextOfKin')->find($id);
+        return Beneficiary::with(['nextOfKin', 'project', 'projectEnrollments.location'])->find($id);
     }
 
     public function create(array $data): Beneficiary

@@ -28,10 +28,12 @@ export default function ProjectLocationIndex({
   locations,
   projects,
   facilitators,
+  provinces,
 }: {
   locations: { data: any[] };
   projects: { id: number; name: string }[];
   facilitators: { id: number; name: string }[];
+  provinces: { id: number; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit" | "view">("create");
@@ -52,7 +54,11 @@ export default function ProjectLocationIndex({
           selectedLocation.facilitator_id !== undefined
             ? String(selectedLocation.facilitator_id)
             : "",
-        location: selectedLocation.location ?? "",
+        province_id:
+          selectedLocation.province_id !== null &&
+          selectedLocation.province_id !== undefined
+            ? String(selectedLocation.province_id)
+            : "",
       }
     : {};
 
@@ -70,7 +76,7 @@ export default function ProjectLocationIndex({
             description={ProjectLocationModelFormConfig.description}
             fields={ProjectLocationModelFormConfig.fields}
             submitRoute={projectLocations.store}
-            options={{ projects, facilitators }}
+            options={{ projects, facilitators, provinces }}
           />
         </div>
 
@@ -116,8 +122,26 @@ export default function ProjectLocationIndex({
             initialData={mappedLocationData}
             submitRoute={projectLocations.update}
             routeParams={selectedLocation.id}
-            options={{ projects, facilitators }}
-          />
+            options={{ projects, facilitators, provinces }}
+          >
+            {mode === "view" && (
+              <div className="rounded-lg border bg-white p-4 text-sm">
+                <div className="font-semibold">Beneficiaries</div>
+                <div className="mt-1 text-xs text-gray-600">
+                  Total: {selectedLocation.beneficiary_count ?? 0}
+                </div>
+                {selectedLocation.beneficiaries?.length > 0 ? (
+                  <ul className="mt-2 list-disc pl-5 text-xs text-gray-700">
+                    {selectedLocation.beneficiaries.map((b: any) => (
+                      <li key={b.id}>{b.name}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="mt-2 text-xs text-gray-500">No beneficiaries</div>
+                )}
+              </div>
+            )}
+          </CustomModelForm>
         )}
 
         {locationToDelete && (

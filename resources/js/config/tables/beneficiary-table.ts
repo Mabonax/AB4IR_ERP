@@ -5,6 +5,7 @@ export const BeneficiaryTableConfig = {
         { label: 'Name', key: 'name', className: 'px-4 py-2 text-left' },
         { label: 'Surname', key: 'surname', className: 'px-4 py-2 text-left' },
         { label: 'Email', key: 'email', className: 'px-4 py-2 text-left' },
+        { label: 'Project', key: 'project_name', className: 'px-4 py-2 text-left' },
         { label: 'Actions', key: 'actions', isAction: true, className: 'px-4 py-2 text-left' },
     ],
 

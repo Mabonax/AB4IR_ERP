@@ -14,6 +14,7 @@ class ProjectEnrollment extends Model
 
     protected $fillable = [
         'project_id',
+        'project_location_id',
         'beneficiary_id',
         'status',
         'enrolled_at',
@@ -31,5 +32,10 @@ class ProjectEnrollment extends Model
     public function beneficiary()
     {
         return $this->belongsTo(Beneficiary::class);
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(ProjectLocation::class, 'project_location_id');
     }
 }

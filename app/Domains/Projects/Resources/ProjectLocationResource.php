@@ -16,7 +16,17 @@ class ProjectLocationResource extends JsonResource
             'facilitator_name' => $this->facilitator
                 ? trim($this->facilitator->name.' '.$this->facilitator->surname)
                 : null,
-            'location' => $this->location,
+            'province_id' => $this->province_id,
+            'location' => $this->province?->name,
+            'beneficiary_count' => $this->enrollments?->count() ?? 0,
+            'beneficiaries' => $this->enrollments?->map(function ($enrollment) {
+                return [
+                    'id' => $enrollment->beneficiary_id,
+                    'name' => $enrollment->beneficiary
+                        ? trim($enrollment->beneficiary->name.' '.$enrollment->beneficiary->surname)
+                        : null,
+                ];
+            })->filter(fn ($beneficiary) => $beneficiary['name'] !== null)->values() ?? [],
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

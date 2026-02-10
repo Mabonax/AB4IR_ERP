@@ -27,9 +27,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function BeneficiaryIndex({
   beneficiary,
   provinces,
+  projects,
+  projectLocations,
 }: {
   beneficiary: { data: any[] };
   provinces: { id: number; name: string }[];
+  projects: { id: number; name: string }[];
+  projectLocations: { id: number; project_id: number; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit" | "view">("create");
@@ -51,6 +55,16 @@ const mappedBeneficiaryData = selectedBeneficiary
       email: selectedBeneficiary.email ?? "",
       phone: selectedBeneficiary.phone ?? "",
       gender: selectedBeneficiary.gender ?? "",
+      project_id:
+        selectedBeneficiary.project_id !== null &&
+        selectedBeneficiary.project_id !== undefined
+          ? String(selectedBeneficiary.project_id)
+          : "",
+      project_location_id:
+        selectedBeneficiary.project_location_id !== null &&
+        selectedBeneficiary.project_location_id !== undefined
+          ? String(selectedBeneficiary.project_location_id)
+          : "",
       street_address: selectedBeneficiary.street_address ?? "",
       address_line_2: selectedBeneficiary.address_line_2 ?? "",
       city: selectedBeneficiary.city ?? "",
@@ -85,7 +99,7 @@ const mappedBeneficiaryData = selectedBeneficiary
             description={BeneficiaryModelFormConfig.description}
             fields={BeneficiaryModelFormConfig.fields}
             submitRoute={beneficiaries.store}
-            options={{ provinces }}
+            options={{ provinces, projects, projectLocations }}
           />
         </div>
 
@@ -131,7 +145,7 @@ const mappedBeneficiaryData = selectedBeneficiary
             initialData={mappedBeneficiaryData}
             submitRoute={beneficiaries.update}
             routeParams={selectedBeneficiary.id}
-            options={{ provinces }}
+            options={{ provinces, projects, projectLocations }}
           />
         )}
 

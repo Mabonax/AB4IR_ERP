@@ -5,6 +5,7 @@ namespace App\Domains\Beneficiaries\Services;
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Models\NextOfKin;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
+use App\Domains\Projects\Models\ProjectEnrollment;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
@@ -56,7 +57,7 @@ class BeneficiaryService
             ]);
 
             // 2️⃣ Create Beneficiary
-            return $this->repository->create([
+            $beneficiary = $this->repository->create([
                 'name'                   => $data['name'],
                 'surname'                => $data['surname'],
                 'dob'                    => $data['dob'],
@@ -65,6 +66,7 @@ class BeneficiaryService
                 'email'                  => $data['email'],
                 'phone'                  => $data['phone'] ?? null,
                 'gender'                 => $data['gender'],
+                'project_id'             => $data['project_id'],
                 'street_address'         => $data['street_address'] ?? null,
                 'address_line_2'         => $data['address_line_2'] ?? null,
                 'city'                   => $data['city'] ?? null,
@@ -76,6 +78,20 @@ class BeneficiaryService
                 'next_of_kin_id'         => $nextOfKin->id,
                 'created_by'             => auth()->id(),
             ]);
+
+            ProjectEnrollment::updateOrCreate(
+                [
+                    'project_id' => $data['project_id'],
+                    'beneficiary_id' => $beneficiary->id,
+                ],
+                [
+                    'project_location_id' => $data['project_location_id'],
+                    'status' => 'enrolled',
+                    'enrolled_at' => now(),
+                ]
+            );
+
+            return $beneficiary;
         });
     }
 
@@ -99,7 +115,7 @@ class BeneficiaryService
             }
 
             // 2️⃣ Update Beneficiary
-            return $this->repository->update($beneficiary, [
+            $updated = $this->repository->update($beneficiary, [
                 'name'                   => $data['name'],
                 'surname'                => $data['surname'],
                 'dob'                    => $data['dob'],
@@ -108,6 +124,7 @@ class BeneficiaryService
                 'email'                  => $data['email'],
                 'phone'                  => $data['phone'] ?? null,
                 'gender'                 => $data['gender'],
+                'project_id'             => $data['project_id'],
                 'street_address'         => $data['street_address'] ?? null,
                 'address_line_2'         => $data['address_line_2'] ?? null,
                 'city'                   => $data['city'] ?? null,
@@ -118,6 +135,20 @@ class BeneficiaryService
                 'highest_qualification'  => $data['highest_qualification'] ?? null,
                 'updated_by'             => auth()->id(),
             ]);
+
+            ProjectEnrollment::updateOrCreate(
+                [
+                    'project_id' => $data['project_id'],
+                    'beneficiary_id' => $beneficiary->id,
+                ],
+                [
+                    'project_location_id' => $data['project_location_id'],
+                    'status' => 'enrolled',
+                    'enrolled_at' => now(),
+                ]
+            );
+
+            return $updated;
         });
     }
 

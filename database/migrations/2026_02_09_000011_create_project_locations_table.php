@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('project_id')->constrained('projects')->cascadeOnDelete();
             $table->foreignId('facilitator_id')->constrained('facilitators')->restrictOnDelete();
-            $table->string('location');
+            $table->foreignId('province_id')->constrained('provinces')->restrictOnDelete();
             $table->timestamps();
         });
     }

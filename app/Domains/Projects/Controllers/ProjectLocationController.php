@@ -9,6 +9,7 @@ use App\Domains\Projects\Requests\UpdateProjectLocationRequest;
 use App\Domains\Projects\Resources\ProjectLocationResource;
 use App\Domains\Projects\Services\ProjectLocationService;
 use App\Http\Controllers\Controller;
+use App\Models\Provinces;
 use Inertia\Inertia;
 
 class ProjectLocationController extends Controller
@@ -28,11 +29,13 @@ class ProjectLocationController extends Controller
                 'id' => $facilitator->id,
                 'name' => trim($facilitator->name.' '.$facilitator->surname),
             ]);
+        $provinces = Provinces::select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('ProjectLocations/Index', [
             'locations' => ProjectLocationResource::collection($locations),
             'projects' => $projects,
             'facilitators' => $facilitators,
+            'provinces' => $provinces,
         ]);
     }
 

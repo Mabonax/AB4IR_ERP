@@ -94,6 +94,30 @@ export const BeneficiaryModelFormConfig = {
         },
 
         // =========================
+        // PROJECT
+        // =========================
+        {
+            id: "beneficiary-project",
+            name: "project_id",
+            label: "Project",
+            type: "select",
+            required: true,
+            optionsSource: "projects",
+            optionLabel: "name",
+            optionValue: "id",
+        },
+        {
+            id: "beneficiary-project-location",
+            name: "project_location_id",
+            label: "Project Location",
+            type: "select",
+            required: true,
+            optionsSource: "projectLocations",
+            optionLabel: "name",
+            optionValue: "id",
+        },
+
+        // =========================
         // ADDRESS
         // =========================
         {

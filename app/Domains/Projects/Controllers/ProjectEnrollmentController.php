@@ -2,7 +2,6 @@
 
 namespace App\Domains\Projects\Controllers;
 
-use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Requests\StoreProjectEnrollmentRequest;
 use App\Domains\Projects\Requests\UpdateProjectEnrollmentRequest;
@@ -19,20 +18,50 @@ class ProjectEnrollmentController extends Controller
 
     public function index()
     {
-        $enrollments = $this->service->paginateEnrollments();
-        $projects = Project::select('id', 'name')->orderBy('name')->get();
-        $beneficiaries = Beneficiary::select('id', 'name', 'surname')
+        $projects = Project::with([
+                'locations.enrollments.beneficiary',
+                'locations.facilitator',
+                'locations.province',
+            ])
             ->orderBy('name')
             ->get()
-            ->map(fn ($beneficiary) => [
-                'id' => $beneficiary->id,
-                'name' => trim($beneficiary->name.' '.$beneficiary->surname),
-            ]);
+            ->map(function ($project) {
+                $locations = $project->locations->map(function ($location) {
+                    $beneficiaries = $location->enrollments->map(function ($enrollment) {
+                        return [
+                            'id' => $enrollment->beneficiary_id,
+                            'name' => $enrollment->beneficiary
+                                ? trim($enrollment->beneficiary->name.' '.$enrollment->beneficiary->surname)
+                                : null,
+                        ];
+                    })->filter(fn ($beneficiary) => $beneficiary['name'] !== null)->values();
+
+                    return [
+                        'id' => $location->id,
+                        'location' => $location->province?->name,
+                        'facilitator_name' => $location->facilitator
+                            ? trim($location->facilitator->name.' '.$location->facilitator->surname)
+                            : null,
+                        'beneficiary_count' => $beneficiaries->count(),
+                        'beneficiaries' => $beneficiaries,
+                    ];
+                });
+
+                $totalBeneficiaries = $locations->sum('beneficiary_count');
+
+                return [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'start_date' => $project->start_date?->format('Y-m-d'),
+                    'status' => $project->status,
+                    'locations' => $locations,
+                    'locations_count' => $locations->count(),
+                    'beneficiary_count' => $totalBeneficiaries,
+                ];
+            });
 
         return Inertia::render('ProjectEnrollments/Index', [
-            'enrollments' => ProjectEnrollmentResource::collection($enrollments),
             'projects' => $projects,
-            'beneficiaries' => $beneficiaries,
         ]);
     }
 

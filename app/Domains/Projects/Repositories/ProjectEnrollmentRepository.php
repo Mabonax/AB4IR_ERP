@@ -9,14 +9,28 @@ class ProjectEnrollmentRepository implements ProjectEnrollmentRepositoryInterfac
 {
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return ProjectEnrollment::with(['project', 'beneficiary'])
+        return ProjectEnrollment::with([
+                'project.locations.enrollments.beneficiary',
+                'project.locations.facilitator',
+                'project.locations.province',
+                'beneficiary',
+                'location.facilitator',
+                'location.province',
+            ])
             ->latest()
             ->paginate($perPage);
     }
 
     public function find(int $id): ?ProjectEnrollment
     {
-        return ProjectEnrollment::with(['project', 'beneficiary'])->find($id);
+        return ProjectEnrollment::with([
+            'project.locations.enrollments.beneficiary',
+            'project.locations.facilitator',
+            'project.locations.province',
+            'beneficiary',
+            'location.facilitator',
+            'location.province',
+        ])->find($id);
     }
 
     public function create(array $data): ProjectEnrollment

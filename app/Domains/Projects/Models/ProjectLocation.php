@@ -3,6 +3,7 @@
 namespace App\Domains\Projects\Models;
 
 use App\Domains\Facilitators\Models\Facilitator;
+use App\Models\Provinces;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,7 +16,7 @@ class ProjectLocation extends Model
     protected $fillable = [
         'project_id',
         'facilitator_id',
-        'location',
+        'province_id',
     ];
 
     public function project()
@@ -26,5 +27,15 @@ class ProjectLocation extends Model
     public function facilitator()
     {
         return $this->belongsTo(Facilitator::class);
+    }
+
+    public function province()
+    {
+        return $this->belongsTo(Provinces::class, 'province_id');
+    }
+
+    public function enrollments()
+    {
+        return $this->hasMany(ProjectEnrollment::class);
     }
 }

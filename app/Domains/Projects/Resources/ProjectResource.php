@@ -21,6 +21,8 @@ class ProjectResource extends JsonResource
                 ? trim($this->projectManager->first_name.' '.$this->projectManager->last_name)
                 : null,
             'name' => $this->name,
+            'start_date' => $this->start_date?->format('Y-m-d'),
+            'status' => $this->status,
             'description' => $this->description,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),

@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('project_enrollments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')->constrained('projects')->cascadeOnDelete();
+            $table->foreignId('project_location_id')->constrained('project_locations')->restrictOnDelete();
             $table->foreignId('beneficiary_id')->constrained('beneficiaries')->cascadeOnDelete();
             $table->enum('status', ['enrolled', 'completed', 'dropped'])->default('enrolled');
             $table->timestamp('enrolled_at')->nullable();

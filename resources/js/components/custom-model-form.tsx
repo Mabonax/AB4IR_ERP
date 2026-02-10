@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "@inertiajs/react";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ type CustomModalFormProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
+  children?: ReactNode;
 };
 
 const buildNestedPayload = (flat: Record<string, any>) => {
@@ -99,6 +100,7 @@ export const CustomModelForm = ({
   open,
   onOpenChange,
   hideTrigger = false,
+  children,
 }: CustomModalFormProps) => {
   /* ------------------------------
    | Dialog control
@@ -243,14 +245,14 @@ useEffect(() => {
                   >
                     <option value="">Select option</option>
 
-                    {/* ðŸ”¹ STATIC OPTIONS (gender, enums, etc.) */}
+                    {/* 🔹 STATIC OPTIONS (gender, enums, etc.) */}
                     {field.options?.map((opt: any) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
                     ))}
 
-                    {/* ðŸ”¹ DYNAMIC OPTIONS (provinces, roles, etc.) */}
+                    {/* 🔹 DYNAMIC OPTIONS (provinces, roles, etc.) */}
                     {!field.options && field.optionsSource &&
                       options?.[field.optionsSource]?.map((opt: any) => (
                         <option
@@ -272,6 +274,10 @@ useEffect(() => {
               </div>
             ))}
           </div>
+
+          {children && (
+            <div className="mt-6">{children}</div>
+          )}
 
           <DialogFooter className="mt-6">
             <DialogClose asChild>
