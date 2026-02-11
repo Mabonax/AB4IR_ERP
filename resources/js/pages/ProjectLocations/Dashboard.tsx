@@ -43,6 +43,7 @@ export default function ProjectLocationsDashboard({
     { label: "Location", key: "province", className: "px-4 py-2 text-left" },
     { label: "Facilitator", key: "facilitator_name", className: "px-4 py-2 text-left" },
     { label: "Beneficiaries", key: "beneficiaries", className: "px-4 py-2 text-left" },
+    { label: "Milestones", key: "milestones", className: "px-4 py-2 text-left" },
     {
       label: "Assessments",
       key: "assessments",

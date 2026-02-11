@@ -54,6 +54,9 @@ class ProjectLocationController extends Controller
             ->get();
 
         $locationRows = $locations->map(function ($location) {
+            $totalMilestones = ProjectMilestone::where('project_id', $location->project_id)->count();
+            $totalBeneficiaries = $location->enrollments->count();
+            $totalPossible = $totalMilestones * $totalBeneficiaries;
             $totalAssessments = $location->milestoneAssessments->count();
             $completedAssessments = $totalAssessments;
 
@@ -64,9 +67,10 @@ class ProjectLocationController extends Controller
                 'facilitator_name' => $location->facilitator
                     ? trim($location->facilitator->name.' '.$location->facilitator->surname)
                     : null,
-                'beneficiaries' => $location->enrollments->count(),
+                'beneficiaries' => $totalBeneficiaries,
+                'milestones' => $totalMilestones,
                 'completed_assessments' => $completedAssessments,
-                'total_assessments' => $totalAssessments,
+                'total_assessments' => $totalPossible,
             ];
         });
 
