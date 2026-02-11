@@ -13,7 +13,7 @@ class ProjectMilestone extends Model
 
     protected $fillable = [
         'project_id',
-        'milestone_template_id',
+        'program_milestone_template_id',
         'title',
         'description',
         'sort_order',
@@ -27,7 +27,7 @@ class ProjectMilestone extends Model
 
     public function template()
     {
-        return $this->belongsTo(MilestoneTemplate::class, 'milestone_template_id');
+        return $this->belongsTo(ProgramMilestoneTemplate::class, 'program_milestone_template_id');
     }
 
     public function assessments()

@@ -3,7 +3,7 @@
 namespace App\Domains\Projects\Controllers;
 
 use App\Domains\Programs\Models\Program;
-use App\Domains\Projects\Models\MilestoneTemplate;
+use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Models\ProjectMilestoneAssessment;
 use App\Domains\Projects\Models\Project;
@@ -16,6 +16,7 @@ use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ProjectController extends Controller
@@ -84,8 +85,6 @@ class ProjectController extends Controller
             ])
             ->findOrFail($project);
 
-        $templates = MilestoneTemplate::orderBy('sort_order')->get();
-
         $milestones = ProjectMilestone::with('assessments')
             ->where('project_id', $model->id)
             ->orderBy('sort_order')
@@ -103,24 +102,23 @@ class ProjectController extends Controller
 
             $milestoneProgress = $milestones->map(function ($milestone) use ($location) {
                 $total = $location->enrollments->count();
-                $completed = $milestone->assessments
-                    ->where('project_location_id', $location->id)
-                    ->where('status', 'completed')
-                    ->count();
+                $assessments = $milestone->assessments
+                    ->where('project_location_id', $location->id);
 
                 return [
                     'id' => $milestone->id,
                     'title' => $milestone->title,
                     'total' => $total,
-                    'completed' => $completed,
+                    'assessed' => $assessments->count(),
+                    'passed' => $assessments->where('status', 'completed')->count(),
                 ];
             });
 
             $totalBeneficiaries = $beneficiaries->count();
             $completedAll = $totalBeneficiaries > 0
-                ? $milestoneProgress->every(fn ($m) => $m['completed'] >= $totalBeneficiaries)
+                ? $milestoneProgress->every(fn ($m) => $m['assessed'] >= $totalBeneficiaries)
                     ? $totalBeneficiaries
-                    : $milestoneProgress->min('completed') ?? 0
+                    : $milestoneProgress->min('assessed') ?? 0
                 : 0;
 
             return [
@@ -138,7 +136,6 @@ class ProjectController extends Controller
 
         return Inertia::render('Projects/Show', [
             'project' => new ProjectResource($model),
-            'templates' => $templates,
             'milestones' => $milestones,
             'locations' => $locationStats,
         ]);
@@ -147,15 +144,22 @@ class ProjectController extends Controller
     public function addMilestone(Request $request, int $project)
     {
         $data = $request->validate([
-            'milestone_template_id' => 'required|exists:milestone_templates,id',
+            'milestone_template_id' => 'required|exists:program_milestone_templates,id',
         ]);
 
-        $template = MilestoneTemplate::findOrFail($data['milestone_template_id']);
+        $template = ProgramMilestoneTemplate::findOrFail($data['milestone_template_id']);
+
+        $projectModel = Project::findOrFail($project);
+        if ($template->program_id !== $projectModel->program_id) {
+            return redirect()->back()->withErrors([
+                'milestone_template_id' => 'Template does not match project program.',
+            ]);
+        }
 
         ProjectMilestone::updateOrCreate(
             [
                 'project_id' => $project,
-                'milestone_template_id' => $template->id,
+                'program_milestone_template_id' => $template->id,
             ],
             [
                 'title' => $template->title,
@@ -166,6 +170,14 @@ class ProjectController extends Controller
         );
 
         return redirect()->back()->with('success', 'Milestone added');
+    }
+
+    public function syncMilestones(int $project)
+    {
+        $projectModel = Project::findOrFail($project);
+        $this->service->syncProgramMilestones($projectModel);
+
+        return redirect()->back()->with('success', 'Program milestones synced');
     }
 
     public function update(UpdateProjectRequest $request, int $project)

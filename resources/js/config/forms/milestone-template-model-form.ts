@@ -16,6 +16,16 @@ export const MilestoneTemplateModelFormConfig = {
 
   fields: [
     {
+      id: "milestone-program",
+      name: "program_id",
+      label: "Program",
+      type: "select",
+      optionsSource: "programs",
+      optionLabel: "title",
+      optionValue: "id",
+      required: true,
+    },
+    {
       id: "milestone-title",
       name: "title",
       label: "Title",

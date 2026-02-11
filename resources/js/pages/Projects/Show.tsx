@@ -1,5 +1,4 @@
 import { Head, router } from "@inertiajs/react";
-import { useState } from "react";
 
 import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
@@ -22,22 +21,16 @@ export default function ProjectShow({
   project,
   milestones,
   locations,
-  templates,
 }: {
   project: any;
   milestones: any[];
   locations: any[];
-  templates: any[];
 }) {
-  const [templateId, setTemplateId] = useState<string>("");
-
-  const handleAddMilestone = (e: React.FormEvent) => {
+  const projectData = project?.data ?? project;
+  const handleSyncMilestones = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!templateId) return;
 
-    router.post(`/projects/${project.id}/milestones`, {
-      milestone_template_id: templateId,
-    });
+    router.post(`/projects/${projectData.id}/milestones/sync`, {});
   };
 
   return (
@@ -46,7 +39,7 @@ export default function ProjectShow({
 
       <div className="p-4 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">{project.name}</h1>
+          <h1 className="text-xl font-semibold">{projectData.name}</h1>
           <DomainNav items={projectNavItems} />
         </div>
 
@@ -57,7 +50,7 @@ export default function ProjectShow({
               <CardDescription>Current</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl font-semibold">
-              {project.status ?? "-"}
+              {projectData.status ?? "-"}
             </CardContent>
           </Card>
           <Card>
@@ -66,7 +59,7 @@ export default function ProjectShow({
               <CardDescription>Project start</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl font-semibold">
-              {project.start_date ?? "-"}
+              {projectData.start_date ?? "-"}
             </CardContent>
           </Card>
           <Card>
@@ -108,24 +101,12 @@ export default function ProjectShow({
               <CardDescription>Attached to project</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAddMilestone} className="mb-4 flex gap-2">
-                <select
-                  value={templateId}
-                  onChange={(e) => setTemplateId(e.target.value)}
-                  className="flex-1 rounded-md border px-3 py-2 text-sm"
-                >
-                  <option value="">Select milestone template</option>
-                  {templates.map((t: any) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
+              <form onSubmit={handleSyncMilestones} className="mb-4">
                 <button
                   type="submit"
                   className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
                 >
-                  Add
+                  Attach program milestones
                 </button>
               </form>
 
@@ -174,7 +155,7 @@ export default function ProjectShow({
                           <div key={m.id} className="flex justify-between">
                             <span>{m.title}</span>
                             <span>
-                              {m.completed}/{m.total}
+                              {m.assessed}/{m.total}
                             </span>
                           </div>
                         ))}

@@ -1,17 +1,9 @@
-import { useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
-import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { DomainNav } from "@/components/domain-nav";
 import { projectNavItems } from "@/config/domain-nav/projects";
 
-import { MilestoneTemplateModelFormConfig } from "@/config/forms/milestone-template-model-form";
-import { MilestoneTemplateTableConfig } from "@/config/tables/milestone-template-table";
-
-import milestoneTemplates from "@/routes/milestone-templates";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -20,26 +12,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function MilestoneTemplatesIndex({
-  templates,
+  programs,
 }: {
-  templates: { data: any[] };
+  programs: { id: number; title: string; milestone_count: number }[];
 }) {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"create" | "edit" | "view">("create");
-  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
-
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [templateToDelete, setTemplateToDelete] = useState<any | null>(null);
-
-  const mappedTemplateData = selectedTemplate
-    ? {
-        title: selectedTemplate.title ?? "",
-        description: selectedTemplate.description ?? "",
-        sort_order: selectedTemplate.sort_order ?? 0,
-        max_score: selectedTemplate.max_score ?? "",
-      }
-    : {};
-
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Milestone Templates" />
@@ -50,69 +26,28 @@ export default function MilestoneTemplatesIndex({
           <DomainNav items={projectNavItems} />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CustomModelForm
-            addButton={MilestoneTemplateModelFormConfig.addButton}
-            title="Add Milestone Template"
-            description={MilestoneTemplateModelFormConfig.description}
-            fields={MilestoneTemplateModelFormConfig.fields}
-            submitRoute={milestoneTemplates.store}
-          />
-        </div>
-
-        <CustomTable
-          columns={MilestoneTemplateTableConfig.columns}
-          data={templates.data}
-          actions={[
-            {
-              icon: "Eye",
-              onClick: (row) => {
-                setSelectedTemplate(row);
-                setMode("view");
-                setOpen(true);
-              },
-            },
-            {
-              icon: "PencilIcon",
-              onClick: (row) => {
-                setSelectedTemplate(row);
-                setMode("edit");
-                setOpen(true);
-              },
-            },
-            {
-              icon: "Trash2",
-              variant: "danger",
-              onClick: (row) => {
-                setTemplateToDelete(row);
-                setDeleteOpen(true);
-              },
-            },
-          ]}
-        />
-
-        {selectedTemplate && (
-          <CustomModelForm
-            hideTrigger
-            open={open}
-            onOpenChange={setOpen}
-            title={mode === "view" ? "Template Details" : "Edit Template"}
-            fields={MilestoneTemplateModelFormConfig.fields}
-            mode={mode}
-            initialData={mappedTemplateData}
-            submitRoute={milestoneTemplates.update}
-            routeParams={selectedTemplate.id}
-          />
-        )}
-
-        {templateToDelete && (
-          <ConfirmDeleteModal
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            title="Delete Template"
-            submitRoute={milestoneTemplates.destroy}
-            routeParams={templateToDelete.id}
-          />
+        {programs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No programs available yet.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {programs.map((program) => (
+              <Link
+                key={program.id}
+                href={`/milestone-templates/programs/${program.id}`}
+                className="rounded-lg border bg-white p-4 shadow-sm transition hover:border-red-300 hover:shadow"
+              >
+                <div className="text-sm text-muted-foreground">Program</div>
+                <div className="mt-1 text-lg font-semibold">
+                  {program.title}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Milestones: {program.milestone_count}
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
       </div>
     </AppLayout>

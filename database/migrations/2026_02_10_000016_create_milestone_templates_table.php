@@ -8,8 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('milestone_templates', function (Blueprint $table) {
+        Schema::create('program_milestone_templates', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('program_id')->constrained('programs')->cascadeOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
@@ -20,6 +21,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('milestone_templates');
+        Schema::dropIfExists('program_milestone_templates');
     }
 };

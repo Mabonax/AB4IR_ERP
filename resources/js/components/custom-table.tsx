@@ -1,4 +1,5 @@
 import { Link } from "@inertiajs/react";
+import { route } from "ziggy-js";
 import * as LucideIcons from "lucide-react";
 
 interface TableAction {

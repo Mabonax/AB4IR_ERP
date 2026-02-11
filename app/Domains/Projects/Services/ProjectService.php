@@ -3,6 +3,8 @@
 namespace App\Domains\Projects\Services;
 
 use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Models\ProgramMilestoneTemplate;
+use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Repositories\ProjectRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -33,8 +35,34 @@ class ProjectService
     public function createProject(array $data): Project
     {
         return DB::transaction(function () use ($data) {
-            return $this->repository->create($data);
+            $project = $this->repository->create($data);
+
+            $this->syncProgramMilestones($project);
+
+            return $project;
         });
+    }
+
+    public function syncProgramMilestones(Project $project): void
+    {
+        $templates = ProgramMilestoneTemplate::where('program_id', $project->program_id)
+            ->orderBy('sort_order')
+            ->get();
+
+        foreach ($templates as $template) {
+            ProjectMilestone::updateOrCreate(
+                [
+                    'project_id' => $project->id,
+                    'program_milestone_template_id' => $template->id,
+                ],
+                [
+                    'title' => $template->title,
+                    'description' => $template->description,
+                    'sort_order' => $template->sort_order,
+                    'max_score' => $template->max_score,
+                ]
+            );
+        }
     }
 
     public function updateProject(int $id, array $data): Project

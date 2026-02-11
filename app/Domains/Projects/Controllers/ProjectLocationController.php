@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Provinces;
 use Inertia\Inertia;
 use App\Domains\Projects\Models\ProjectMilestone;
+use App\Domains\Projects\Models\ProjectLocation;
 
 class ProjectLocationController extends Controller
 {
@@ -37,6 +38,51 @@ class ProjectLocationController extends Controller
             'projects' => $projects,
             'facilitators' => $facilitators,
             'provinces' => $provinces,
+        ]);
+    }
+
+    public function dashboard()
+    {
+        $locations = ProjectLocation::with([
+                'project',
+                'facilitator',
+                'province',
+                'enrollments',
+                'milestoneAssessments',
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $locationRows = $locations->map(function ($location) {
+            $totalAssessments = $location->milestoneAssessments->count();
+            $completedAssessments = $totalAssessments;
+
+            return [
+                'id' => $location->id,
+                'project_name' => $location->project?->name,
+                'province' => $location->province?->name,
+                'facilitator_name' => $location->facilitator
+                    ? trim($location->facilitator->name.' '.$location->facilitator->surname)
+                    : null,
+                'beneficiaries' => $location->enrollments->count(),
+                'completed_assessments' => $completedAssessments,
+                'total_assessments' => $totalAssessments,
+            ];
+        });
+
+        $totalLocations = $locationRows->count();
+        $totalBeneficiaries = $locationRows->sum('beneficiaries');
+        $completedAssessments = $locationRows->sum('completed_assessments');
+        $totalAssessments = $locationRows->sum('total_assessments');
+
+        return Inertia::render('ProjectLocations/Dashboard', [
+            'stats' => [
+                'total_locations' => $totalLocations,
+                'total_beneficiaries' => $totalBeneficiaries,
+                'completed_assessments' => $completedAssessments,
+                'total_assessments' => $totalAssessments,
+            ],
+            'locations' => $locationRows,
         ]);
     }
 
@@ -91,22 +137,42 @@ class ProjectLocationController extends Controller
                     'id' => $milestone->id,
                     'title' => $milestone->title,
                     'total' => $location->enrollments->count(),
-                    'completed' => $assessments->where('status', 'completed')->count(),
+                    'assessed' => $assessments->count(),
+                    'passed' => $assessments->where('status', 'completed')->count(),
                 ];
             });
 
+        $milestoneOptions = ProjectMilestone::where('project_id', $location->project_id)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn ($m) => [
+                'id' => $m->id,
+                'title' => $m->title,
+                'max_score' => $m->max_score,
+            ]);
+
         $beneficiaries = $location->enrollments->map(function ($enrollment) use ($location) {
-            $completed = $location->milestoneAssessments
+            $assessmentGroup = $location->milestoneAssessments
                 ->where('beneficiary_id', $enrollment->beneficiary_id)
-                ->where('status', 'completed')
-                ->count();
+                ->keyBy('project_milestone_id');
+
+            $assessed = $assessmentGroup->count();
+            $assessments = $assessmentGroup->map(function ($assessment) {
+                return [
+                    'status' => $assessment->status,
+                    'score' => $assessment->score,
+                    'comments' => $assessment->comments,
+                    'assessed_at' => $assessment->assessed_at?->toDateTimeString(),
+                ];
+            });
 
             return [
                 'id' => $enrollment->beneficiary_id,
                 'name' => $enrollment->beneficiary
                     ? trim($enrollment->beneficiary->name.' '.$enrollment->beneficiary->surname)
                     : null,
-                'completed_milestones' => $completed,
+                'assessed_milestones' => $assessed,
+                'assessments' => $assessments,
             ];
         })->filter(fn ($b) => $b['name'] !== null)->values();
 
@@ -120,7 +186,9 @@ class ProjectLocationController extends Controller
                     : null,
             ],
             'milestones' => $milestones,
+            'milestoneOptions' => $milestoneOptions,
             'beneficiaries' => $beneficiaries,
+            'totalMilestones' => $milestoneOptions->count(),
         ]);
     }
 }

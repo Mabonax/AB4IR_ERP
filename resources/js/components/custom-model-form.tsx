@@ -53,6 +53,8 @@ type CustomModalFormProps = {
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
   children?: ReactNode;
+  keepOpenOnSuccess?: boolean;
+  preserveOnSuccessFields?: string[];
 };
 
 const buildNestedPayload = (flat: Record<string, any>) => {
@@ -101,6 +103,8 @@ export const CustomModelForm = ({
   onOpenChange,
   hideTrigger = false,
   children,
+  keepOpenOnSuccess = false,
+  preserveOnSuccessFields = [],
 }: CustomModalFormProps) => {
   /* ------------------------------
    | Dialog control
@@ -169,8 +173,22 @@ useEffect(() => {
       data: nestedPayload,
       preserveScroll: true,
       onSuccess: () => {
-        reset();
-        setDialogOpen(false);
+        if (preserveOnSuccessFields.length > 0) {
+          const preserved: Record<string, any> = {};
+          preserveOnSuccessFields.forEach((field) => {
+            preserved[field] = data[field];
+          });
+          reset();
+          preserveOnSuccessFields.forEach((field) => {
+            setData(field, preserved[field] ?? "");
+          });
+        } else {
+          reset();
+        }
+
+        if (!keepOpenOnSuccess) {
+          setDialogOpen(false);
+        }
       },
     });
   };

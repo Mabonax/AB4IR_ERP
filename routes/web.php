@@ -12,6 +12,7 @@ use App\Domains\Projects\Controllers\ProjectController;
 use App\Domains\Projects\Controllers\ProjectLocationController;
 use App\Domains\Projects\Controllers\ProjectEnrollmentController;
 use App\Domains\Projects\Controllers\MilestoneTemplateController;
+use App\Domains\Projects\Controllers\ProjectMilestoneAssessmentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -52,11 +53,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('projects/{project}/milestones', [ProjectController::class, 'addMilestone'])
         ->whereNumber('project')
         ->name('projects.milestones.store');
+    Route::post('projects/{project}/milestones/sync', [ProjectController::class, 'syncMilestones'])
+        ->whereNumber('project')
+        ->name('projects.milestones.sync');
+    Route::get('project-locations/dashboard', [ProjectLocationController::class, 'dashboard'])
+        ->name('project-locations.dashboard');
     Route::resource('project-locations', ProjectLocationController::class);
     Route::get('project-locations/{project_location}/progress', [ProjectLocationController::class, 'progress'])
         ->whereNumber('project_location')
         ->name('project-locations.progress');
+    Route::post('project-locations/{project_location}/assessments', [ProjectMilestoneAssessmentController::class, 'store'])
+        ->whereNumber('project_location')
+        ->name('project-locations.assessments.store');
     Route::resource('project-enrollments', ProjectEnrollmentController::class);
+    Route::get('milestone-templates/programs/{program}', [MilestoneTemplateController::class, 'program'])
+        ->whereNumber('program')
+        ->name('milestone-templates.program');
     Route::resource('milestone-templates', MilestoneTemplateController::class)->except(['show', 'edit', 'create']);
 
     // Staff Routes
