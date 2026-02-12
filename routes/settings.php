@@ -10,13 +10,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::redirect('settings', '/settings/profile');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])
-        ->middleware('permission:domain.settings.view|domain.settings.manage')
+        ->middleware('permission:domain.settings.view|domain.settings.manage|project-activities.view|project-activities.manage')
         ->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])
-        ->middleware('permission:domain.settings.manage')
+        ->middleware('permission:domain.settings.manage|project-activities.view|project-activities.manage')
         ->name('profile.update');
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])
-        ->middleware('permission:domain.settings.manage')
+        ->middleware('permission:domain.settings.manage|project-activities.view|project-activities.manage')
         ->name('profile.destroy');
 
     Route::get('settings/leave', [ProfileController::class, 'leave'])
@@ -24,19 +24,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('profile.leave');
 
     Route::get('settings/password', [PasswordController::class, 'edit'])
-        ->middleware('permission:domain.settings.view|domain.settings.manage')
+        ->middleware('permission:domain.settings.view|domain.settings.manage|project-activities.view|project-activities.manage')
         ->name('user-password.edit');
     Route::put('settings/password', [PasswordController::class, 'update'])
-        ->middleware(['permission:domain.settings.manage', 'throttle:6,1'])
+        ->middleware(['permission:domain.settings.manage|project-activities.view|project-activities.manage', 'throttle:6,1'])
         ->name('user-password.update');
 
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');
     })
-        ->middleware('permission:domain.settings.view|domain.settings.manage')
+        ->middleware('permission:domain.settings.view|domain.settings.manage|project-activities.view|project-activities.manage')
         ->name('appearance.edit');
 
     Route::get('settings/two-factor', [TwoFactorAuthenticationController::class, 'show'])
-        ->middleware('permission:domain.settings.view|domain.settings.manage')
+        ->middleware('permission:domain.settings.view|domain.settings.manage|project-activities.view|project-activities.manage')
         ->name('two-factor.show');
 });

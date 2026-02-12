@@ -27,14 +27,24 @@ class ProjectLocationController extends Controller
 
     protected function currentFacilitatorOrAbort(): Facilitator
     {
-        $email = Auth::user()?->email;
-        if (! $email) {
+        $userId = Auth::id();
+        if (! $userId) {
             abort(403, 'No authenticated facilitator profile found.');
         }
 
         $facilitator = Facilitator::query()
-            ->where('email', $email)
+            ->where('user_id', $userId)
             ->first();
+
+        // Backward compatibility for older facilitator records not linked yet.
+        if (! $facilitator) {
+            $email = Auth::user()?->email;
+            if ($email) {
+                $facilitator = Facilitator::query()
+                    ->where('email', $email)
+                    ->first();
+            }
+        }
 
         if (! $facilitator) {
             abort(403, 'No facilitator profile found for this account.');

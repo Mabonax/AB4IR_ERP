@@ -3,6 +3,7 @@
 namespace App\Domains\Facilitators\Models;
 
 use App\Models\Provinces;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -13,6 +14,7 @@ class Facilitator extends Model
     protected $table = 'facilitators';
 
     protected $fillable = [
+        'user_id',
         'name',
         'surname',
         'dob',
@@ -31,5 +33,10 @@ class Facilitator extends Model
     public function province()
     {
         return $this->belongsTo(Provinces::class, 'province_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

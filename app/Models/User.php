@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\Facilitators\Models\Facilitator;
 
 class User extends Authenticatable 
 {
@@ -55,5 +56,10 @@ class User extends Authenticatable
     public function staffMember()
     {
         return $this->hasOne(StaffMember::class, 'user_id');
+    }
+
+    public function facilitator()
+    {
+        return $this->hasOne(Facilitator::class, 'user_id');
     }
 }

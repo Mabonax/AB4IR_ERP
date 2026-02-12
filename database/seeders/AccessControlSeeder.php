@@ -139,7 +139,27 @@ class AccessControlSeeder extends Seeder
             $departmentUserRole->syncPermissions(array_values(array_unique($departmentUserPermissions)));
         }
 
-        $facilitatorEmails = Facilitator::query()
+        $facilitatorUserIds = Facilitator::query()
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($facilitatorUserIds)) {
+            User::query()
+                ->whereIn('id', $facilitatorUserIds)
+                ->get()
+                ->each(function (User $user): void {
+                    if (! $user->hasRole('facilitator')) {
+                        $user->assignRole('facilitator');
+                    }
+                });
+        }
+
+        $legacyFacilitatorEmails = Facilitator::query()
+            ->whereNull('user_id')
             ->whereNotNull('email')
             ->pluck('email')
             ->map(fn ($email) => strtolower(trim((string) $email)))
@@ -157,7 +177,7 @@ class AccessControlSeeder extends Seeder
             if (! $staff) {
                 $isFacilitatorUser = in_array(
                     strtolower(trim((string) $user->email)),
-                    $facilitatorEmails,
+                    $legacyFacilitatorEmails,
                     true
                 );
 

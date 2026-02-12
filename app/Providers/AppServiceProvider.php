@@ -102,10 +102,6 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Gate::before(function ($user, string $ability) {
-            if (str_starts_with($ability, 'domain.settings.')) {
-                return true;
-            }
-
             return method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['super-admin', 'super admin'])
                 ? true
                 : null;

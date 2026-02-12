@@ -22,6 +22,20 @@ class ProjectMilestoneAssessmentController extends Controller
 
     protected function currentFacilitator(): ?Facilitator
     {
+        $userId = Auth::id();
+        if (! $userId) {
+            return null;
+        }
+
+        $facilitator = Facilitator::query()
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($facilitator) {
+            return $facilitator;
+        }
+
+        // Backward compatibility for older facilitator records not linked yet.
         $email = Auth::user()?->email;
         if (! $email) {
             return null;
