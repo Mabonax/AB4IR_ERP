@@ -32,6 +32,7 @@ type FieldConfig = {
   optionsSource?: string;
   optionLabel?: string;
   optionValue?: string;
+  options?: Array<{ label: string; value: string | number }>;
 };
 
 type CustomModalFormProps = {
@@ -106,6 +107,19 @@ export const CustomModelForm = ({
   keepOpenOnSuccess = false,
   preserveOnSuccessFields = [],
 }: CustomModalFormProps) => {
+  const getDynamicOptions = (source?: string) => {
+    if (!source) return [];
+
+    const value = options?.[source];
+    if (Array.isArray(value)) return value;
+
+    if (value && typeof value === "object" && Array.isArray((value as any).data)) {
+      return (value as any).data;
+    }
+
+    return [];
+  };
+
   /* ------------------------------
    | Dialog control
   ------------------------------ */
@@ -279,12 +293,12 @@ useEffect(() => {
 
                     {/* 🔹 DYNAMIC OPTIONS (provinces, roles, etc.) */}
                     {!field.options && field.optionsSource &&
-                      options?.[field.optionsSource]?.map((opt: any) => (
+                      getDynamicOptions(field.optionsSource).map((opt: any) => (
                         <option
-                          key={opt[field.optionValue!]}
-                          value={opt[field.optionValue!]}
+                          key={opt[field.optionValue ?? "id"]}
+                          value={opt[field.optionValue ?? "id"]}
                         >
-                          {opt[field.optionLabel!]}
+                          {opt[field.optionLabel ?? "name"]}
                         </option>
                       ))}
                   </select>

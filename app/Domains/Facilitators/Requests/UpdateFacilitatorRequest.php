@@ -34,6 +34,7 @@ class UpdateFacilitatorRequest extends FormRequest
             ],
             'cell' => 'required|string|max:20',
             'specialization' => 'required|string|max:150',
+            'province_id' => 'required|exists:provinces,id',
         ];
     }
 }

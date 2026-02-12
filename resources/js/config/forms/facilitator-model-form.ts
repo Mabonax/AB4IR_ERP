@@ -79,5 +79,15 @@ export const FacilitatorModelFormConfig = {
       placeholder: "Enter specialization",
       required: true,
     },
+    {
+      id: "facilitator-province",
+      name: "province_id",
+      label: "Province",
+      type: "select",
+      optionsSource: "provinces",
+      optionLabel: "name",
+      optionValue: "id",
+      required: true,
+    },
   ],
 };

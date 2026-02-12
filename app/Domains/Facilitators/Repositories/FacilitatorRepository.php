@@ -10,17 +10,17 @@ class FacilitatorRepository implements FacilitatorRepositoryInterface
 {
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return Facilitator::latest()->paginate($perPage);
+        return Facilitator::with('province')->latest()->paginate($perPage);
     }
 
     public function all(): Collection
     {
-        return Facilitator::latest()->get();
+        return Facilitator::with('province')->latest()->get();
     }
 
     public function find(int $id): ?Facilitator
     {
-        return Facilitator::find($id);
+        return Facilitator::with('province')->find($id);
     }
 
     public function create(array $data): Facilitator

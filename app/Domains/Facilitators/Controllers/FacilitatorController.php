@@ -7,6 +7,7 @@ use App\Domains\Facilitators\Services\FacilitatorService;
 use App\Domains\Facilitators\Requests\StoreFacilitatorRequest;
 use App\Domains\Facilitators\Requests\UpdateFacilitatorRequest;
 use App\Domains\Facilitators\Resources\FacilitatorResource;
+use App\Models\Provinces;
 use Inertia\Inertia;
 
 class FacilitatorController extends Controller
@@ -17,10 +18,16 @@ class FacilitatorController extends Controller
 
     public function index()
     {
+        $provinces = Provinces::query()
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Facilitators/Index', [
             'facilitators' => FacilitatorResource::collection(
                 $this->service->paginateFacilitators()
             ),
+            'provinces' => $provinces,
         ]);
     }
 

@@ -26,9 +26,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function FacilitatorIndex({
   facilitators: facilitatorPagination,
+  provinces = [],
 }: {
   facilitators: { data: any[] };
+  provinces?: { id: number; name: string }[] | { data: { id: number; name: string }[] };
 }) {
+  const provinceOptions = Array.isArray(provinces)
+    ? provinces
+    : Array.isArray((provinces as any)?.data)
+      ? (provinces as any).data
+      : [];
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit" | "view">("create");
   const [selectedFacilitator, setSelectedFacilitator] = useState<any | null>(null);
@@ -46,6 +53,11 @@ export default function FacilitatorIndex({
         email: selectedFacilitator.email ?? "",
         cell: selectedFacilitator.cell ?? "",
         specialization: selectedFacilitator.specialization ?? "",
+        province_id:
+          selectedFacilitator.province_id !== null &&
+          selectedFacilitator.province_id !== undefined
+            ? String(selectedFacilitator.province_id)
+            : "",
       }
     : {};
 
@@ -63,6 +75,7 @@ export default function FacilitatorIndex({
             description={FacilitatorModelFormConfig.description}
             fields={FacilitatorModelFormConfig.fields}
             submitRoute={facilitators.store}
+            options={{ provinces: provinceOptions }}
           />
         </div>
 
@@ -108,6 +121,7 @@ export default function FacilitatorIndex({
             initialData={mappedFacilitatorData}
             submitRoute={facilitators.update}
             routeParams={selectedFacilitator.id}
+            options={{ provinces: provinceOptions }}
           />
         )}
 

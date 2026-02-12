@@ -19,6 +19,8 @@ class FacilitatorResource extends JsonResource
             'email' => $this->email,
             'cell' => $this->cell,
             'specialization' => $this->specialization,
+            'province_id' => $this->province_id,
+            'province_name' => $this->province?->name,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
