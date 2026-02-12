@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { Head } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
@@ -7,7 +7,6 @@ import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { DomainNav } from "@/components/domain-nav";
 import { staffNavItems } from "@/config/domain-nav/staff";
-import { Button } from "@/components/ui/button";
 
 import { StaffModelFormConfig } from "@/config/forms/staff-model-form";
 import { StaffTableConfig } from "@/config/tables/staff-table";
@@ -31,9 +30,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function StaffIndex({
   staffMembers,
   departments,
+  managers,
 }: {
   staffMembers: { data: any[] };
   departments: { id: number; name: string }[];
+  managers: { id: number; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit" | "view">("create");
@@ -49,6 +50,14 @@ export default function StaffIndex({
         "staff.email": selectedStaff.email ?? "",
         "staff.phone": selectedStaff.phone ?? "",
         "staff.employee_number": selectedStaff.employee_number ?? "",
+        "staff.start_date": selectedStaff.start_date ?? "",
+        "staff.manager_id":
+          selectedStaff.manager_id !== null &&
+          selectedStaff.manager_id !== undefined
+            ? String(selectedStaff.manager_id)
+            : "",
+        "staff.is_ceo": selectedStaff.is_ceo ? "1" : "0",
+        "staff.is_board_member": selectedStaff.is_board_member ? "1" : "0",
         "staff.department_id":
           selectedStaff.department_id !== null &&
           selectedStaff.department_id !== undefined
@@ -78,7 +87,7 @@ export default function StaffIndex({
             description={StaffModelFormConfig.description}
             fields={StaffModelFormConfig.fields}
             submitRoute={staff.store}
-            options={{ departments }}
+            options={{ departments, managers }}
           />
         </div>
 
@@ -86,6 +95,12 @@ export default function StaffIndex({
           columns={StaffTableConfig.columns}
           data={staffMembers.data}
           actions={[
+            {
+              icon: "UserCircle",
+              onClick: (row) => {
+                window.location.href = `/staff/${row.id}/profile`;
+              },
+            },
             {
               icon: "Eye",
               onClick: (row) => {
@@ -124,7 +139,7 @@ export default function StaffIndex({
             initialData={mappedStaffData}
             submitRoute={staff.update}
             routeParams={selectedStaff.id}
-            options={{ departments }}
+            options={{ departments, managers }}
           />
         )}
 

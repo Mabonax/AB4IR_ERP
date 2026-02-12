@@ -59,6 +59,42 @@ export const StaffModelFormConfig = {
       required: true,
     },
     {
+      id: "staff-start-date",
+      name: "staff.start_date",
+      label: "Start Date",
+      type: "date",
+      required: true,
+    },
+    {
+      id: "staff-manager",
+      name: "staff.manager_id",
+      label: "Manager",
+      type: "select",
+      optionsSource: "managers",
+      optionLabel: "name",
+      optionValue: "id",
+    },
+    {
+      id: "staff-is-ceo",
+      name: "staff.is_ceo",
+      label: "CEO",
+      type: "select",
+      options: [
+        { label: "No", value: "0" },
+        { label: "Yes", value: "1" },
+      ],
+    },
+    {
+      id: "staff-is-board-member",
+      name: "staff.is_board_member",
+      label: "Board Member",
+      type: "select",
+      options: [
+        { label: "No", value: "0" },
+        { label: "Yes", value: "1" },
+      ],
+    },
+    {
       id: "staff-department",
       name: "staff.department_id",
       label: "Department",

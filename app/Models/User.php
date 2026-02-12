@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
+use App\Domains\Staff\Models\StaffMember;
 
 class User extends Authenticatable 
 {
@@ -49,5 +50,10 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function staffMember()
+    {
+        return $this->hasOne(StaffMember::class, 'user_id');
     }
 }

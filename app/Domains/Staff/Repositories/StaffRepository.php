@@ -11,21 +11,21 @@ class StaffRepository implements StaffRepositoryInterface
 {
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return StaffMember::with(['department', 'nextOfKin', 'user'])
+        return StaffMember::with(['department', 'nextOfKin', 'user', 'manager'])
             ->latest()
             ->paginate($perPage);
     }
 
     public function all(): Collection
     {
-        return StaffMember::with(['department', 'nextOfKin', 'user'])
+        return StaffMember::with(['department', 'nextOfKin', 'user', 'manager'])
             ->latest()
             ->get();
     }
 
     public function find(int $id): ?StaffMember
     {
-        return StaffMember::with(['department', 'nextOfKin', 'user'])->find($id);
+        return StaffMember::with(['department', 'nextOfKin', 'user', 'manager'])->find($id);
     }
 
     public function create(array $data): StaffMember

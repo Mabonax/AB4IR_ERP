@@ -9,9 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/user-password';
 import { type BreadcrumbItem } from '@/types';
+import { DomainNav } from '@/components/domain-nav';
+import { settingsNavItems } from '@/config/domain-nav/settings';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,10 +29,18 @@ export default function Password() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Password settings" />
 
-            <h1 className="sr-only">Password Settings</h1>
+            <div className="p-4 space-y-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-semibold">Password</h1>
+                        <div className="text-sm text-muted-foreground">
+                            Update your account password
+                        </div>
+                    </div>
+                    <DomainNav items={settingsNavItems} />
+                </div>
 
-            <SettingsLayout>
-                <div className="space-y-6">
+                <div className="rounded-xl border bg-white p-6 shadow-sm">
                     <Heading
                         variant="small"
                         title="Update password"
@@ -58,7 +67,7 @@ export default function Password() {
                                 currentPasswordInput.current?.focus();
                             }
                         }}
-                        className="space-y-6"
+                        className="mt-6 space-y-6"
                     >
                         {({ errors, processing, recentlySuccessful }) => (
                             <>
@@ -143,7 +152,7 @@ export default function Password() {
                         )}
                     </Form>
                 </div>
-            </SettingsLayout>
+            </div>
         </AppLayout>
     );
 }

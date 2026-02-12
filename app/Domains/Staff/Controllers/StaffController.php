@@ -9,6 +9,7 @@ use App\Domains\Staff\Services\StaffService;
 use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
 class StaffController extends Controller
 {
@@ -20,10 +21,18 @@ class StaffController extends Controller
     {
         $staffMembers = $this->service->paginateStaffMembers();
         $departments = \App\Domains\Staff\Models\StaffDepartment::select('id', 'name')->orderBy('name')->get();
+        $managers = StaffMember::select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn ($staff) => [
+                'id' => $staff->id,
+                'name' => trim($staff->first_name.' '.$staff->last_name),
+            ]);
 
         return Inertia::render('Staff/Index', [
             'staffMembers' => StaffMemberResource::collection($staffMembers),
             'departments' => $departments,
+            'managers' => $managers,
         ]);
     }
 
@@ -36,6 +45,22 @@ class StaffController extends Controller
                 'inactiveStaff' => StaffMember::where('status', 'inactive')->count(),
                 'departmentCount' => \App\Domains\Staff\Models\StaffDepartment::count(),
             ],
+        ]);
+    }
+
+    public function profile()
+    {
+        return redirect()->to('/settings/profile');
+    }
+
+    public function profileShow(int $staff)
+    {
+        $model = StaffMember::with(['department', 'manager', 'nextOfKin'])
+            ->findOrFail($staff);
+
+        return Inertia::render('Staff/Profile', [
+            'staff' => new StaffMemberResource($model),
+            'isSelf' => false,
         ]);
     }
 

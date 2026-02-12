@@ -13,6 +13,8 @@ use App\Domains\Projects\Controllers\ProjectLocationController;
 use App\Domains\Projects\Controllers\ProjectEnrollmentController;
 use App\Domains\Projects\Controllers\MilestoneTemplateController;
 use App\Domains\Projects\Controllers\ProjectMilestoneAssessmentController;
+use App\Domains\HumanResources\Controllers\HumanResourcesController;
+use App\Domains\Leave\Controllers\LeaveRequestController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -35,6 +37,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Programs Routes
     Route::resource('programs', ProgramController::class);
+
+    // Human Resources Routes
+    Route::get('human-resources', [HumanResourcesController::class, 'dashboard'])
+        ->name('human-resources.dashboard');
+
+    // Leave Management Routes
+    Route::get('leave-requests', [LeaveRequestController::class, 'index'])
+        ->name('leave-requests.index');
+    Route::post('leave-requests', [LeaveRequestController::class, 'store'])
+        ->name('leave-requests.store');
+    Route::post('leave-requests/{leave_request}/manager-approve', [LeaveRequestController::class, 'managerApprove'])
+        ->whereNumber('leave_request')
+        ->name('leave-requests.manager-approve');
+    Route::post('leave-requests/{leave_request}/manager-reject', [LeaveRequestController::class, 'managerReject'])
+        ->whereNumber('leave_request')
+        ->name('leave-requests.manager-reject');
+    Route::post('leave-requests/{leave_request}/hr-approve', [LeaveRequestController::class, 'hrApprove'])
+        ->whereNumber('leave_request')
+        ->name('leave-requests.hr-approve');
+    Route::post('leave-requests/{leave_request}/hr-reject', [LeaveRequestController::class, 'hrReject'])
+        ->whereNumber('leave_request')
+        ->name('leave-requests.hr-reject');
 
     // Assets Routes
     Route::get('assets', [AssetController::class, 'dashboard'])->name('assets.dashboard');
@@ -72,6 +96,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('milestone-templates', MilestoneTemplateController::class)->except(['show', 'edit', 'create']);
 
     // Staff Routes
+    Route::get('staff/profile', [StaffController::class, 'profile'])->name('staff.profile');
+    Route::get('staff/{staff}/profile', [StaffController::class, 'profileShow'])
+        ->whereNumber('staff')
+        ->name('staff.profile.show');
     Route::get('staff', [StaffController::class, 'dashboard'])->name('staff.dashboard');
     Route::get('staff/list', [StaffController::class, 'index'])->name('staff.list');
     Route::resource('staff', StaffController::class)

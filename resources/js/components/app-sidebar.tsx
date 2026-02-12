@@ -41,9 +41,9 @@ const mainNavItems: NavItem[] = [
         icon: UserCircle,
     },
     {
-        title: 'Staff',
-        href: '/staff',
-        icon: UserCircle,
+        title: 'Human Resources',
+        href: '/human-resources',
+        icon: Building2,
     },
     {
         title: 'Assets',

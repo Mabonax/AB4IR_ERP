@@ -11,6 +11,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('settings/leave', [ProfileController::class, 'leave'])->name('profile.leave');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
