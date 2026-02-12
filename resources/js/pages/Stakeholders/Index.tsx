@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
@@ -35,6 +35,12 @@ export default function StakeholderIndex({
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [stakeholderToDelete, setStakeholderToDelete] = useState<any | null>(null);
+  const contactForm = useForm({
+    full_name: "",
+    email: "",
+    contact_number: "",
+    position: "",
+  });
 
   const mappedStakeholderData = selectedStakeholder
     ? {
@@ -88,6 +94,14 @@ export default function StakeholderIndex({
               },
             },
             {
+              icon: "Users",
+              onClick: (row) => {
+                setSelectedStakeholder(row);
+                setMode("view");
+                setOpen(false);
+              },
+            },
+            {
               icon: "Trash2",
               variant: "danger",
               onClick: (row) => {
@@ -120,6 +134,96 @@ export default function StakeholderIndex({
             submitRoute={stakeholders.destroy}
             routeParams={stakeholderToDelete.id}
           />
+        )}
+
+        {selectedStakeholder && (
+          <div className="rounded-xl border bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold">Contacts: {selectedStakeholder.organization_name}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add one or more contact persons for this stakeholder organization.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              {selectedStakeholder.contacts?.length ? (
+                selectedStakeholder.contacts.map((contact: any) => (
+                  <div key={contact.id} className="flex items-center justify-between rounded-md border p-3">
+                    <div>
+                      <div className="font-medium">{contact.full_name || "Unnamed contact"}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {contact.position || "-"} | {contact.email || "-"} | {contact.contact_number || "-"}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700"
+                      onClick={() => {
+                        router.delete(`/stakeholders/${selectedStakeholder.id}/contacts/${contact.id}`, {
+                          preserveScroll: true,
+                        });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">No contacts added yet.</div>
+              )}
+            </div>
+
+            <form
+              className="mt-5 grid gap-3 md:grid-cols-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                contactForm.post(`/stakeholders/${selectedStakeholder.id}/contacts`, {
+                  preserveScroll: true,
+                  onSuccess: () => {
+                    contactForm.reset();
+                  },
+                });
+              }}
+            >
+              <input
+                type="text"
+                className="rounded-md border px-3 py-2 text-sm"
+                placeholder="Full name"
+                value={contactForm.data.full_name}
+                onChange={(e) => contactForm.setData("full_name", e.target.value)}
+                required
+              />
+              <input
+                type="email"
+                className="rounded-md border px-3 py-2 text-sm"
+                placeholder="Email (optional)"
+                value={contactForm.data.email}
+                onChange={(e) => contactForm.setData("email", e.target.value)}
+              />
+              <input
+                type="text"
+                className="rounded-md border px-3 py-2 text-sm"
+                placeholder="Contact number"
+                value={contactForm.data.contact_number}
+                onChange={(e) => contactForm.setData("contact_number", e.target.value)}
+                required
+              />
+              <input
+                type="text"
+                className="rounded-md border px-3 py-2 text-sm"
+                placeholder="Position (optional)"
+                value={contactForm.data.position}
+                onChange={(e) => contactForm.setData("position", e.target.value)}
+              />
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                  disabled={contactForm.processing}
+                >
+                  Add Contact
+                </button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
     </AppLayout>

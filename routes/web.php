@@ -36,6 +36,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('stakeholders', StakeholderController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('stakeholders'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('stakeholders'));
+    Route::post('stakeholders/{stakeholder}/contacts', [StakeholderController::class, 'storeContact'])
+        ->middleware($managePermission('stakeholders'))
+        ->whereNumber('stakeholder')
+        ->name('stakeholders.contacts.store');
+    Route::delete('stakeholders/{stakeholder}/contacts/{contact}', [StakeholderController::class, 'destroyContact'])
+        ->middleware($managePermission('stakeholders'))
+        ->whereNumber('stakeholder')
+        ->whereNumber('contact')
+        ->name('stakeholders.contacts.destroy');
 
     Route::resource('facilitators', FacilitatorController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('facilitators'))

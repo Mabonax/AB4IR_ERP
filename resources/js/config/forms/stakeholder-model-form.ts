@@ -33,7 +33,6 @@ export const StakeholderModelFormConfig = {
       label: "Stakeholder Name",
       type: "text",
       placeholder: "Enter stakeholder name",
-      required: true,
     },
     {
       id: "stakeholder-email",
@@ -41,7 +40,6 @@ export const StakeholderModelFormConfig = {
       label: "Email",
       type: "email",
       placeholder: "Enter email address",
-      required: true,
     },
     {
       id: "stakeholder-contact-number",
@@ -49,7 +47,6 @@ export const StakeholderModelFormConfig = {
       label: "Contact Number",
       type: "tel",
       placeholder: "Enter contact number",
-      required: true,
     },
     {
       id: "stakeholder-status",
@@ -72,7 +69,6 @@ export const StakeholderModelFormConfig = {
       label: "Contact Full Name",
       type: "text",
       placeholder: "Enter full name",
-      required: true,
     },
     {
       id: "contact-email",
@@ -87,7 +83,6 @@ export const StakeholderModelFormConfig = {
       label: "Contact Number",
       type: "tel",
       placeholder: "Enter contact number",
-      required: true,
     },
     {
       id: "contact-position",

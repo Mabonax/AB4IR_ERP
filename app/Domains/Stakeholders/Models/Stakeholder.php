@@ -22,6 +22,11 @@ class Stakeholder extends Model
 
     public function contact()
     {
-        return $this->hasOne(StakeholderContact::class);
+        return $this->hasOne(StakeholderContact::class)->latestOfMany();
+    }
+
+    public function contacts()
+    {
+        return $this->hasMany(StakeholderContact::class);
     }
 }

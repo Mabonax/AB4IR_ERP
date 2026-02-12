@@ -10,12 +10,12 @@ class StakeholderRepository implements StakeholderRepositoryInterface
 {
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return Stakeholder::with('contact')->latest()->paginate($perPage);
+        return Stakeholder::with(['contact', 'contacts'])->latest()->paginate($perPage);
     }
 
     public function find(int $id): ?Stakeholder
     {
-        return Stakeholder::with('contact')->find($id);
+        return Stakeholder::with(['contact', 'contacts'])->find($id);
     }
 
     public function create(array $data): Stakeholder
@@ -36,16 +36,36 @@ class StakeholderRepository implements StakeholderRepositoryInterface
 
     public function createContact(Stakeholder $stakeholder, array $data): StakeholderContact
     {
-        return $stakeholder->contact()->create($data);
+        return $stakeholder->contacts()->create($data);
     }
 
     public function updateContact(Stakeholder $stakeholder, array $data): StakeholderContact
     {
+        if (isset($data['id'])) {
+            $contact = $stakeholder->contacts()->whereKey((int) $data['id'])->first();
+            if ($contact) {
+                $contact->update($data);
+                return $contact;
+            }
+        }
+
         if ($stakeholder->contact) {
             $stakeholder->contact->update($data);
             return $stakeholder->contact;
         }
 
-        return $stakeholder->contact()->create($data);
+        return $stakeholder->contacts()->create($data);
+    }
+
+    public function createContacts(Stakeholder $stakeholder, array $contacts): void
+    {
+        foreach ($contacts as $contact) {
+            $stakeholder->contacts()->create($contact);
+        }
+    }
+
+    public function deleteContact(Stakeholder $stakeholder, int $contactId): bool
+    {
+        return (bool) $stakeholder->contacts()->whereKey($contactId)->delete();
     }
 }

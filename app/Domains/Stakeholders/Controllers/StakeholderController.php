@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Domains\Stakeholders\Services\StakeholderService;
 use App\Domains\Stakeholders\Requests\StoreStakeholderRequest;
 use App\Domains\Stakeholders\Requests\UpdateStakeholderRequest;
+use Illuminate\Http\Request;
 use App\Domains\Stakeholders\Resources\StakeholderResource;
 use Inertia\Inertia;
 
@@ -50,5 +51,26 @@ class StakeholderController extends Controller
         $this->service->deleteStakeholder($stakeholder);
 
         return redirect()->back()->with('success', 'Stakeholder deleted');
+    }
+
+    public function storeContact(Request $request, int $stakeholder)
+    {
+        $validated = $request->validate([
+            'full_name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email'],
+            'contact_number' => ['required', 'string', 'max:20'],
+            'position' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $this->service->addStakeholderContact($stakeholder, $validated);
+
+        return redirect()->back()->with('success', 'Stakeholder contact added.');
+    }
+
+    public function destroyContact(int $stakeholder, int $contact)
+    {
+        $this->service->deleteStakeholderContact($stakeholder, $contact);
+
+        return redirect()->back()->with('success', 'Stakeholder contact deleted.');
     }
 }
