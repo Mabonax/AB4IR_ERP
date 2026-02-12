@@ -107,17 +107,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('project')
         ->name('projects.milestones.sync');
     Route::get('project-locations/dashboard', [ProjectLocationController::class, 'dashboard'])
-        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->middleware('permission:domain.projects.view|domain.projects.manage|project-activities.view')
         ->name('project-locations.dashboard');
     Route::resource('project-locations', ProjectLocationController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('projects'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('projects'));
     Route::get('project-locations/{project_location}/progress', [ProjectLocationController::class, 'progress'])
-        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->middleware('permission:domain.projects.view|domain.projects.manage|project-activities.view')
         ->whereNumber('project_location')
         ->name('project-locations.progress');
     Route::post('project-locations/{project_location}/assessments', [ProjectMilestoneAssessmentController::class, 'store'])
-        ->middleware('permission:domain.projects.manage')
+        ->middleware('permission:domain.projects.manage|project-activities.manage')
         ->whereNumber('project_location')
         ->name('project-locations.assessments.store');
     Route::resource('project-enrollments', ProjectEnrollmentController::class)

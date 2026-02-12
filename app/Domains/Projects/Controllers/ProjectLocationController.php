@@ -10,12 +10,39 @@ use App\Domains\Projects\Resources\ProjectLocationResource;
 use App\Domains\Projects\Services\ProjectLocationService;
 use App\Http\Controllers\Controller;
 use App\Models\Provinces;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Models\ProjectLocation;
 
 class ProjectLocationController extends Controller
 {
+    protected function hasFullProjectAccess(): bool
+    {
+        $user = Auth::user();
+
+        return (bool) $user?->can('domain.projects.view')
+            || (bool) $user?->can('domain.projects.manage');
+    }
+
+    protected function currentFacilitatorOrAbort(): Facilitator
+    {
+        $email = Auth::user()?->email;
+        if (! $email) {
+            abort(403, 'No authenticated facilitator profile found.');
+        }
+
+        $facilitator = Facilitator::query()
+            ->where('email', $email)
+            ->first();
+
+        if (! $facilitator) {
+            abort(403, 'No facilitator profile found for this account.');
+        }
+
+        return $facilitator;
+    }
+
     public function __construct(
         protected ProjectLocationService $service
     ) {}
@@ -43,15 +70,21 @@ class ProjectLocationController extends Controller
 
     public function dashboard()
     {
-        $locations = ProjectLocation::with([
+        $query = ProjectLocation::with([
                 'project',
                 'facilitator',
                 'province',
                 'enrollments',
                 'milestoneAssessments',
             ])
-            ->orderBy('id')
-            ->get();
+            ->orderBy('id');
+
+        if (! $this->hasFullProjectAccess()) {
+            $facilitator = $this->currentFacilitatorOrAbort();
+            $query->where('facilitator_id', $facilitator->id);
+        }
+
+        $locations = $query->get();
 
         $locationRows = $locations->map(function ($location) {
             $totalMilestones = ProjectMilestone::where('project_id', $location->project_id)->count();
@@ -128,6 +161,13 @@ class ProjectLocationController extends Controller
                 'milestoneAssessments',
             ])
             ->findOrFail($project_location);
+
+        if (! $this->hasFullProjectAccess()) {
+            $facilitator = $this->currentFacilitatorOrAbort();
+            if ((int) $location->facilitator_id !== (int) $facilitator->id) {
+                abort(403, 'You can only access progress for your assigned locations.');
+            }
+        }
 
         $milestones = ProjectMilestone::with('assessments')
             ->where('project_id', $location->project_id)

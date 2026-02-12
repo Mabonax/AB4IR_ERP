@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Briefcase, Building2, Folder, LayoutGrid, Package, ShieldCheck, UserCircle } from 'lucide-react';
+import { BookOpen, Briefcase, Building2, ClipboardCheck, Folder, LayoutGrid, Package, ShieldCheck, UserCircle } from 'lucide-react';
 
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -66,6 +66,12 @@ const mainNavItems: NavItem[] = [
         href: '/projects',
         icon: Briefcase,
         requiredPermissions: ['domain.projects.view', 'domain.projects.manage'],
+    },
+    {
+        title: 'Facilitator Activities',
+        href: '/project-locations/dashboard',
+        icon: ClipboardCheck,
+        requiredPermissions: ['project-activities.view'],
     },
     {
         title: 'Access Control',

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Domains\Facilitators\Models\Facilitator;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -44,9 +45,15 @@ class AccessControlSeeder extends Seeder
             'assignments.manage',
         ];
 
+        $projectActivityPermissions = [
+            'project-activities.view',
+            'project-activities.manage',
+        ];
+
         $allPermissions = array_values(array_unique([
             ...$allDomainPermissions,
             ...$accessControlPermissions,
+            ...$projectActivityPermissions,
         ]));
 
         foreach ($allPermissions as $permissionName) {
@@ -77,6 +84,12 @@ class AccessControlSeeder extends Seeder
             'domain.settings.view',
             'domain.leave.view',
         ])));
+
+        $facilitatorRole = Role::firstOrCreate([
+            'name' => 'facilitator',
+            'guard_name' => $guard,
+        ]);
+        $facilitatorRole->syncPermissions($projectActivityPermissions);
 
         $departmentMap = config('access_control.department_domain_map', []);
 
@@ -126,6 +139,14 @@ class AccessControlSeeder extends Seeder
             $departmentUserRole->syncPermissions(array_values(array_unique($departmentUserPermissions)));
         }
 
+        $facilitatorEmails = Facilitator::query()
+            ->whereNotNull('email')
+            ->pluck('email')
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter()
+            ->values()
+            ->all();
+
         $users = User::query()->with(['staffMember.department', 'staffMember.directReports'])->get();
         foreach ($users as $user) {
             if ($user->roles()->exists()) {
@@ -134,6 +155,17 @@ class AccessControlSeeder extends Seeder
 
             $staff = $user->staffMember;
             if (! $staff) {
+                $isFacilitatorUser = in_array(
+                    strtolower(trim((string) $user->email)),
+                    $facilitatorEmails,
+                    true
+                );
+
+                if ($isFacilitatorUser) {
+                    $user->syncRoles(['facilitator']);
+                    continue;
+                }
+
                 $user->syncRoles(['viewer-cross-domain']);
                 continue;
             }
