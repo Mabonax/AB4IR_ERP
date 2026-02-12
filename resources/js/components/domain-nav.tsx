@@ -1,12 +1,16 @@
 import { Link, usePage } from "@inertiajs/react";
 import { type ReactNode } from "react";
 
+import { hasAnyPermission, hasAnyRole } from "@/lib/access";
 import { cn } from "@/lib/utils";
+import { type SharedData } from "@/types";
 
 export type DomainNavItem = {
   label: string;
   href: string;
   icon?: ReactNode;
+  requiredPermissions?: string[];
+  requiredRoles?: string[];
 };
 
 export function DomainNav({
@@ -14,11 +18,17 @@ export function DomainNav({
 }: {
   items: DomainNavItem[];
 }) {
-  const { url } = usePage();
+  const { url, props } = usePage<SharedData>();
+  const user = props.auth?.user;
+  const visibleItems = items.filter(
+    (item) =>
+      hasAnyRole(user, item.requiredRoles ?? []) &&
+      hasAnyPermission(user, item.requiredPermissions ?? [])
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {items.map((item) => {
+      {visibleItems.map((item) => {
         const isActive = url === item.href || url.startsWith(`${item.href}/`);
 
         return (

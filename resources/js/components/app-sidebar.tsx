@@ -1,9 +1,10 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, Briefcase, Building2, Folder, LayoutGrid, Package, UserCircle } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { BookOpen, Briefcase, Building2, Folder, LayoutGrid, Package, ShieldCheck, UserCircle } from 'lucide-react';
 
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import { hasAnyPermission, hasAnyRole } from '@/lib/access';
 import {
     Sidebar,
     SidebarContent,
@@ -14,10 +15,9 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { type NavItem } from '@/types';
+import { type NavItem, type SharedData } from '@/types';
 
 import AppLogo from './app-logo';
-import { use } from 'react';
 
 const mainNavItems: NavItem[] = [
     {
@@ -29,36 +29,50 @@ const mainNavItems: NavItem[] = [
         title: 'Beneficiaries',
         href: '/beneficiaries',
         icon: UserCircle,
+        requiredPermissions: ['domain.beneficiaries.view', 'domain.beneficiaries.manage'],
     },
     {
         title: 'Stakeholders',
         href: '/stakeholders',
         icon: UserCircle,
+        requiredPermissions: ['domain.stakeholders.view', 'domain.stakeholders.manage'],
     },
     {
         title: 'Facilitators',
         href: '/facilitators',
         icon: UserCircle,
+        requiredPermissions: ['domain.facilitators.view', 'domain.facilitators.manage'],
     },
     {
         title: 'Human Resources',
         href: '/human-resources',
         icon: Building2,
+        requiredPermissions: ['domain.human-resources.view', 'domain.human-resources.manage'],
     },
     {
         title: 'Assets',
         href: '/assets',
         icon: Package,
+        requiredPermissions: ['domain.assets.view', 'domain.assets.manage'],
     },
     {
         title: 'Programs',
         href: '/programs',
         icon: BookOpen,
+        requiredPermissions: ['domain.programs.view', 'domain.programs.manage'],
     },
     {
         title: 'Projects',
         href: '/projects',
         icon: Briefcase,
+        requiredPermissions: ['domain.projects.view', 'domain.projects.manage'],
+    },
+    {
+        title: 'Access Control',
+        href: '/access-control/roles',
+        icon: ShieldCheck,
+        requiredRoles: ['super-admin', 'super admin', 'admin'],
+        requiredPermissions: ['access-control.view'],
     },
 ];
 
@@ -76,6 +90,14 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage<SharedData>().props;
+    const user = auth?.user;
+    const visibleMainNavItems = mainNavItems.filter(
+        (item) =>
+            hasAnyRole(user, item.requiredRoles ?? []) &&
+            hasAnyPermission(user, item.requiredPermissions ?? []),
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -91,7 +113,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={visibleMainNavItems} />
             </SidebarContent>
 
             <SidebarFooter>

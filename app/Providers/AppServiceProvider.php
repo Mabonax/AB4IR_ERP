@@ -27,6 +27,7 @@ use App\Domains\Stakeholders\Repositories\StakeholderRepositoryInterface;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -99,6 +100,16 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        Gate::before(function ($user, string $ability) {
+            if (str_starts_with($ability, 'domain.settings.')) {
+                return true;
+            }
+
+            return method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['super-admin', 'super admin'])
+                ? true
+                : null;
+        });
     }
 
     protected function configureDefaults(): void
