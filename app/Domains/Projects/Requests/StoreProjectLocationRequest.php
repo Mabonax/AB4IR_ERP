@@ -17,6 +17,7 @@ class StoreProjectLocationRequest extends FormRequest
             'project_id' => 'required|exists:projects,id',
             'facilitator_id' => 'required|exists:facilitators,id',
             'province_id' => 'required|exists:provinces,id',
+            'training_venue_address' => 'nullable|string|max:255',
         ];
     }
 }

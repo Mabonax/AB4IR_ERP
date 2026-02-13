@@ -19,6 +19,7 @@ class StoreProjectRequest extends FormRequest
             'project_manager_id' => 'required|exists:staff_members,id',
             'name' => 'required|string|max:255',
             'start_date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'status' => 'required|in:planned,active,completed,on_hold,cancelled',
             'description' => 'nullable|string|max:1000',
         ];

@@ -32,6 +32,12 @@ export const ProjectModelFormConfig = {
       required: true,
     },
     {
+      id: "project-end-date",
+      name: "end_date",
+      label: "End Date",
+      type: "date",
+    },
+    {
       id: "project-status",
       name: "status",
       label: "Status",

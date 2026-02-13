@@ -30,6 +30,7 @@ protected $fillable = [
     'province_id',
     'postal_code',
     'highest_qualification',
+    'attendance_status',
     'next_of_kin_id',
     'created_by',
     'updated_by',

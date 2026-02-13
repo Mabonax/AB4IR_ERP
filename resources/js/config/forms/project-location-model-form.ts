@@ -45,5 +45,12 @@ export const ProjectLocationModelFormConfig = {
       optionValue: "id",
       required: true,
     },
+    {
+      id: "project-location-training-venue-address",
+      name: "training_venue_address",
+      label: "Training Venue Address",
+      type: "textarea",
+      required: false,
+    },
   ],
 };

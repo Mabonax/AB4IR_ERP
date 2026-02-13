@@ -17,6 +17,7 @@ class ProjectLocation extends Model
         'project_id',
         'facilitator_id',
         'province_id',
+        'training_venue_address',
     ];
 
     public function project()
@@ -42,5 +43,10 @@ class ProjectLocation extends Model
     public function milestoneAssessments()
     {
         return $this->hasMany(ProjectMilestoneAssessment::class, 'project_location_id');
+    }
+
+    public function attendanceRegisters()
+    {
+        return $this->hasMany(AttendanceRegister::class, 'project_location_id');
     }
 }

@@ -20,12 +20,14 @@ class Project extends Model
         'project_manager_id',
         'name',
         'start_date',
+        'end_date',
         'status',
         'description',
     ];
 
     protected $casts = [
         'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
     ];
 
     public function program()
@@ -56,5 +58,10 @@ class Project extends Model
     public function milestones()
     {
         return $this->hasMany(ProjectMilestone::class);
+    }
+
+    public function attendanceRegisters()
+    {
+        return $this->hasMany(AttendanceRegister::class);
     }
 }

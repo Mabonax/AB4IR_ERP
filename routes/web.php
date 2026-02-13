@@ -8,6 +8,7 @@ use App\Domains\HumanResources\Controllers\HumanResourcesController;
 use App\Domains\Leave\Controllers\LeaveRequestController;
 use App\Domains\Programs\Controllers\ProgramController;
 use App\Domains\Projects\Controllers\MilestoneTemplateController;
+use App\Domains\Projects\Controllers\ProjectAttendanceController;
 use App\Domains\Projects\Controllers\ProjectController;
 use App\Domains\Projects\Controllers\ProjectEnrollmentController;
 use App\Domains\Projects\Controllers\ProjectLocationController;
@@ -125,10 +126,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.projects.view|domain.projects.manage|project-activities.view')
         ->whereNumber('project_location')
         ->name('project-locations.progress');
+    Route::get('project-locations/{project_location}/attendance', [ProjectAttendanceController::class, 'locationRegister'])
+        ->middleware('permission:domain.projects.view|domain.projects.manage|project-activities.view|project-activities.manage|attendance.view|attendance.manage')
+        ->whereNumber('project_location')
+        ->name('project-locations.attendance');
+    Route::post('project-locations/{project_location}/attendance', [ProjectAttendanceController::class, 'saveLocationRegister'])
+        ->middleware('permission:domain.projects.manage|project-activities.manage|attendance.manage')
+        ->whereNumber('project_location')
+        ->name('project-locations.attendance.save');
+    Route::post('project-locations/{project_location}/attendance/holiday', [ProjectAttendanceController::class, 'markHoliday'])
+        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->whereNumber('project_location')
+        ->name('project-locations.attendance.holiday');
+    Route::get('attendance-registers/{attendance_register}/export/pdf', [ProjectAttendanceController::class, 'exportRegisterPdf'])
+        ->middleware('permission:domain.projects.view|domain.projects.manage|project-activities.view|project-activities.manage|attendance.view|attendance.manage')
+        ->whereNumber('attendance_register')
+        ->name('attendance-registers.export.pdf');
     Route::post('project-locations/{project_location}/assessments', [ProjectMilestoneAssessmentController::class, 'store'])
         ->middleware('permission:domain.projects.manage|project-activities.manage')
         ->whereNumber('project_location')
         ->name('project-locations.assessments.store');
+    Route::get('projects/attendance-summary', [ProjectAttendanceController::class, 'projectSummary'])
+        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->name('projects.attendance-summary');
     Route::resource('project-enrollments', ProjectEnrollmentController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('projects'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('projects'));

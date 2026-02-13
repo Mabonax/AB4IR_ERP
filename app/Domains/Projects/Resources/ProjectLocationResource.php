@@ -18,6 +18,7 @@ class ProjectLocationResource extends JsonResource
                 : null,
             'province_id' => $this->province_id,
             'location' => $this->province?->name,
+            'training_venue_address' => $this->training_venue_address,
             'beneficiary_count' => $this->enrollments?->count() ?? 0,
             'beneficiaries' => $this->enrollments?->map(function ($enrollment) {
                 return [

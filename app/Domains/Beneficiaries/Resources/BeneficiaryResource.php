@@ -45,6 +45,7 @@ class BeneficiaryResource extends JsonResource
 
             // Education
             'highest_qualification' => $this->highest_qualification,
+            'attendance_status' => $this->attendance_status ?? 'active',
 
             // Relations
             'next_of_kin_id' => $this->next_of_kin_id,

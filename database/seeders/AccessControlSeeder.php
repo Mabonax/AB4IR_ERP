@@ -50,10 +50,16 @@ class AccessControlSeeder extends Seeder
             'project-activities.manage',
         ];
 
+        $attendancePermissions = [
+            'attendance.view',
+            'attendance.manage',
+        ];
+
         $allPermissions = array_values(array_unique([
             ...$allDomainPermissions,
             ...$accessControlPermissions,
             ...$projectActivityPermissions,
+            ...$attendancePermissions,
         ]));
 
         foreach ($allPermissions as $permissionName) {
@@ -89,7 +95,10 @@ class AccessControlSeeder extends Seeder
             'name' => 'facilitator',
             'guard_name' => $guard,
         ]);
-        $facilitatorRole->syncPermissions($projectActivityPermissions);
+        $facilitatorRole->syncPermissions(array_values(array_unique([
+            ...$projectActivityPermissions,
+            ...$attendancePermissions,
+        ])));
 
         $departmentMap = config('access_control.department_domain_map', []);
 

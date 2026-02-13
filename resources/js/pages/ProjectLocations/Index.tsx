@@ -62,6 +62,7 @@ export default function ProjectLocationIndex({
           selectedLocation.province_id !== undefined
             ? String(selectedLocation.province_id)
             : "",
+        training_venue_address: selectedLocation.training_venue_address ?? "",
       }
     : {};
 

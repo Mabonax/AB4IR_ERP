@@ -164,6 +164,17 @@ export const BeneficiaryModelFormConfig = {
             label: "Highest Qualification",
             type: "text",
         },
+        {
+            id: "beneficiary-attendance-status",
+            name: "attendance_status",
+            label: "Attendance Status",
+            type: "select",
+            required: true,
+            options: [
+                { label: "Active", value: "active" },
+                { label: "Dropout", value: "dropout" },
+            ],
+        },
 
    // =========================
     // NEXT OF KIN

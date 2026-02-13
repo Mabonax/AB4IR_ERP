@@ -111,6 +111,12 @@ export default function ProjectLocationsDashboard({
           data={locations}
           actions={[
             {
+              icon: "CalendarCheck2",
+              onClick: (row) => {
+                window.location.href = `/project-locations/${row.id}/attendance`;
+              },
+            },
+            {
               icon: "ClipboardCheck",
               onClick: (row) => {
                 window.location.href = `/project-locations/${row.id}/progress`;

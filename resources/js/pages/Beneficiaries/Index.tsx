@@ -75,6 +75,7 @@ const mappedBeneficiaryData = selectedBeneficiary
           : "",
       postal_code: selectedBeneficiary.postal_code ?? "",
       highest_qualification: selectedBeneficiary.highest_qualification ?? "",
+      attendance_status: selectedBeneficiary.attendance_status ?? "active",
       nok_name: selectedBeneficiary.next_of_kin?.name ?? "",
       nok_surname: selectedBeneficiary.next_of_kin?.surname ?? "",
       nok_relationship:

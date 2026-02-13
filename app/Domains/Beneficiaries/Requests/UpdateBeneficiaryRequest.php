@@ -48,6 +48,7 @@ class UpdateBeneficiaryRequest extends FormRequest
             'province_id' => 'nullable|integer|exists:provinces,id',
             'postal_code'    => 'nullable|string|max:20',
             'highest_qualification' => 'nullable|string|max:150',
+            'attendance_status' => 'required|in:active,dropout',
 
             // =========================
             // Next of Kin

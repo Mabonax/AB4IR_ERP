@@ -51,6 +51,7 @@ export default function ProjectIndex({
         name: selectedProject.name ?? "",
         description: selectedProject.description ?? "",
         start_date: selectedProject.start_date ?? "",
+        end_date: selectedProject.end_date ?? "",
         status: selectedProject.status ?? "planned",
         program_id:
           selectedProject.program_id !== null &&

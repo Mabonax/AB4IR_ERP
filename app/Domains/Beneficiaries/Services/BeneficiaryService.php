@@ -75,6 +75,7 @@ class BeneficiaryService
                     : null,
                 'postal_code'            => $data['postal_code'] ?? null,
                 'highest_qualification'  => $data['highest_qualification'] ?? null,
+                'attendance_status'      => $data['attendance_status'] ?? 'active',
                 'next_of_kin_id'         => $nextOfKin->id,
                 'created_by'             => auth()->id(),
             ]);
@@ -133,6 +134,7 @@ class BeneficiaryService
                 : null,
                 'postal_code'            => $data['postal_code'] ?? null,
                 'highest_qualification'  => $data['highest_qualification'] ?? null,
+                'attendance_status'      => $data['attendance_status'] ?? 'active',
                 'updated_by'             => auth()->id(),
             ]);
 
