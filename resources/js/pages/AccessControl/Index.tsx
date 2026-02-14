@@ -127,7 +127,7 @@ export default function AccessControlIndex({
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Create Role" description="Define a role and attach permissions" />
           <form
             className="mt-4 space-y-3"
@@ -171,7 +171,7 @@ export default function AccessControlIndex({
           </form>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Roles" description="Update or remove existing roles" />
           {roleActionError && <p className="mt-2 text-sm text-red-600">{roleActionError}</p>}
           <div className="mt-4 overflow-x-auto">
@@ -220,7 +220,7 @@ export default function AccessControlIndex({
         </div>
 
         {editingRole && (
-          <div ref={roleEditorRef} className="rounded-xl border bg-white p-6 shadow-sm">
+          <div ref={roleEditorRef} className="rounded-xl border bg-card p-6 shadow-sm">
             <Heading variant="small" title={`Edit Role: ${editingRole.name}`} />
             <form
               className="mt-4 space-y-3"
@@ -274,7 +274,7 @@ export default function AccessControlIndex({
           </div>
         )}
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Create Permission" description="Add a granular permission string" />
           <form
             className="mt-4 flex gap-2"
@@ -301,7 +301,7 @@ export default function AccessControlIndex({
           )}
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Permissions" description="Update or delete permissions" />
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -339,7 +339,7 @@ export default function AccessControlIndex({
         </div>
 
         {editingPermission && (
-          <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="rounded-xl border bg-card p-6 shadow-sm">
             <Heading variant="small" title={`Edit Permission: ${editingPermission.name}`} />
             <form
               className="mt-4 flex gap-2"
@@ -366,7 +366,7 @@ export default function AccessControlIndex({
           </div>
         )}
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading
             variant="small"
             title="User Role & Permission Assignment"

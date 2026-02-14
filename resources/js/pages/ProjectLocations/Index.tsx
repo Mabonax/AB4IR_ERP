@@ -128,7 +128,7 @@ export default function ProjectLocationIndex({
             options={{ projects, facilitators, provinces }}
           >
             {mode === "view" && (
-              <div className="rounded-lg border bg-white p-4 text-sm">
+              <div className="rounded-lg border bg-card p-4 text-sm">
                 <div className="font-semibold">Beneficiaries</div>
                 <div className="mt-1 text-xs text-gray-600">
                   Total: {selectedLocation.beneficiary_count ?? 0}

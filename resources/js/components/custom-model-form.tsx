@@ -270,7 +270,7 @@ useEffect(() => {
                     onChange={(e) =>
                       setData(field.name, e.target.value)
                     }
-                    className="rounded-md border px-3 py-2 text-sm"
+                    className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                   />
                 )}
 
@@ -280,7 +280,7 @@ useEffect(() => {
                     value={data[field.name]}
                     disabled={isView}
                     onChange={(e) => setData(field.name, e.target.value)}
-                    className="rounded-md border px-3 py-2 text-sm"
+                    className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                   >
                     <option value="">Select option</option>
 

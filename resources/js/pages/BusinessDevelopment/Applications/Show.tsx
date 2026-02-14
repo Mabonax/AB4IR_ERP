@@ -95,7 +95,7 @@ export default function BdsApplicationShow({
           </div>
         </div>
 
-        <section className="rounded-xl border bg-white shadow-sm">
+        <section className="rounded-xl border bg-card shadow-sm">
           <div className="grid gap-0 md:grid-cols-2">
             {detailRows.map((row) => (
               <div key={row.label} className="border-b p-3 md:border-r [&:nth-child(2n)]:md:border-r-0">

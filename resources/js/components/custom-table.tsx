@@ -70,11 +70,11 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
     <div
       className="
         overflow-hidden rounded-lg border shadow-sm
-        bg-white dark:bg-gray-900
-        border-gray-200 dark:border-gray-700
+        bg-card
+        border-gray-200 dark:border-border
       "
     >
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-border">
         {/* ===================== HEADER (BLUE – DO NOT DARKEN) ===================== */}
         <thead className="bg-gradient-to-r from-red-600 to-orange-500 text-white">
           <tr>
@@ -96,8 +96,8 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
         <tbody
           className="
             divide-y
-            divide-gray-100 dark:divide-gray-700
-            bg-white dark:bg-gray-900
+            divide-gray-100 dark:divide-border
+            bg-card
           "
         >
           {data.length === 0 ? (
@@ -106,7 +106,7 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
                 colSpan={columns.length}
                 className="
                   px-4 py-4 text-center
-                  text-gray-500 dark:text-gray-400
+                  text-gray-500 dark:text-muted-foreground
                 "
               >
                 No data available
@@ -114,10 +114,10 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
             </tr>
           ) : (
             data.map((row: any) => (
-              <tr
-                key={row.id}
-                className="
-                  hover:bg-gray-50 dark:hover:bg-gray-800
+                <tr
+                  key={row.id}
+                  className="
+                  hover:bg-gray-50 dark:hover:bg-accent
                   transition-colors
                 "
               >
@@ -126,7 +126,7 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
                     key={col.key}
                     className={`
                       ${col.className}
-                      text-gray-900 dark:text-gray-100
+                      text-gray-900 dark:text-foreground
                     `}
                   >
                     {col.isAction ? (

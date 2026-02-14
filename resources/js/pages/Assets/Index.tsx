@@ -246,11 +246,11 @@ export default function AssetIndex({
           />
         </div>
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
             <label className="text-sm font-medium">Filter by Category</label>
             <select
-              className="min-w-[240px] rounded-md border px-3 py-2 text-sm"
+              className="min-w-[240px] rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               value={selectedCategoryId}
               onChange={(e) => applyCategoryFilter(e.currentTarget.value)}
             >
@@ -264,21 +264,21 @@ export default function AssetIndex({
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-base font-semibold">Create Inventory Batch</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Create multiple asset records at once. Use pending/no serial when serial numbers are not captured yet.
           </p>
           <form className="mt-3 grid gap-3 md:grid-cols-3" onSubmit={submitBatch}>
             <input
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               placeholder="Batch name"
               value={batchForm.data.name}
               onChange={(e) => batchForm.setData("name", e.currentTarget.value)}
               required
             />
             <select
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               value={batchForm.data.asset_category_id}
               onChange={(e) => batchForm.setData("asset_category_id", e.currentTarget.value)}
               required
@@ -291,14 +291,14 @@ export default function AssetIndex({
               ))}
             </select>
             <input
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               placeholder="Type"
               value={batchForm.data.type}
               onChange={(e) => batchForm.setData("type", e.currentTarget.value)}
               required
             />
             <input
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               placeholder="Model"
               value={batchForm.data.model_name}
               onChange={(e) => batchForm.setData("model_name", e.currentTarget.value)}
@@ -307,14 +307,14 @@ export default function AssetIndex({
             <input
               type="number"
               min={1}
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               placeholder="Quantity"
               value={batchForm.data.quantity}
               onChange={(e) => batchForm.setData("quantity", Number(e.currentTarget.value || 1))}
               required
             />
             <select
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               value={batchForm.data.serial_state}
               onChange={(e) => batchForm.setData("serial_state", e.currentTarget.value as "pending" | "no_serial")}
               required
@@ -323,7 +323,7 @@ export default function AssetIndex({
               <option value="no_serial">No Serial</option>
             </select>
             <input
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
               placeholder="Notes (optional)"
               value={batchForm.data.notes}
               onChange={(e) => batchForm.setData("notes", e.currentTarget.value)}
@@ -342,7 +342,7 @@ export default function AssetIndex({
           {batches.length > 0 ? (
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-muted">
                   <tr>
                     <th className="px-3 py-2 text-left">Batch</th>
                     <th className="px-3 py-2 text-left">Category</th>
@@ -489,7 +489,7 @@ export default function AssetIndex({
                 <select
                   value={assignForm.data.assignment_mode}
                   onChange={(e) => assignForm.setData("assignment_mode", e.currentTarget.value as "department_staff" | "project")}
-                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  className="w-full rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                 >
                   <option value="department_staff">Department/Staff</option>
                   <option value="project">Project (Exclusive)</option>
@@ -502,7 +502,7 @@ export default function AssetIndex({
                   <select
                     value={assignForm.data.project_id}
                     onChange={(e) => assignForm.setData("project_id", e.currentTarget.value)}
-                    className="w-full rounded-md border px-3 py-2 text-sm"
+                    className="w-full rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                     required
                   >
                     <option value="">Select project</option>
@@ -523,7 +523,7 @@ export default function AssetIndex({
                     <select
                       value={assignForm.data.department_id}
                       onChange={(e) => assignForm.setData("department_id", e.currentTarget.value)}
-                      className="w-full rounded-md border px-3 py-2 text-sm"
+                      className="w-full rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                     >
                       <option value="">Select department</option>
                       {departments.map((department) => (
@@ -541,7 +541,7 @@ export default function AssetIndex({
                     <select
                       value={assignForm.data.staff_member_id}
                       onChange={(e) => assignForm.setData("staff_member_id", e.currentTarget.value)}
-                      className="w-full rounded-md border px-3 py-2 text-sm"
+                      className="w-full rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                     >
                       <option value="">Select staff</option>
                       {staffMembers.map((staff) => (
@@ -561,7 +561,7 @@ export default function AssetIndex({
                 <label className="mb-1 block text-sm font-medium">Notes</label>
                 <textarea
                   rows={3}
-                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  className="w-full rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                   value={assignForm.data.notes}
                   onChange={(e) => assignForm.setData("notes", e.currentTarget.value)}
                 />
@@ -593,14 +593,14 @@ export default function AssetIndex({
             </DialogHeader>
             <form className="grid gap-3 md:grid-cols-2" onSubmit={submitEditBatch}>
               <input
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                 placeholder="Batch name"
                 value={editBatchForm.data.name}
                 onChange={(e) => editBatchForm.setData("name", e.currentTarget.value)}
                 required
               />
               <select
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                 value={editBatchForm.data.asset_category_id}
                 onChange={(e) => editBatchForm.setData("asset_category_id", e.currentTarget.value)}
                 required
@@ -613,21 +613,21 @@ export default function AssetIndex({
                 ))}
               </select>
               <input
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                 placeholder="Type"
                 value={editBatchForm.data.type}
                 onChange={(e) => editBatchForm.setData("type", e.currentTarget.value)}
                 required
               />
               <input
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                 placeholder="Model"
                 value={editBatchForm.data.model_name}
                 onChange={(e) => editBatchForm.setData("model_name", e.currentTarget.value)}
                 required
               />
               <select
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                 value={editBatchForm.data.serial_state}
                 onChange={(e) =>
                   editBatchForm.setData("serial_state", e.currentTarget.value as "pending" | "no_serial")
@@ -638,7 +638,7 @@ export default function AssetIndex({
                 <option value="no_serial">No Serial</option>
               </select>
               <input
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                 placeholder="Notes"
                 value={editBatchForm.data.notes}
                 onChange={(e) => editBatchForm.setData("notes", e.currentTarget.value)}

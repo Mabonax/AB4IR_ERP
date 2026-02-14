@@ -50,9 +50,9 @@ export default function AssetRegisterItems({
           </Link>
         </div>
 
-        <section className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+        <section className="overflow-x-auto rounded-xl border bg-card shadow-sm">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">AssetID</th>
                 <th className="px-3 py-2 text-left font-medium">Serial</th>
@@ -88,4 +88,3 @@ export default function AssetRegisterItems({
     </AppLayout>
   );
 }
-

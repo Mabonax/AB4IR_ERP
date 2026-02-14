@@ -86,7 +86,7 @@ export default function AccessControlAssignments({
           <DomainNav items={accessControlNavItems} />
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading
             variant="small"
             title="User Role & Permission Assignment"
@@ -96,7 +96,7 @@ export default function AccessControlAssignments({
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value ? Number(e.target.value) : "")}
-              className="w-full rounded-md border px-3 py-2 text-sm"
+              className="w-full rounded-md border bg-card px-3 py-2 text-sm text-foreground"
             >
               <option value="">Select user</option>
               {users.map((user) => (

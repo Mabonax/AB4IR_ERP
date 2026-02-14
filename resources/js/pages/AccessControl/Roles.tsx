@@ -81,7 +81,7 @@ export default function AccessControlRoles({
           <DomainNav items={accessControlNavItems} />
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Create Role" description="Define a role and attach permissions" />
           <form
             className="mt-4 space-y-3"
@@ -123,7 +123,7 @@ export default function AccessControlRoles({
           </form>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Roles" description="Update or remove existing roles" />
           {roleActionError && <p className="mt-2 text-sm text-red-600">{roleActionError}</p>}
           <div className="mt-4 overflow-x-auto">
@@ -172,7 +172,7 @@ export default function AccessControlRoles({
         </div>
 
         {editingRole && (
-          <div ref={roleEditorRef} className="rounded-xl border bg-white p-6 shadow-sm">
+          <div ref={roleEditorRef} className="rounded-xl border bg-card p-6 shadow-sm">
             <Heading variant="small" title={`Edit Role: ${editingRole.name}`} />
             <form
               className="mt-4 space-y-3"

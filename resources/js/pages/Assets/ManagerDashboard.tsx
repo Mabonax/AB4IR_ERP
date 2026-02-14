@@ -95,7 +95,7 @@ export default function AssetManagerDashboard({
           </Card>
         </div>
 
-        <section className="rounded-xl border bg-white p-4 shadow-sm">
+        <section className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-base font-semibold">Assets By Staff</h2>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
             {assetsByStaff.length === 0 ? (
@@ -119,12 +119,12 @@ export default function AssetManagerDashboard({
           </div>
         </section>
 
-        <section className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+        <section className="overflow-x-auto rounded-xl border bg-card shadow-sm">
           <div className="border-b px-4 py-3">
             <h2 className="text-base font-semibold">Recent Assignment Activity</h2>
           </div>
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-left">Asset</th>
                 <th className="px-3 py-2 text-left">Status</th>

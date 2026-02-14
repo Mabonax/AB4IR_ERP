@@ -171,7 +171,7 @@ export default function ProjectLocationAttendance({
           <DomainNav items={projectNavItems} />
         </div>
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <div className="grid gap-3 md:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm font-medium">Date</label>
@@ -212,7 +212,7 @@ export default function ProjectLocationAttendance({
           </div>
         )}
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-lg font-semibold">Beneficiary Attendance</h2>
           <div className="mt-3 grid gap-3 sm:grid-cols-4">
             <div className="rounded-md border p-3">
@@ -347,7 +347,7 @@ export default function ProjectLocationAttendance({
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-lg font-semibold">Recent Registers</h2>
           <p className="text-sm text-muted-foreground">
             Open a previous day to view details or edit mistakes (if you have edit permission).

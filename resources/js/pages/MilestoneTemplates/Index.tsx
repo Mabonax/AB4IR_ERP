@@ -36,7 +36,7 @@ export default function MilestoneTemplatesIndex({
               <Link
                 key={program.id}
                 href={`/milestone-templates/programs/${program.id}`}
-                className="rounded-lg border bg-white p-4 shadow-sm transition hover:border-red-300 hover:shadow"
+                className="rounded-lg border bg-card p-4 shadow-sm transition hover:border-red-300 hover:shadow"
               >
                 <div className="text-sm text-muted-foreground">Program</div>
                 <div className="mt-1 text-lg font-semibold">

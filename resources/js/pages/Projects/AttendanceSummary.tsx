@@ -52,10 +52,10 @@ export default function AttendanceSummary({
           <DomainNav items={projectNavItems} />
         </div>
 
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
           <label className="mb-1 block text-sm font-medium">Project</label>
           <select
-            className="w-full rounded-md border px-3 py-2 text-sm"
+            className="w-full rounded-md border bg-card px-3 py-2 text-sm text-foreground"
             value={selectedProjectId ?? ""}
             onChange={(e) => {
               const projectId = e.target.value ? Number(e.target.value) : "";
@@ -78,25 +78,25 @@ export default function AttendanceSummary({
         {summary && (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="rounded-xl border bg-card p-4 shadow-sm">
                 <div className="text-sm text-muted-foreground">Register Days</div>
                 <div className="text-2xl font-semibold">{summary.overall.register_days}</div>
               </div>
-              <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="rounded-xl border bg-card p-4 shadow-sm">
                 <div className="text-sm text-muted-foreground">Holidays</div>
                 <div className="text-2xl font-semibold">{summary.overall.holidays}</div>
               </div>
-              <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="rounded-xl border bg-card p-4 shadow-sm">
                 <div className="text-sm text-muted-foreground">Total Entries</div>
                 <div className="text-2xl font-semibold">{summary.overall.total_entries}</div>
               </div>
-              <div className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="rounded-xl border bg-card p-4 shadow-sm">
                 <div className="text-sm text-muted-foreground">Attendance Rate</div>
                 <div className="text-2xl font-semibold">{summary.overall.attendance_rate}%</div>
               </div>
             </div>
 
-            <div className="rounded-xl border bg-white p-4 shadow-sm">
+            <div className="rounded-xl border bg-card p-4 shadow-sm">
               <h2 className="text-lg font-semibold">Per Location</h2>
               <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full text-sm">

@@ -57,7 +57,7 @@ export default function AccessControlPermissions({
           <DomainNav items={accessControlNavItems} />
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Create Permission" description="Add a granular permission string" />
           <form
             className="mt-4 flex gap-2"
@@ -84,7 +84,7 @@ export default function AccessControlPermissions({
           )}
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
           <Heading variant="small" title="Permissions" description="Update or delete permissions" />
           {permissionActionError && <p className="mt-2 text-sm text-red-600">{permissionActionError}</p>}
           <div className="mt-4 overflow-x-auto">
@@ -131,7 +131,7 @@ export default function AccessControlPermissions({
         </div>
 
         {editingPermission && (
-          <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="rounded-xl border bg-card p-6 shadow-sm">
             <Heading variant="small" title={`Edit Permission: ${editingPermission.name}`} />
             <form
               className="mt-4 flex gap-2"

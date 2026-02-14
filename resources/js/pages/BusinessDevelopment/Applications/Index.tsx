@@ -135,7 +135,7 @@ export default function BdsApplicationsIndex({
           </section>
         ) : null}
 
-        <section className="rounded-xl border bg-white p-4 shadow-sm">
+        <section className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-base font-semibold">Import Applications (CSV/XLSX)</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Upload application file from the website export. Required headers must match exactly.
@@ -163,9 +163,9 @@ export default function BdsApplicationsIndex({
           ) : null}
         </section>
 
-        <section className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+        <section className="overflow-x-auto rounded-xl border bg-card shadow-sm">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Applicant</th>
                 <th className="px-3 py-2 text-left font-medium">Company</th>
@@ -243,7 +243,7 @@ export default function BdsApplicationsIndex({
         </section>
 
         {selected ? (
-          <section className="grid gap-4 rounded-xl border bg-white p-4 shadow-sm md:grid-cols-2">
+          <section className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm md:grid-cols-2">
             <div>
               <h3 className="text-base font-semibold">Assessment</h3>
               <p className="mb-3 text-sm text-muted-foreground">
@@ -271,7 +271,7 @@ export default function BdsApplicationsIndex({
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Assessed By</label>
-                  <div className="rounded-md border bg-gray-50 px-3 py-2 text-sm">
+                  <div className="rounded-md border bg-muted px-3 py-2 text-sm">
                     Current logged-in user
                   </div>
                 </div>

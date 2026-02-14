@@ -40,7 +40,7 @@ export default function Password() {
                     <DomainNav items={settingsNavItems} />
                 </div>
 
-                <div className="rounded-xl border bg-white p-6 shadow-sm">
+                <div className="rounded-xl border bg-card p-6 shadow-sm">
                     <Heading
                         variant="small"
                         title="Update password"

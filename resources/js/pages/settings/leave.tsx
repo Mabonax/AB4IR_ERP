@@ -49,7 +49,7 @@ export default function LeaveSettings({
                 </div>
 
                 <div className="space-y-8">
-                    <div className="rounded-xl border bg-white p-6 shadow-sm">
+                    <div className="rounded-xl border bg-card p-6 shadow-sm">
                         <Heading
                             variant="small"
                             title="Leave balance"
@@ -57,19 +57,19 @@ export default function LeaveSettings({
                         />
 
                         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="rounded-lg border bg-white p-4 shadow-sm">
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
                                 <div className="text-sm text-muted-foreground">Accrued</div>
                                 <div className="text-2xl font-semibold">{balance.accrued}</div>
                             </div>
-                            <div className="rounded-lg border bg-white p-4 shadow-sm">
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
                                 <div className="text-sm text-muted-foreground">Used</div>
                                 <div className="text-2xl font-semibold">{balance.used}</div>
                             </div>
-                            <div className="rounded-lg border bg-white p-4 shadow-sm">
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
                                 <div className="text-sm text-muted-foreground">Available</div>
                                 <div className="text-2xl font-semibold">{balance.available}</div>
                             </div>
-                            <div className="rounded-lg border bg-white p-4 shadow-sm">
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
                                 <div className="text-sm text-muted-foreground">Period</div>
                                 <div className="text-sm">
                                     {balance.period_start ?? '-'} to {balance.period_end ?? '-'}
@@ -78,7 +78,7 @@ export default function LeaveSettings({
                         </div>
                     </div>
 
-                    <div className="rounded-xl border bg-white p-6 shadow-sm">
+                    <div className="rounded-xl border bg-card p-6 shadow-sm">
                         <Heading
                             variant="small"
                             title="Request leave"
@@ -129,7 +129,7 @@ export default function LeaveSettings({
                         </form>
                     </div>
 
-                    <div className="rounded-xl border bg-white p-6 shadow-sm">
+                    <div className="rounded-xl border bg-card p-6 shadow-sm">
                         <Heading
                             variant="small"
                             title="My leave requests"

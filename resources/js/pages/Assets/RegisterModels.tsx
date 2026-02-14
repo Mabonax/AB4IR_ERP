@@ -32,9 +32,9 @@ export default function AssetRegisterModels({
           <DomainNav items={assetNavItems} />
         </div>
 
-        <section className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+        <section className="overflow-x-auto rounded-xl border bg-card shadow-sm">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Model</th>
                 <th className="px-3 py-2 text-left font-medium">Active Count</th>
@@ -71,4 +71,3 @@ export default function AssetRegisterModels({
     </AppLayout>
   );
 }
-

@@ -56,7 +56,7 @@ export default function Profile({
                 </div>
 
                 <div className="space-y-8">
-                    <div className="rounded-xl border bg-white p-6 shadow-sm">
+                    <div className="rounded-xl border bg-card p-6 shadow-sm">
                         <Heading
                             variant="small"
                             title="Profile information"

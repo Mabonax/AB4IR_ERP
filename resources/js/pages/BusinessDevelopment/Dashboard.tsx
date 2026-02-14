@@ -113,7 +113,7 @@ export default function BusinessDevelopmentDashboard({
           </Card>
         </div>
 
-        <section className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+        <section className="overflow-x-auto rounded-xl border bg-card shadow-sm">
           <div className="border-b px-4 py-3">
             <h2 className="text-base font-semibold">Domain Activities</h2>
             <p className="text-sm text-muted-foreground">
@@ -121,7 +121,7 @@ export default function BusinessDevelopmentDashboard({
             </p>
           </div>
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Date/Time</th>
                 <th className="px-3 py-2 text-left font-medium">Activity</th>
