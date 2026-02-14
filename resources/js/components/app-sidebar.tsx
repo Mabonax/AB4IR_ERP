@@ -1,10 +1,8 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Briefcase, Building2, ClipboardCheck, Folder, LayoutGrid, Package, ShieldCheck, UserCircle } from 'lucide-react';
+import { BookOpen, Briefcase, BriefcaseBusiness, Building2, ClipboardCheck, LayoutGrid, Package, ShieldCheck, UserCircle } from 'lucide-react';
 
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { hasAnyPermission, hasAnyRole } from '@/lib/access';
 import {
     Sidebar,
     SidebarContent,
@@ -14,6 +12,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { hasAnyPermission, hasAnyRole } from '@/lib/access';
 import { dashboard } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
 
@@ -68,6 +67,12 @@ const mainNavItems: NavItem[] = [
         requiredPermissions: ['domain.projects.view', 'domain.projects.manage'],
     },
     {
+        title: 'Business Development',
+        href: '/business-development',
+        icon: BriefcaseBusiness,
+        requiredPermissions: ['domain.business-development.view', 'domain.business-development.manage'],
+    },
+    {
         title: 'Facilitator Activities',
         href: '/project-locations/dashboard',
         icon: ClipboardCheck,
@@ -79,19 +84,6 @@ const mainNavItems: NavItem[] = [
         icon: ShieldCheck,
         requiredRoles: ['super-admin', 'super admin', 'admin'],
         requiredPermissions: ['access-control.view'],
-    },
-];
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
     },
 ];
 
@@ -123,7 +115,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

@@ -3,6 +3,9 @@
 use App\Domains\Assets\Controllers\AssetCategoryController;
 use App\Domains\Assets\Controllers\AssetController;
 use App\Domains\Beneficiaries\Controllers\BeneficiaryController;
+use App\Domains\BusinessDevelopment\Controllers\BdsApplicationController;
+use App\Domains\BusinessDevelopment\Controllers\BdsDashboardController;
+use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\HumanResources\Controllers\HumanResourcesController;
 use App\Domains\Leave\Controllers\LeaveRequestController;
@@ -33,6 +36,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('beneficiaries', BeneficiaryController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('beneficiaries'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('beneficiaries'));
+
+    Route::get('business-development', BdsDashboardController::class)
+        ->middleware('permission:domain.business-development.view|domain.business-development.manage')
+        ->name('business-development.dashboard');
+    Route::get('business-development/applications', [BdsApplicationController::class, 'index'])
+        ->middleware('permission:domain.business-development.view|domain.business-development.manage')
+        ->name('business-development.applications.index');
+    Route::get('business-development/applications/{bds_application}', [BdsApplicationController::class, 'show'])
+        ->middleware('permission:domain.business-development.view|domain.business-development.manage')
+        ->whereNumber('bds_application')
+        ->name('business-development.applications.show');
+    Route::post('business-development/applications/import', [BdsApplicationController::class, 'import'])
+        ->middleware('permission:domain.business-development.manage')
+        ->name('business-development.applications.import');
+    Route::post('business-development/applications/{bds_application}/assess', [BdsApplicationController::class, 'assess'])
+        ->middleware('permission:domain.business-development.manage')
+        ->whereNumber('bds_application')
+        ->name('business-development.applications.assess');
+    Route::post('business-development/applications/{bds_application}/schedule-pitch', [BdsApplicationController::class, 'schedulePitch'])
+        ->middleware('permission:domain.business-development.manage')
+        ->whereNumber('bds_application')
+        ->name('business-development.applications.schedule-pitch');
+    Route::resource('business-development/incubatees', BdsIncubateeController::class)
+        ->parameters(['incubatees' => 'incubatee'])
+        ->middlewareFor(['index', 'show'], $viewPermission('business-development'))
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('business-development'));
 
     Route::resource('stakeholders', StakeholderController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('stakeholders'))

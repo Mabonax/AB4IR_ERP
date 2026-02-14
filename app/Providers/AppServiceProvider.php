@@ -14,6 +14,10 @@ use App\Domains\Projects\Repositories\ProjectLocationRepository;
 use App\Domains\Projects\Repositories\ProjectLocationRepositoryInterface;
 use App\Domains\Projects\Repositories\ProjectEnrollmentRepository;
 use App\Domains\Projects\Repositories\ProjectEnrollmentRepositoryInterface;
+use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepository;
+use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepositoryInterface;
+use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepository;
+use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepositoryInterface;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Programs\Repositories\ProgramRepository;
@@ -91,6 +95,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             StaffDepartmentRepositoryInterface::class,
             StaffDepartmentRepository::class
+        );
+
+        $this->app->bind(
+            BdsApplicationRepositoryInterface::class,
+            BdsApplicationRepository::class
+        );
+
+        $this->app->bind(
+            BdsIncubateeRepositoryInterface::class,
+            BdsIncubateeRepository::class
         );
     }
 

@@ -11,6 +11,7 @@ return [
         'assets',
         'programs',
         'projects',
+        'business-development',
         'staff',
         'leave',
         'settings',
@@ -20,7 +21,7 @@ return [
         'technical' => ['projects', 'programs', 'assets'],
         'marketing' => ['beneficiaries', 'stakeholders', 'facilitators', 'programs'],
         'admin' => ['staff', 'human-resources', 'leave', 'settings'],
-        'business development' => ['beneficiaries', 'stakeholders', 'projects', 'programs'],
+        'business development' => ['beneficiaries', 'stakeholders', 'projects', 'programs', 'business-development'],
         'default' => ['leave', 'settings'],
     ],
 ];

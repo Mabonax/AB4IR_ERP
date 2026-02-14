@@ -1,7 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 
-import AppLogoIcon from '@/components/app-logo-icon';
 import { home } from '@/routes';
 
 interface AuthLayoutProps {
@@ -24,10 +23,14 @@ export default function AuthSimpleLayout({
                             href={home()}
                             className="flex flex-col items-center gap-2 font-medium"
                         >
-                            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                                <AppLogoIcon className="size-9 fill-current text-[var(--foreground)] dark:text-white" />
+                            <div className="mb-1 flex items-center justify-center rounded-md">
+                                <img
+                                    src="/logo.png"
+                                    alt="AB4IR ERP Logo"
+                                    className="h-14 w-14 object-contain"
+                                />
                             </div>
-                            <span className="sr-only">{title}</span>
+                            <span className="text-lg font-semibold tracking-wide">AB4IR ERP</span>
                         </Link>
 
                         <div className="space-y-2 text-center">
