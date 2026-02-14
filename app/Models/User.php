@@ -24,6 +24,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'staff_id',
         'password',
     ];
 
@@ -56,6 +57,11 @@ class User extends Authenticatable
     public function staffMember()
     {
         return $this->hasOne(StaffMember::class, 'user_id');
+    }
+
+    public function linkedStaffMember()
+    {
+        return $this->belongsTo(StaffMember::class, 'staff_id');
     }
 
     public function facilitator()

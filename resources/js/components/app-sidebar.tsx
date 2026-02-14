@@ -90,10 +90,18 @@ const mainNavItems: NavItem[] = [
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
     const user = auth?.user;
+    const isAdminUser = hasAnyRole(user, ['super-admin', 'super admin', 'admin']);
+    const isBusinessDevelopmentUser = hasAnyPermission(user, [
+        'domain.business-development.view',
+        'domain.business-development.manage',
+    ]);
+    const restrictBeneficiariesForBds = isBusinessDevelopmentUser && !isAdminUser;
+
     const visibleMainNavItems = mainNavItems.filter(
         (item) =>
             hasAnyRole(user, item.requiredRoles ?? []) &&
-            hasAnyPermission(user, item.requiredPermissions ?? []),
+            hasAnyPermission(user, item.requiredPermissions ?? []) &&
+            (!restrictBeneficiariesForBds || item.href !== '/beneficiaries'),
     );
 
     return (
