@@ -43,12 +43,31 @@ export const AssetModelFormConfig = {
       required: true,
     },
     {
+      id: "asset-model-name",
+      name: "model_name",
+      label: "Model",
+      type: "text",
+      placeholder: "ThinkPad T14, EliteBook 840, etc",
+      required: true,
+    },
+    {
       id: "asset-serial",
       name: "serial_number",
       label: "Serial Number",
       type: "text",
       placeholder: "Enter serial number",
+    },
+    {
+      id: "asset-serial-state",
+      name: "serial_state",
+      label: "Serial State",
+      type: "select",
       required: true,
+      options: [
+        { label: "Recorded", value: "recorded" },
+        { label: "Pending", value: "pending" },
+        { label: "No Serial", value: "no_serial" },
+      ],
     },
     {
       id: "asset-status",
@@ -62,15 +81,6 @@ export const AssetModelFormConfig = {
         { label: "Maintenance", value: "maintenance" },
         { label: "Retired", value: "retired" },
       ],
-    },
-    {
-      id: "asset-staff",
-      name: "staff_member_id",
-      label: "Assigned Staff",
-      type: "select",
-      optionsSource: "staffMembers",
-      optionLabel: "name",
-      optionValue: "id",
     },
   ],
 };

@@ -3,6 +3,7 @@
 namespace App\Domains\Assets\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAssetRequest extends FormRequest
 {
@@ -18,7 +19,15 @@ class StoreAssetRequest extends FormRequest
             'staff_member_id' => 'nullable|exists:staff_members,id',
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
-            'serial_number' => 'required|string|max:255|unique:assets,serial_number',
+            'model_name' => 'required|string|max:255',
+            'serial_state' => ['required', Rule::in(['recorded', 'pending', 'no_serial'])],
+            'serial_number' => [
+                Rule::requiredIf(fn () => $this->input('serial_state') === 'recorded'),
+                'nullable',
+                'string',
+                'max:255',
+                'unique:assets,serial_number',
+            ],
             'status' => 'required|in:assigned,unassigned,maintenance,retired',
         ];
     }

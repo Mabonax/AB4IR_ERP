@@ -8,23 +8,48 @@ use Illuminate\Support\Collection;
 
 class AssetRepository implements AssetRepositoryInterface
 {
-    public function paginate(int $perPage = 15): LengthAwarePaginator
+    public function paginate(int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
-        return Asset::with(['category', 'staffMember'])
+        return Asset::with([
+            'category',
+            'staffMember',
+            'currentAssignment.department',
+            'currentAssignment.staffMember',
+            'currentAssignment.project',
+        ])
+            ->when(! empty($filters['category_id']), function ($query) use ($filters) {
+                $query->where('asset_category_id', (int) $filters['category_id']);
+            })
             ->latest()
             ->paginate($perPage);
     }
 
     public function all(): Collection
     {
-        return Asset::with(['category', 'staffMember'])
+        return Asset::with([
+            'category',
+            'staffMember',
+            'currentAssignment.department',
+            'currentAssignment.staffMember',
+            'currentAssignment.project',
+        ])
             ->latest()
             ->get();
     }
 
     public function find(int $id): ?Asset
     {
-        return Asset::with(['category', 'staffMember'])->find($id);
+        return Asset::with([
+            'category',
+            'staffMember',
+            'batch',
+            'currentAssignment.department',
+            'currentAssignment.staffMember',
+            'currentAssignment.project',
+            'assignments.department',
+            'assignments.staffMember',
+            'assignments.project',
+        ])->find($id);
     }
 
     public function create(array $data): Asset

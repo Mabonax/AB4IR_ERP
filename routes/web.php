@@ -114,6 +114,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('assets', [AssetController::class, 'dashboard'])
         ->middleware('permission:domain.assets.view|domain.assets.manage')
         ->name('assets.dashboard');
+    Route::get('assets/register', [AssetController::class, 'registerCategories'])
+        ->middleware('permission:domain.assets.view|domain.assets.manage')
+        ->name('assets.register.categories');
+    Route::get('assets/register/{category}/models', [AssetController::class, 'registerModels'])
+        ->middleware('permission:domain.assets.view|domain.assets.manage')
+        ->whereNumber('category')
+        ->name('assets.register.models');
+    Route::get('assets/register/{category}/models/{model}', [AssetController::class, 'registerItems'])
+        ->middleware('permission:domain.assets.view|domain.assets.manage')
+        ->whereNumber('category')
+        ->name('assets.register.items');
+    Route::get('assets/manager-dashboard', [AssetController::class, 'managerDashboard'])
+        ->middleware('permission:domain.assets.view|domain.assets.manage')
+        ->name('assets.manager-dashboard');
     Route::get('assets/list', [AssetController::class, 'index'])
         ->middleware('permission:domain.assets.view|domain.assets.manage')
         ->name('assets.list');
@@ -122,6 +136,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('asset')
         ->middlewareFor('show', $viewPermission('assets'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('assets'));
+    Route::post('assets/batches', [AssetController::class, 'storeBatch'])
+        ->middleware('permission:domain.assets.manage')
+        ->name('assets.batches.store');
+    Route::put('assets/batches/{batch}', [AssetController::class, 'updateBatch'])
+        ->middleware('permission:domain.assets.manage')
+        ->whereNumber('batch')
+        ->name('assets.batches.update');
+    Route::delete('assets/batches/{batch}', [AssetController::class, 'destroyBatch'])
+        ->middleware('permission:domain.assets.manage')
+        ->whereNumber('batch')
+        ->name('assets.batches.destroy');
+    Route::post('assets/{asset}/assign', [AssetController::class, 'assign'])
+        ->middleware('permission:domain.assets.manage')
+        ->whereNumber('asset')
+        ->name('assets.assign');
+    Route::post('assets/{asset}/return', [AssetController::class, 'returnAsset'])
+        ->middleware('permission:domain.assets.manage')
+        ->whereNumber('asset')
+        ->name('assets.return');
     Route::resource('asset-categories', AssetCategoryController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('assets'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('assets'));

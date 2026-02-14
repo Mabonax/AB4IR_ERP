@@ -21,8 +21,11 @@ class UpdateAssetRequest extends FormRequest
             'staff_member_id' => 'nullable|exists:staff_members,id',
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
+            'model_name' => 'required|string|max:255',
+            'serial_state' => ['required', Rule::in(['recorded', 'pending', 'no_serial'])],
             'serial_number' => [
-                'required',
+                Rule::requiredIf(fn () => $this->input('serial_state') === 'recorded'),
+                'nullable',
                 'string',
                 'max:255',
                 Rule::unique('assets', 'serial_number')->ignore($assetId),

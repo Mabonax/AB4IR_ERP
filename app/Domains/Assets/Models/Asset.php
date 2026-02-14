@@ -14,9 +14,13 @@ class Asset extends Model
 
     protected $fillable = [
         'asset_category_id',
+        'asset_batch_id',
         'staff_member_id',
         'name',
         'type',
+        'model_name',
+        'asset_code',
+        'serial_state',
         'serial_number',
         'status',
     ];
@@ -29,5 +33,20 @@ class Asset extends Model
     public function staffMember()
     {
         return $this->belongsTo(StaffMember::class, 'staff_member_id');
+    }
+
+    public function batch()
+    {
+        return $this->belongsTo(AssetBatch::class, 'asset_batch_id');
+    }
+
+    public function assignments()
+    {
+        return $this->hasMany(AssetAssignment::class);
+    }
+
+    public function currentAssignment()
+    {
+        return $this->hasOne(AssetAssignment::class)->whereNull('returned_at')->latestOfMany('assigned_at');
     }
 }

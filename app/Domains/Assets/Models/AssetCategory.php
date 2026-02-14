@@ -15,4 +15,9 @@ class AssetCategory extends Model
         'name',
         'description',
     ];
+
+    public function assets()
+    {
+        return $this->hasMany(Asset::class, 'asset_category_id');
+    }
 }

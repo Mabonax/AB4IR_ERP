@@ -1,8 +1,6 @@
 import { Head } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
-import { assetNavItems } from "@/config/domain-nav/assets";
 import {
   Card,
   CardContent,
@@ -10,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { assetNavItems } from "@/config/domain-nav/assets";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -25,6 +25,9 @@ export default function AssetsDashboard({
     unassignedAssets: number;
     maintenanceAssets: number;
     retiredAssets: number;
+    pendingSerialAssets: number;
+    noSerialAssets: number;
+    totalBatches: number;
   };
 }) {
   return (
@@ -37,7 +40,7 @@ export default function AssetsDashboard({
           <DomainNav items={assetNavItems} />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader>
               <CardTitle>Total Assets</CardTitle>
@@ -81,6 +84,33 @@ export default function AssetsDashboard({
             </CardHeader>
             <CardContent className="text-2xl font-semibold">
               {stats.retiredAssets}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Serial</CardTitle>
+              <CardDescription>Awaiting serial capture</CardDescription>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">
+              {stats.pendingSerialAssets}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>No Serial</CardTitle>
+              <CardDescription>Assets without serials</CardDescription>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">
+              {stats.noSerialAssets}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Batches</CardTitle>
+              <CardDescription>Total inventory batches</CardDescription>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">
+              {stats.totalBatches}
             </CardContent>
           </Card>
         </div>
