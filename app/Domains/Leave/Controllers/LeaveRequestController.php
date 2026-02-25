@@ -21,26 +21,52 @@ class LeaveRequestController extends Controller
     {
         $user = Auth::user();
         $staff = $user?->staffMember?->load(['department', 'manager']);
+        $isHrUser = $user && (
+            $user->can('domain.human-resources.view')
+            || $user->can('domain.human-resources.manage')
+            || $user->can('domain.leave.view')
+            || $user->can('domain.leave.manage')
+        );
 
         $myRequests = $staff
-            ? LeaveRequest::with(['staffMember', 'manager'])
+            ? LeaveRequest::with(['staffMember.department', 'manager'])
                 ->where('staff_member_id', $staff->id)
                 ->orderByDesc('created_at')
                 ->get()
             : collect();
 
         $managerQueue = $staff
-            ? LeaveRequest::with(['staffMember', 'manager'])
+            ? LeaveRequest::with(['staffMember.department', 'manager'])
                 ->where('manager_id', $staff->id)
                 ->where('status', 'submitted')
                 ->orderByDesc('created_at')
                 ->get()
             : collect();
 
-        $hrQueue = LeaveRequest::with(['staffMember', 'manager'])
-            ->where('status', 'manager_approved')
-            ->orderByDesc('created_at')
-            ->get();
+        $hrQueue = $isHrUser
+            ? LeaveRequest::with(['staffMember.department', 'manager'])
+                ->where('status', 'manager_approved')
+                ->orderByDesc('created_at')
+                ->get()
+            : collect();
+
+        $leaveRegisterQuery = LeaveRequest::with(['staffMember.department', 'manager'])
+            ->where('status', 'hr_approved')
+            ->orderByDesc('start_date');
+
+        if (! $isHrUser) {
+            if ($staff && $staff->department_id) {
+                $leaveRegisterQuery->whereHas('staffMember', function ($query) use ($staff) {
+                    $query->where('department_id', $staff->department_id);
+                });
+            } elseif ($staff) {
+                $leaveRegisterQuery->where('manager_id', $staff->id);
+            } else {
+                $leaveRegisterQuery->whereRaw('1 = 0');
+            }
+        }
+
+        $leaveRegister = $leaveRegisterQuery->get();
 
         $mapLeave = fn ($leave) => [
             'id' => $leave->id,
@@ -48,6 +74,7 @@ class LeaveRequestController extends Controller
             'staff_member_name' => $leave->staffMember
                 ? trim($leave->staffMember->first_name.' '.$leave->staffMember->last_name)
                 : null,
+            'department_name' => $leave->staffMember?->department?->name,
             'manager_id' => $leave->manager_id,
             'manager_name' => $leave->manager
                 ? trim($leave->manager->first_name.' '.$leave->manager->last_name)
@@ -62,6 +89,7 @@ class LeaveRequestController extends Controller
             'myRequests' => $myRequests->map($mapLeave)->values(),
             'managerQueue' => $managerQueue->map($mapLeave)->values(),
             'hrQueue' => $hrQueue->map($mapLeave)->values(),
+            'leaveRegister' => $leaveRegister->map($mapLeave)->values(),
         ]);
     }
 
@@ -83,7 +111,7 @@ class LeaveRequestController extends Controller
         $end = Carbon::parse($data['end_date']);
         $totalDays = $start->diffInDays($end) + 1;
 
-        $balance = $this->calculateLeaveBalance($staff);
+        $balance = $this->balanceService->calculate($staff);
         if ($totalDays > $balance['available']) {
             return redirect()->back()->withErrors([
                 'end_date' => 'Insufficient leave balance.',

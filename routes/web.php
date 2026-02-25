@@ -89,7 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('human-resources.dashboard');
 
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])
-        ->middleware('permission:domain.leave.view|domain.leave.manage')
+        ->middleware('permission:domain.leave.view|domain.leave.manage|domain.staff.view|domain.staff.manage')
         ->name('leave-requests.index');
     Route::post('leave-requests', [LeaveRequestController::class, 'store'])
         ->middleware('permission:domain.leave.manage')

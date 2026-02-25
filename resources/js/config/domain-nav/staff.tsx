@@ -1,4 +1,5 @@
-import { Building2, Briefcase, UserCircle } from "lucide-react";
+import { Building2, Briefcase, CalendarDays, UserCircle } from "lucide-react";
+
 import { type DomainNavItem } from "@/components/domain-nav";
 
 export const staffNavItems: DomainNavItem[] = [
@@ -6,4 +7,5 @@ export const staffNavItems: DomainNavItem[] = [
   { label: "Dashboard", href: "/staff", icon: <UserCircle className="h-4 w-4" />, requiredPermissions: ["domain.staff.view", "domain.staff.manage"] },
   { label: "Staff List", href: "/staff/list", requiredPermissions: ["domain.staff.view", "domain.staff.manage"] },
   { label: "Departments", href: "/staff-departments", icon: <Building2 className="h-4 w-4" />, requiredPermissions: ["domain.staff.view", "domain.staff.manage"] },
+  { label: "Leave Requests", href: "/leave-requests", icon: <CalendarDays className="h-4 w-4" />, requiredPermissions: ["domain.staff.view", "domain.staff.manage", "domain.leave.view", "domain.leave.manage"] },
 ];

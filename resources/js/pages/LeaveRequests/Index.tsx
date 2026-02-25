@@ -1,4 +1,4 @@
-import { Head } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import { useState } from "react";
 
 import AppLayout from "@/layouts/app-layout";
@@ -30,10 +30,12 @@ export default function LeaveRequestsIndex({
   myRequests,
   managerQueue,
   hrQueue,
+  leaveRegister,
 }: {
   myRequests: any[];
   managerQueue: any[];
   hrQueue: any[];
+  leaveRegister: any[];
 }) {
   const [actionOpen, setActionOpen] = useState(false);
   const [actionType, setActionType] = useState<"manager_approve" | "manager_reject" | "hr_approve" | "hr_reject" | null>(null);
@@ -74,6 +76,7 @@ export default function LeaveRequestsIndex({
 
   const columns = [
     { label: "Employee", key: "staff_name", className: "px-4 py-2 text-left" },
+    { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
     { label: "Start", key: "start_date", className: "px-4 py-2 text-left" },
     { label: "End", key: "end_date", className: "px-4 py-2 text-left" },
     { label: "Days", key: "total_days", className: "px-4 py-2 text-left" },
@@ -85,6 +88,7 @@ export default function LeaveRequestsIndex({
     items.map((item) => ({
       ...item,
       staff_name: item.staff_member_name ?? "-",
+      department_name: item.department_name ?? "-",
       manager_name: item.manager_name ?? "-",
     }));
 
@@ -97,6 +101,16 @@ export default function LeaveRequestsIndex({
           <h1 className="text-xl font-semibold">Leave Management</h1>
           <DomainNav items={humanResourcesNavItems} />
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Leave Register</CardTitle>
+            <CardDescription>Approved leave records (who is on leave and for which dates)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CustomTable columns={columns} data={mapRequests(leaveRegister)} actions={[]} />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -172,7 +186,7 @@ export default function LeaveRequestsIndex({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Comment (optional)"
-              className="rounded-md border px-3 py-2 text-sm"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
             />
             <button
               type="submit"
