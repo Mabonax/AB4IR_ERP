@@ -1,4 +1,8 @@
 <?php
+/*
+| Copyright (c) 2026 John Mabona. All rights reserved.
+| Proprietary and confidential. System Architecture by John Mabona.
+*/
 
 use App\Domains\Assets\Controllers\AssetCategoryController;
 use App\Domains\Assets\Controllers\AssetController;
