@@ -20,6 +20,7 @@ use App\Domains\Staff\Controllers\StaffController;
 use App\Domains\Staff\Controllers\StaffDepartmentController;
 use App\Domains\Stakeholders\Controllers\StakeholderController;
 use App\Http\Controllers\AccessControl\AccessControlController;
+use App\Http\Controllers\BusinessDevelopment\AdjudicationAssessmentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -62,6 +63,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->parameters(['incubatees' => 'incubatee'])
         ->middlewareFor(['index', 'show'], $viewPermission('business-development'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('business-development'));
+    Route::resource('business-development/adjudications', AdjudicationAssessmentController::class)
+        ->parameters(['adjudications' => 'assessment'])
+        ->names('business-development.adjudications')
+        ->middlewareFor(['index', 'show'], $viewPermission('business-development'))
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('business-development'));
+    Route::post('business-development/adjudications/{assessment}/submit', [AdjudicationAssessmentController::class, 'submit'])
+        ->middleware('permission:domain.business-development.manage')
+        ->name('business-development.adjudications.submit');
+    Route::post('business-development/adjudications/{assessment}/unlock', [AdjudicationAssessmentController::class, 'unlock'])
+        ->middleware('permission:domain.business-development.manage')
+        ->name('business-development.adjudications.unlock');
 
     Route::resource('stakeholders', StakeholderController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('stakeholders'))

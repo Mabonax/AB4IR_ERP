@@ -18,6 +18,10 @@ use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepository;
 use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepositoryInterface;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepository;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepositoryInterface;
+use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
+use App\Domains\BusinessDevelopment\Adjudication\Policies\AdjudicationAssessmentPolicy;
+use App\Domains\BusinessDevelopment\Adjudication\Repositories\AdjudicationAssessmentRepositoryInterface;
+use App\Domains\BusinessDevelopment\Adjudication\Repositories\EloquentAdjudicationAssessmentRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Programs\Repositories\ProgramRepository;
@@ -106,6 +110,11 @@ class AppServiceProvider extends ServiceProvider
             BdsIncubateeRepositoryInterface::class,
             BdsIncubateeRepository::class
         );
+
+        $this->app->bind(
+            AdjudicationAssessmentRepositoryInterface::class,
+            EloquentAdjudicationAssessmentRepository::class
+        );
     }
 
     /**
@@ -114,6 +123,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        Gate::policy(AdjudicationAssessment::class, AdjudicationAssessmentPolicy::class);
 
         Gate::before(function ($user, string $ability) {
             return method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['super-admin', 'super admin'])
