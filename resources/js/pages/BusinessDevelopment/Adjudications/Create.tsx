@@ -29,15 +29,17 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function CreateAdjudication({
   sections,
   smmes,
+  initial_smme_id,
 }: {
   sections: Section[];
   smmes: SmmeOption[];
+  initial_smme_id?: number | null;
 }) {
   const { props } = usePage<SharedData>();
   const judgeName = props.auth?.user?.name ?? "Current user";
 
   const form = useForm({
-    smme_id: smmes[0]?.id ?? 0,
+    smme_id: initial_smme_id ?? smmes[0]?.id ?? 0,
     platform_name: "",
     adjudication_date: new Date().toISOString().slice(0, 10),
     development_stage: "mvp" as "mvp" | "prototype" | "complete_product",

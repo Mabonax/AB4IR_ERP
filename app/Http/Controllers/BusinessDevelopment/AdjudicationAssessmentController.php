@@ -42,13 +42,14 @@ class AdjudicationAssessmentController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         $this->authorize('create', AdjudicationAssessment::class);
 
         return Inertia::render('BusinessDevelopment/Adjudications/Create', [
             'sections' => $this->sections(),
             'smmes' => $this->smmes(),
+            'initial_smme_id' => $request->integer('smme_id') ?: null,
         ]);
     }
 
@@ -104,11 +105,15 @@ class AdjudicationAssessmentController extends Controller
 
     public function submit(Request $request, AdjudicationAssessment $assessment): RedirectResponse
     {
-        $this->submitAction->execute($assessment, $request->user());
+        $validated = $request->validate([
+            'result' => ['required', 'in:incubated,rejected'],
+        ]);
+
+        $this->submitAction->execute($assessment, $request->user(), $validated['result']);
 
         return redirect()
             ->route('business-development.adjudications.show', $assessment)
-            ->with('success', 'Assessment submitted and locked.');
+            ->with('success', sprintf('Assessment submitted and outcome marked as %s.', $validated['result']));
     }
 
     public function unlock(Request $request, AdjudicationAssessment $assessment): RedirectResponse

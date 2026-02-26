@@ -4,6 +4,7 @@ namespace App\Domains\BusinessDevelopment\Adjudication\Services;
 
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationSection;
+use App\Domains\BusinessDevelopment\Models\BdsIncubatee;
 use App\Domains\BusinessDevelopment\Adjudication\Repositories\AdjudicationAssessmentRepositoryInterface;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -101,7 +102,7 @@ class AdjudicationAssessmentService
         });
     }
 
-    public function submit(AdjudicationAssessment $assessment, User $actor): AdjudicationAssessment
+    public function submit(AdjudicationAssessment $assessment, User $actor, string $result): AdjudicationAssessment
     {
         Gate::forUser($actor)->authorize('submit', $assessment);
 
@@ -111,10 +112,40 @@ class AdjudicationAssessmentService
             ]);
         }
 
-        $this->repository->update($assessment, [
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
+        if (! in_array($result, ['incubated', 'rejected'], true)) {
+            throw ValidationException::withMessages([
+                'result' => ['Result must be incubated or rejected.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($assessment, $result, $actor): void {
+            $submittedAt = now();
+            $this->repository->update($assessment, [
+                'status' => 'submitted',
+                'submitted_at' => $submittedAt,
+            ]);
+
+            $application = $assessment->smme()->firstOrFail();
+            $application->update([
+                'adjudication_result' => $result,
+                'adjudicated_at' => $submittedAt,
+                'updated_by' => $actor->id,
+            ]);
+
+            if ($result === 'incubated') {
+                $this->upsertIncubateeFromApplication($application->toArray(), $actor->id);
+
+                return;
+            }
+
+            BdsIncubatee::query()
+                ->where('bds_application_id', $application->id)
+                ->update([
+                    'status' => 'inactive',
+                    'updated_by' => $actor->id,
+                    'updated_at' => now(),
+                ]);
+        });
 
         return $assessment->refresh()->load(['judge:id,name', 'smme:id,company_name', 'scores.section', 'sections']);
     }
@@ -123,12 +154,64 @@ class AdjudicationAssessmentService
     {
         Gate::forUser($actor)->authorize('unlock', $assessment);
 
-        $this->repository->update($assessment, [
-            'status' => 'draft',
-            'submitted_at' => null,
-        ]);
+        DB::transaction(function () use ($assessment, $actor): void {
+            $this->repository->update($assessment, [
+                'status' => 'draft',
+                'submitted_at' => null,
+            ]);
+
+            $assessment->smme()->update([
+                'adjudication_result' => null,
+                'adjudicated_at' => null,
+                'updated_by' => $actor->id,
+            ]);
+        });
 
         return $assessment->refresh()->load(['judge:id,name', 'smme:id,company_name', 'scores.section', 'sections']);
+    }
+
+    protected function upsertIncubateeFromApplication(array $application, int $actorId): void
+    {
+        $payload = [
+            'bds_application_id' => (int) $application['id'],
+            'full_name' => $application['full_name'],
+            'id_number' => $application['id_number'],
+            'gender' => $application['gender'],
+            'mobile_number' => $application['mobile_number'],
+            'email' => $application['email'],
+            'company_name' => $application['company_name'],
+            'company_registration_number' => $application['company_registration_number'],
+            'position_in_company' => $application['position_in_company'],
+            'majority_shareholding' => $application['majority_shareholding'],
+            'current_number_of_employees' => $application['current_number_of_employees'],
+            'physical_address' => $application['physical_address'],
+            'website_address' => $application['website_address'],
+            'years_in_operation' => $application['years_in_operation'],
+            'province_id' => $application['province_id'],
+            'has_business_plan' => (bool) $application['has_business_plan'],
+            'relevant_skill_set' => $application['relevant_skill_set'],
+            'technology_product_service' => $application['technology_product_service'],
+            'technology_stage_of_development' => $application['technology_stage_of_development'],
+            'status' => 'active',
+            'updated_by' => $actorId,
+        ];
+
+        $incubatee = BdsIncubatee::query()
+            ->where('bds_application_id', $application['id'])
+            ->orWhere('id_number', $application['id_number'])
+            ->orWhere('company_registration_number', $application['company_registration_number'])
+            ->first();
+
+        if ($incubatee) {
+            $incubatee->update($payload);
+
+            return;
+        }
+
+        BdsIncubatee::query()->create([
+            ...$payload,
+            'created_by' => $actorId,
+        ]);
     }
 
     protected function upsertScores(AdjudicationAssessment $assessment, array $scores): void

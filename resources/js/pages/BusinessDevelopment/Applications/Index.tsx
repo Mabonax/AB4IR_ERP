@@ -26,6 +26,9 @@ type ApplicationRow = {
   assessed_at: string | null;
   pitch_scheduled_at: string | null;
   pitch_notes: string | null;
+  adjudication_result: "incubated" | "rejected" | null;
+  adjudicated_at: string | null;
+  has_submitted_adjudication: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -172,13 +175,14 @@ export default function BdsApplicationsIndex({
                 <th className="px-3 py-2 text-left font-medium">Province</th>
                 <th className="px-3 py-2 text-left font-medium">Status</th>
                 <th className="px-3 py-2 text-left font-medium">Pitch</th>
+                <th className="px-3 py-2 text-left font-medium">Adjudication</th>
                 <th className="px-3 py-2 text-left font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
               {applications.data.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-4 text-muted-foreground" colSpan={6}>
+                  <td className="px-3 py-4 text-muted-foreground" colSpan={7}>
                     No applications yet.
                   </td>
                 </tr>
@@ -207,6 +211,13 @@ export default function BdsApplicationsIndex({
                       )}
                     </td>
                     <td className="px-3 py-2">
+                      {row.adjudication_result ? (
+                        <span className="capitalize">{row.adjudication_result}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Pending</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
                       <button
                         type="button"
                         onClick={() =>
@@ -216,24 +227,36 @@ export default function BdsApplicationsIndex({
                       >
                         View
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelected(row);
-                          assessForm.setData({
-                            assessment_status: row.assessment_status === "rejected" ? "rejected" : "accepted",
-                          });
-                          pitchForm.setData({
-                            pitch_scheduled_at: row.pitch_scheduled_at
-                              ? row.pitch_scheduled_at.slice(0, 16)
-                              : "",
-                            pitch_notes: row.pitch_notes ?? "",
-                          });
-                        }}
-                        className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
-                      >
-                        Assess / Pitch
-                      </button>
+                      {row.assessment_status === "accepted" && row.pitch_scheduled_at ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.visit(`/business-development/adjudications/create?smme_id=${row.id}`)
+                          }
+                          className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+                        >
+                          Start Adjudication
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelected(row);
+                            assessForm.setData({
+                              assessment_status: row.assessment_status === "rejected" ? "rejected" : "accepted",
+                            });
+                            pitchForm.setData({
+                              pitch_scheduled_at: row.pitch_scheduled_at
+                                ? row.pitch_scheduled_at.slice(0, 16)
+                                : "",
+                              pitch_notes: row.pitch_notes ?? "",
+                            });
+                          }}
+                          className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+                        >
+                          Assess / Pitch
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

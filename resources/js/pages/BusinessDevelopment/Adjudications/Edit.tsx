@@ -28,10 +28,10 @@ type Assessment = {
   status: "draft" | "submitted";
   total_score: number;
   additional_notes: string | null;
-  judge: { id: number; name: string };
-  smme: { id: number; name: string };
-  scores: ScoreInput[];
-  sections: Section[];
+  judge?: { id: number | null; name: string | null } | null;
+  smme?: { id: number | null; name: string | null } | null;
+  scores?: ScoreInput[];
+  sections?: Section[];
 };
 
 export default function EditAdjudication({
@@ -40,30 +40,35 @@ export default function EditAdjudication({
   smmes,
   can,
 }: {
-  assessment: Assessment;
+  assessment: Assessment | { data: Assessment };
   sections: Section[];
   smmes: SmmeOption[];
   can: { can_update: boolean; can_submit: boolean; can_unlock: boolean };
 }) {
-  const isLocked = assessment.status === "submitted" || !can.can_update;
+  const appData: Assessment =
+    assessment && typeof assessment === "object" && "data" in assessment
+      ? assessment.data
+      : (assessment as Assessment);
+
+  const isLocked = appData.status === "submitted" || !can.can_update;
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Business Development", href: "/business-development" },
     { title: "Adjudications", href: "/business-development/adjudications" },
-    { title: `Assessment #${assessment.id}`, href: `/business-development/adjudications/${assessment.id}/edit` },
+    { title: `Assessment #${appData.id}`, href: `/business-development/adjudications/${appData.id}/edit` },
   ];
 
   const form = useForm({
-    smme_id: assessment.smme.id,
-    platform_name: assessment.platform_name,
-    adjudication_date: assessment.adjudication_date,
-    development_stage: assessment.development_stage,
-    additional_notes: assessment.additional_notes ?? "",
+    smme_id: appData.smme?.id ?? smmes[0]?.id ?? 0,
+    platform_name: appData.platform_name ?? "",
+    adjudication_date: appData.adjudication_date ?? "",
+    development_stage: appData.development_stage,
+    additional_notes: appData.additional_notes ?? "",
     scores: sections
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((section) => {
-        const existing = assessment.scores.find((score) => score.section_id === section.id);
+        const existing = (appData.scores ?? []).find((score) => score.section_id === section.id);
 
         return {
           section_id: section.id,
@@ -87,14 +92,14 @@ export default function EditAdjudication({
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title={`Edit Assessment #${assessment.id}`} />
+      <Head title={`Edit Assessment #${appData.id}`} />
 
       <div className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">Assessment #{assessment.id}</h1>
-            <Badge variant={assessment.status === "submitted" ? "secondary" : "outline"}>
-              {assessment.status === "submitted" ? "Submitted" : "Draft"}
+            <h1 className="text-xl font-semibold">Assessment #{appData.id}</h1>
+            <Badge variant={appData.status === "submitted" ? "secondary" : "outline"}>
+              {appData.status === "submitted" ? "Submitted" : "Draft"}
             </Badge>
           </div>
           <DomainNav items={businessDevelopmentNavItems} />
@@ -104,13 +109,13 @@ export default function EditAdjudication({
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            form.put(`/business-development/adjudications/${assessment.id}`);
+            form.put(`/business-development/adjudications/${appData.id}`);
           }}
         >
           <section className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium">Judge</label>
-              <Input value={assessment.judge.name} readOnly />
+              <Input value={appData.judge?.name ?? "-"} readOnly />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">SMME</label>
@@ -232,7 +237,7 @@ export default function EditAdjudication({
           </section>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => router.visit(`/business-development/adjudications/${assessment.id}`)}>
+            <Button type="button" variant="outline" onClick={() => router.visit(`/business-development/adjudications/${appData.id}`)}>
               View
             </Button>
             {!isLocked ? (
@@ -241,27 +246,46 @@ export default function EditAdjudication({
               </Button>
             ) : null}
             {!isLocked && can.can_submit ? (
-              <Button
-                type="button"
-                onClick={() =>
-                  router.post(`/business-development/adjudications/${assessment.id}/submit`, {}, { preserveScroll: true })
-                }
-              >
-                Submit
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    router.post(
+                      `/business-development/adjudications/${appData.id}/submit`,
+                      { result: "incubated" },
+                      { preserveScroll: true }
+                    )
+                  }
+                >
+                  Submit as Incubated
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() =>
+                    router.post(
+                      `/business-development/adjudications/${appData.id}/submit`,
+                      { result: "rejected" },
+                      { preserveScroll: true }
+                    )
+                  }
+                >
+                  Submit as Rejected
+                </Button>
+              </>
             ) : null}
-            {assessment.status === "submitted" && can.can_unlock ? (
+            {appData.status === "submitted" && can.can_unlock ? (
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() =>
-                  router.post(`/business-development/adjudications/${assessment.id}/unlock`, {}, { preserveScroll: true })
+                  router.post(`/business-development/adjudications/${appData.id}/unlock`, {}, { preserveScroll: true })
                 }
               >
                 Unlock
               </Button>
             ) : null}
-            {assessment.status === "submitted" ? (
+            {appData.status === "submitted" ? (
               <span className="text-sm text-muted-foreground">Locked after submit</span>
             ) : null}
           </div>

@@ -38,6 +38,9 @@ class BdsApplicationResource extends JsonResource
             'assessed_at' => $this->assessed_at?->toDateTimeString(),
             'pitch_scheduled_at' => $this->pitch_scheduled_at?->toDateTimeString(),
             'pitch_notes' => $this->pitch_notes,
+            'adjudication_result' => $this->adjudication_result,
+            'adjudicated_at' => $this->adjudicated_at?->toDateTimeString(),
+            'has_submitted_adjudication' => (bool) ($this->has_submitted_adjudication ?? false),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

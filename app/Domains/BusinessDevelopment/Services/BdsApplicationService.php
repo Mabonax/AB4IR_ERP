@@ -60,10 +60,16 @@ class BdsApplicationService
             ->where('user_id', (int) $user->id)
             ->first();
 
+        $status = $data['assessment_status'];
+
         return $this->repository->update($application, [
-            'assessment_status' => $data['assessment_status'],
+            'assessment_status' => $status,
             'assessed_by_staff_id' => $staff?->id,
             'assessed_at' => now(),
+            'pitch_scheduled_at' => $status === 'rejected' ? null : $application->pitch_scheduled_at,
+            'pitch_notes' => $status === 'rejected' ? null : $application->pitch_notes,
+            'adjudication_result' => $status === 'rejected' ? null : $application->adjudication_result,
+            'adjudicated_at' => $status === 'rejected' ? null : $application->adjudicated_at,
             'updated_by' => auth()->id(),
         ]);
     }

@@ -12,8 +12,8 @@ class SubmitAdjudicationAssessmentAction
         protected AdjudicationAssessmentService $service
     ) {}
 
-    public function execute(AdjudicationAssessment $assessment, User $actor): AdjudicationAssessment
+    public function execute(AdjudicationAssessment $assessment, User $actor, string $result): AdjudicationAssessment
     {
-        return $this->service->submit($assessment, $actor);
+        return $this->service->submit($assessment, $actor, $result);
     }
 }

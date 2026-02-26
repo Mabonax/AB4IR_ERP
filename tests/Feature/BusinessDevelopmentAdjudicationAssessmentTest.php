@@ -153,7 +153,9 @@ test('assessment cannot be updated after submit', function () {
         ->assertRedirect();
 
     $this->actingAs($judge)
-        ->post(route('business-development.adjudications.submit', $assessment))
+        ->post(route('business-development.adjudications.submit', $assessment), [
+            'result' => 'rejected',
+        ])
         ->assertRedirect(route('business-development.adjudications.show', $assessment));
 
     $this->actingAs($judge)
@@ -166,6 +168,41 @@ test('assessment cannot be updated after submit', function () {
             'scores' => scorePayload(),
         ])
         ->assertForbidden();
+});
+
+test('submitting adjudication as incubated creates incubatee and updates application result', function () {
+    $judge = createUserWithBusinessDevelopmentPermission();
+    $smmeId = createSmmeApplication();
+
+    $assessment = AdjudicationAssessment::query()->create([
+        'smme_id' => $smmeId,
+        'judge_id' => $judge->id,
+        'platform_name' => 'Outcome Platform',
+        'adjudication_date' => now()->toDateString(),
+        'development_stage' => 'prototype',
+        'status' => 'draft',
+        'total_score' => 22,
+    ]);
+
+    $this->actingAs($judge)
+        ->post(route('business-development.adjudications.submit', $assessment), [
+            'result' => 'incubated',
+        ])
+        ->assertRedirect(route('business-development.adjudications.show', $assessment));
+
+    $this->assertDatabaseHas('bds_applications', [
+        'id' => $smmeId,
+        'adjudication_result' => 'incubated',
+    ]);
+
+    $application = DB::table('bds_applications')->where('id', $smmeId)->first();
+
+    $this->assertDatabaseHas('bds_incubatees', [
+        'bds_application_id' => $smmeId,
+        'id_number' => $application->id_number,
+        'company_registration_number' => $application->company_registration_number,
+        'status' => 'active',
+    ]);
 });
 
 test('score validation respects section max points', function () {

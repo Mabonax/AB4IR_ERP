@@ -32,6 +32,8 @@ type Application = {
   assessed_at: string | null;
   pitch_scheduled_at: string | null;
   pitch_notes: string | null;
+  adjudication_result: "incubated" | "rejected" | null;
+  adjudicated_at: string | null;
 };
 
 export default function BdsApplicationShow({
@@ -75,6 +77,8 @@ export default function BdsApplicationShow({
     { label: "Assessed At", value: appData.assessed_at },
     { label: "Pitch Scheduled At", value: appData.pitch_scheduled_at },
     { label: "Pitch Notes", value: appData.pitch_notes },
+    { label: "Adjudication Result", value: appData.adjudication_result },
+    { label: "Adjudicated At", value: appData.adjudicated_at },
   ];
 
   return (

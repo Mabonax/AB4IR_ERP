@@ -81,7 +81,7 @@ export default function AdjudicationsIndex({
               icon: "Send",
               onClick: (row: AssessmentRow) => {
                 if (row.status === "submitted") return;
-                router.post(`/business-development/adjudications/${row.id}/submit`, {}, { preserveScroll: true });
+                router.visit(`/business-development/adjudications/${row.id}`);
               },
             },
             {

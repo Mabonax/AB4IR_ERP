@@ -3,10 +3,12 @@
 namespace App\Domains\BusinessDevelopment\Models;
 
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
 use App\Models\User;
 use App\Models\provinces;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BdsApplication extends Model
 {
@@ -39,6 +41,8 @@ class BdsApplication extends Model
         'assessed_at',
         'pitch_scheduled_at',
         'pitch_notes',
+        'adjudication_result',
+        'adjudicated_at',
         'created_by',
         'updated_by',
     ];
@@ -48,6 +52,7 @@ class BdsApplication extends Model
         'application_date' => 'date',
         'assessed_at' => 'datetime',
         'pitch_scheduled_at' => 'datetime',
+        'adjudicated_at' => 'datetime',
     ];
 
     public function province()
@@ -63,5 +68,10 @@ class BdsApplication extends Model
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function adjudications(): HasMany
+    {
+        return $this->hasMany(AdjudicationAssessment::class, 'smme_id');
     }
 }

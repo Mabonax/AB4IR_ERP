@@ -25,10 +25,10 @@ type Assessment = {
   status: "draft" | "submitted";
   total_score: number;
   additional_notes: string | null;
-  judge: { id: number; name: string };
-  smme: { id: number; name: string };
-  sections: Section[];
-  scores: Score[];
+  judge?: { id: number | null; name: string | null } | null;
+  smme?: { id: number | null; name: string | null } | null;
+  sections?: Section[];
+  scores?: Score[];
 };
 
 const stageLabel: Record<Assessment["development_stage"], string> = {
@@ -41,25 +41,30 @@ export default function ShowAdjudication({
   assessment,
   can,
 }: {
-  assessment: Assessment;
+  assessment: Assessment | { data: Assessment };
   can: { can_update: boolean; can_submit: boolean; can_unlock: boolean; can_delete: boolean };
 }) {
+  const appData: Assessment =
+    assessment && typeof assessment === "object" && "data" in assessment
+      ? assessment.data
+      : (assessment as Assessment);
+
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Business Development", href: "/business-development" },
     { title: "Adjudications", href: "/business-development/adjudications" },
-    { title: `Assessment #${assessment.id}`, href: `/business-development/adjudications/${assessment.id}` },
+    { title: `Assessment #${appData.id}`, href: `/business-development/adjudications/${appData.id}` },
   ];
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title={`Assessment #${assessment.id}`} />
+      <Head title={`Assessment #${appData.id}`} />
 
       <div className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">Assessment #{assessment.id}</h1>
-            <Badge variant={assessment.status === "submitted" ? "secondary" : "outline"}>
-              {assessment.status === "submitted" ? "Submitted" : "Draft"}
+            <h1 className="text-xl font-semibold">Assessment #{appData.id}</h1>
+            <Badge variant={appData.status === "submitted" ? "secondary" : "outline"}>
+              {appData.status === "submitted" ? "Submitted" : "Draft"}
             </Badge>
           </div>
           <DomainNav items={businessDevelopmentNavItems} />
@@ -68,23 +73,23 @@ export default function ShowAdjudication({
         <section className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">Judge</p>
-            <p className="text-sm font-medium">{assessment.judge.name}</p>
+            <p className="text-sm font-medium">{appData.judge?.name ?? "-"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">SMME</p>
-            <p className="text-sm font-medium">{assessment.smme.name}</p>
+            <p className="text-sm font-medium">{appData.smme?.name ?? "-"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Date</p>
-            <p className="text-sm font-medium">{assessment.adjudication_date}</p>
+            <p className="text-sm font-medium">{appData.adjudication_date ?? "-"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Platform Name</p>
-            <p className="text-sm font-medium">{assessment.platform_name}</p>
+            <p className="text-sm font-medium">{appData.platform_name ?? "-"}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Development Stage</p>
-            <p className="text-sm font-medium">{stageLabel[assessment.development_stage]}</p>
+            <p className="text-sm font-medium">{stageLabel[appData.development_stage] ?? "-"}</p>
           </div>
         </section>
 
@@ -99,11 +104,11 @@ export default function ShowAdjudication({
               </tr>
             </thead>
             <tbody>
-              {assessment.sections
+              {(appData.sections ?? [])
                 .slice()
                 .sort((a, b) => a.sort_order - b.sort_order)
                 .map((section) => {
-                  const score = assessment.scores.find((item) => item.section_id === section.id);
+                  const score = (appData.scores ?? []).find((item) => item.section_id === section.id);
 
                   return (
                     <tr className="border-t align-top" key={section.id}>
@@ -121,7 +126,7 @@ export default function ShowAdjudication({
                 <td className="px-3 py-2">Total</td>
                 <td className="px-3 py-2" />
                 <td className="px-3 py-2">50</td>
-                <td className="px-3 py-2">{assessment.total_score}</td>
+                <td className="px-3 py-2">{appData.total_score ?? 0}</td>
               </tr>
             </tbody>
           </table>
@@ -129,31 +134,50 @@ export default function ShowAdjudication({
 
         <section className="rounded-xl border bg-card p-4">
           <p className="text-xs text-muted-foreground">Additional Comments / Notes</p>
-          <p className="mt-1 text-sm">{assessment.additional_notes || "-"}</p>
+          <p className="mt-1 text-sm">{appData.additional_notes || "-"}</p>
         </section>
 
         <div className="flex flex-wrap items-center gap-2">
           {can.can_update ? (
-            <Button onClick={() => router.visit(`/business-development/adjudications/${assessment.id}/edit`)}>
+            <Button onClick={() => router.visit(`/business-development/adjudications/${appData.id}/edit`)}>
               Edit
             </Button>
           ) : null}
-          {assessment.status === "draft" && can.can_submit ? (
-            <Button
-              type="button"
-              onClick={() =>
-                router.post(`/business-development/adjudications/${assessment.id}/submit`, {}, { preserveScroll: true })
-              }
-            >
-              Submit
-            </Button>
+          {appData.status === "draft" && can.can_submit ? (
+            <>
+              <Button
+                type="button"
+                onClick={() =>
+                  router.post(
+                    `/business-development/adjudications/${appData.id}/submit`,
+                    { result: "incubated" },
+                    { preserveScroll: true }
+                  )
+                }
+              >
+                Submit as Incubated
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  router.post(
+                    `/business-development/adjudications/${appData.id}/submit`,
+                    { result: "rejected" },
+                    { preserveScroll: true }
+                  )
+                }
+              >
+                Submit as Rejected
+              </Button>
+            </>
           ) : null}
-          {assessment.status === "submitted" && can.can_unlock ? (
+          {appData.status === "submitted" && can.can_unlock ? (
             <Button
               type="button"
               variant="secondary"
               onClick={() =>
-                router.post(`/business-development/adjudications/${assessment.id}/unlock`, {}, { preserveScroll: true })
+                router.post(`/business-development/adjudications/${appData.id}/unlock`, {}, { preserveScroll: true })
               }
             >
               Unlock
@@ -163,7 +187,7 @@ export default function ShowAdjudication({
             <Button
               type="button"
               variant="destructive"
-              onClick={() => router.delete(`/business-development/adjudications/${assessment.id}`)}
+              onClick={() => router.delete(`/business-development/adjudications/${appData.id}`)}
             >
               Delete
             </Button>

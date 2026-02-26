@@ -13,6 +13,7 @@ class BdsIncubatee extends Model
     protected $table = 'bds_incubatees';
 
     protected $fillable = [
+        'bds_application_id',
         'full_name',
         'id_number',
         'gender',
@@ -45,4 +46,3 @@ class BdsIncubatee extends Model
         return $this->belongsTo(provinces::class, 'province_id');
     }
 }
-
