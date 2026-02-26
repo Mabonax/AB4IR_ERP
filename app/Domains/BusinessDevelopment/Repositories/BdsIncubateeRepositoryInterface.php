@@ -7,7 +7,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface BdsIncubateeRepositoryInterface
 {
-    public function paginate(int $perPage = 15): LengthAwarePaginator;
+    public function paginate(int $perPage = 15, ?string $search = null): LengthAwarePaginator;
 
     public function find(int $id): ?BdsIncubatee;
 
@@ -17,4 +17,3 @@ interface BdsIncubateeRepositoryInterface
 
     public function delete(BdsIncubatee $incubatee): bool;
 }
-

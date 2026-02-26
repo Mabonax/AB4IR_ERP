@@ -193,6 +193,7 @@ class AdjudicationAssessmentService
             'technology_product_service' => $application['technology_product_service'],
             'technology_stage_of_development' => $application['technology_stage_of_development'],
             'status' => 'active',
+            'incubated_date' => now()->toDateString(),
             'updated_by' => $actorId,
         ];
 

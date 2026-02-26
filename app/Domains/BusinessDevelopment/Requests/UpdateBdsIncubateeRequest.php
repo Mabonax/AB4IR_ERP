@@ -46,7 +46,7 @@ class UpdateBdsIncubateeRequest extends FormRequest
             'technology_product_service' => 'required|string|max:5000',
             'technology_stage_of_development' => 'required|string|max:2000',
             'status' => 'required|in:active,inactive',
+            'incubated_date' => 'required|date',
         ];
     }
 }
-

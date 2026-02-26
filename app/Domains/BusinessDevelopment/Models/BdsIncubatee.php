@@ -33,12 +33,14 @@ class BdsIncubatee extends Model
         'technology_product_service',
         'technology_stage_of_development',
         'status',
+        'incubated_date',
         'created_by',
         'updated_by',
     ];
 
     protected $casts = [
         'has_business_plan' => 'boolean',
+        'incubated_date' => 'date',
     ];
 
     public function province()

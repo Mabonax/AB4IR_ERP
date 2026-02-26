@@ -13,9 +13,9 @@ class BdsIncubateeService
         protected BdsIncubateeRepositoryInterface $repository
     ) {}
 
-    public function paginate(int $perPage = 15): LengthAwarePaginator
+    public function paginate(int $perPage = 15, ?string $search = null): LengthAwarePaginator
     {
-        return $this->repository->paginate($perPage);
+        return $this->repository->paginate($perPage, $search);
     }
 
     public function getById(int $id): BdsIncubatee
@@ -51,4 +51,3 @@ class BdsIncubateeService
         return $this->repository->delete($incubatee);
     }
 }
-

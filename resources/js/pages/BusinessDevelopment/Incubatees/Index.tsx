@@ -1,5 +1,5 @@
-import { Head } from "@inertiajs/react";
-import { useState } from "react";
+import { Head, Link, router } from "@inertiajs/react";
+import { useMemo, useState } from "react";
 
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { CustomModelForm } from "@/components/custom-model-form";
@@ -37,21 +37,52 @@ type IncubateeRow = {
   technology_product_service: string;
   technology_stage_of_development: string;
   status: "active" | "inactive";
+  incubated_date: string | null;
 };
 
 export default function BdsIncubateesIndex({
   incubatees,
   provinces,
+  filters,
 }: {
-  incubatees: { data: IncubateeRow[] };
+  incubatees: {
+    data: IncubateeRow[];
+    links?: unknown;
+    meta?: {
+      total?: number;
+      links?: Array<{ url: string | null; label: string; active: boolean }>;
+    };
+  };
   provinces: { id: number; name: string }[];
+  filters: { search?: string; per_page?: number };
 }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"create" | "edit" | "view">("create");
   const [selectedIncubatee, setSelectedIncubatee] = useState<IncubateeRow | null>(null);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [incubateeToDelete, setIncubateeToDelete] = useState<IncubateeRow | null>(null);
+  const [search, setSearch] = useState(filters.search ?? "");
+  const [perPage, setPerPage] = useState(String(filters.per_page ?? 15));
+
+  const queryParams = useMemo(
+    () => ({
+      search: search.trim(),
+      per_page: Number(perPage) || 15,
+    }),
+    [search, perPage]
+  );
+
+  const paginationLinks = useMemo(() => {
+    if (Array.isArray(incubatees.links)) {
+      return incubatees.links as Array<{ url: string | null; label: string; active: boolean }>;
+    }
+
+    if (Array.isArray(incubatees.meta?.links)) {
+      return incubatees.meta.links;
+    }
+
+    return [];
+  }, [incubatees.links, incubatees.meta?.links]);
 
   const mappedData = selectedIncubatee
     ? {
@@ -74,6 +105,7 @@ export default function BdsIncubateesIndex({
         technology_product_service: selectedIncubatee.technology_product_service ?? "",
         technology_stage_of_development: selectedIncubatee.technology_stage_of_development ?? "",
         status: selectedIncubatee.status ?? "active",
+        incubated_date: selectedIncubatee.incubated_date ?? "",
       }
     : {};
 
@@ -81,20 +113,68 @@ export default function BdsIncubateesIndex({
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="BDS Incubatees" />
 
-      <div className="p-4 space-y-4">
+      <div className="space-y-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Incubatees</h1>
-          <DomainNav items={businessDevelopmentNavItems} />
+          <div className="flex items-center gap-2">
+            <DomainNav items={businessDevelopmentNavItems} />
 
-          <CustomModelForm
-            addButton={BdsIncubateeModelFormConfig.addButton}
-            title="Add Incubatee"
-            description={BdsIncubateeModelFormConfig.description}
-            fields={BdsIncubateeModelFormConfig.fields}
-            submitRoute={() => ({ url: "/business-development/incubatees", method: "post" })}
-            options={{ provinces }}
-          />
+            <CustomModelForm
+              addButton={BdsIncubateeModelFormConfig.addButton}
+              title="Add Incubatee"
+              description={BdsIncubateeModelFormConfig.description}
+              fields={BdsIncubateeModelFormConfig.fields}
+              submitRoute={() => ({ url: "/business-development/incubatees", method: "post" })}
+              options={{ provinces }}
+            />
+          </div>
         </div>
+
+        <section className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[220px] flex-1">
+              <label className="mb-1 block text-sm font-medium">Search</label>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                placeholder="Name, company, ID, email, mobile"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Per page</label>
+              <select
+                value={perPage}
+                onChange={(e) => setPerPage(e.currentTarget.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.get("/business-development/incubatees", queryParams, { preserveState: true })}
+              className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setPerPage("15");
+                router.get("/business-development/incubatees", { search: "", per_page: 15 }, { preserveState: true });
+              }}
+              className="rounded-md border border-orange-500 px-4 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+            >
+              Reset
+            </button>
+          </div>
+        </section>
 
         <CustomTable
           columns={BdsIncubateeTableConfig.columns}
@@ -103,16 +183,13 @@ export default function BdsIncubateesIndex({
             {
               icon: "Eye",
               onClick: (row) => {
-                setSelectedIncubatee(row);
-                setMode("view");
-                setOpen(true);
+                router.visit(`/business-development/incubatees/${row.id}`);
               },
             },
             {
               icon: "PencilIcon",
               onClick: (row) => {
                 setSelectedIncubatee(row);
-                setMode("edit");
                 setOpen(true);
               },
             },
@@ -127,14 +204,44 @@ export default function BdsIncubateesIndex({
           ]}
         />
 
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {incubatees.data.length} of {incubatees.meta?.total ?? incubatees.data.length}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {paginationLinks.map((link, index) =>
+              link.url ? (
+                <Link
+                  key={`${link.label}-${index}`}
+                  href={link.url}
+                  preserveState
+                  preserveScroll
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    link.active
+                      ? "border-red-600 bg-red-600 text-white"
+                      : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+                  }`}
+                  dangerouslySetInnerHTML={{ __html: link.label }}
+                />
+              ) : (
+                <span
+                  key={`${link.label}-${index}`}
+                  className="rounded-md border border-muted px-3 py-1.5 text-sm text-muted-foreground"
+                  dangerouslySetInnerHTML={{ __html: link.label }}
+                />
+              )
+            )}
+          </div>
+        </div>
+
         {selectedIncubatee && (
           <CustomModelForm
             hideTrigger
             open={open}
             onOpenChange={setOpen}
-            title={mode === "view" ? "Incubatee Details" : "Edit Incubatee"}
+            title="Edit Incubatee"
             fields={BdsIncubateeModelFormConfig.fields}
-            mode={mode}
+            mode="edit"
             initialData={mappedData}
             submitRoute={(id) => ({ url: `/business-development/incubatees/${id}`, method: "put" })}
             routeParams={selectedIncubatee.id}

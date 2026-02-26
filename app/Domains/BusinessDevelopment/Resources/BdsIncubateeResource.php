@@ -30,9 +30,9 @@ class BdsIncubateeResource extends JsonResource
             'technology_product_service' => $this->technology_product_service,
             'technology_stage_of_development' => $this->technology_stage_of_development,
             'status' => $this->status,
+            'incubated_date' => $this->incubated_date?->toDateString(),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
     }
 }
-

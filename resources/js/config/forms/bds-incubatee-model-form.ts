@@ -41,6 +41,6 @@ export const BdsIncubateeModelFormConfig = {
       { label: "Active", value: "active" },
       { label: "Inactive", value: "inactive" },
     ]},
+    { id: "incubated-date", name: "incubated_date", label: "Incubated Date", type: "date", required: true },
   ],
 };
-

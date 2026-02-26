@@ -7,9 +7,25 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class BdsIncubateeRepository implements BdsIncubateeRepositoryInterface
 {
-    public function paginate(int $perPage = 15): LengthAwarePaginator
+    public function paginate(int $perPage = 15, ?string $search = null): LengthAwarePaginator
     {
-        return BdsIncubatee::with('province')->latest()->paginate($perPage);
+        return BdsIncubatee::query()
+            ->with('province')
+            ->when($search, function ($query, $searchTerm) {
+                $searchTerm = trim((string) $searchTerm);
+                $query->where(function ($nested) use ($searchTerm) {
+                    $nested
+                        ->where('full_name', 'like', "%{$searchTerm}%")
+                        ->orWhere('company_name', 'like', "%{$searchTerm}%")
+                        ->orWhere('id_number', 'like', "%{$searchTerm}%")
+                        ->orWhere('company_registration_number', 'like', "%{$searchTerm}%")
+                        ->orWhere('mobile_number', 'like', "%{$searchTerm}%")
+                        ->orWhere('email', 'like', "%{$searchTerm}%");
+                });
+            })
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
     public function find(int $id): ?BdsIncubatee
@@ -34,4 +50,3 @@ class BdsIncubateeRepository implements BdsIncubateeRepositoryInterface
         return $incubatee->delete();
     }
 }
-
