@@ -20,8 +20,28 @@ class BdsPitchSessionResource extends JsonResource
             ->filter(fn ($prospect) => filled($prospect->manager_decision))
             ->count();
         $consolidatedProspects = (int) $this->prospects
-            ->filter(fn ($prospect) => (int) $prospect->submitted_assessments_count >= 2)
+            ->filter(fn ($prospect) => (int) $prospect->submitted_assessments_count >= $panelistCount)
             ->count();
+
+        $hasChair = $this->panelists->contains(fn ($panelist) => (bool) $panelist->is_chair);
+
+        $workflowBlockers = [];
+
+        if ($panelistCount < 2) {
+            $workflowBlockers[] = 'At least two panelists are required before the session can begin.';
+        }
+
+        if (! $hasChair) {
+            $workflowBlockers[] = 'A chair panelist must be assigned before the session can begin.';
+        }
+
+        if ($prospectCount < 1) {
+            $workflowBlockers[] = 'At least one prospect must be attached before the session can begin.';
+        }
+
+        if ($submittedScorecards < $expectedScorecards && $this->status !== 'scheduled') {
+            $workflowBlockers[] = 'All invited panelists must submit scorecards before consolidation and approval.';
+        }
 
         return [
             'id' => $this->id,
@@ -43,6 +63,16 @@ class BdsPitchSessionResource extends JsonResource
                 'id' => $this->approver?->id,
                 'name' => $this->approver?->name,
             ],
+            'workflow' => [
+                'has_chair' => $hasChair,
+                'is_fully_submitted' => $submittedScorecards >= $expectedScorecards && $expectedScorecards > 0,
+                'allowed_transitions' => [
+                    'can_start' => $this->status === 'scheduled' && empty($workflowBlockers),
+                    'can_consolidate' => in_array($this->status, ['in_progress', 'consolidated', 'approved'], true),
+                    'can_approve' => $consolidatedProspects > 0,
+                ],
+                'blockers' => $workflowBlockers,
+            ],
             'summary' => [
                 'panelists_total' => $panelistCount,
                 'prospects_total' => $prospectCount,
@@ -51,8 +81,8 @@ class BdsPitchSessionResource extends JsonResource
                 'scorecards_pending' => max($expectedScorecards - $submittedScorecards, 0),
                 'consolidated_prospects' => $consolidatedProspects,
                 'decided_prospects' => $decidedProspects,
-                'ready_to_start' => $this->status === 'scheduled' && $panelistCount >= 2 && $prospectCount >= 1,
-                'ready_to_consolidate' => $this->status === 'in_progress' || $this->status === 'consolidated' || $this->status === 'approved',
+                'ready_to_start' => $this->status === 'scheduled' && empty($workflowBlockers),
+                'ready_to_consolidate' => $submittedScorecards >= $expectedScorecards && $expectedScorecards > 0,
                 'ready_for_final_approval' => $consolidatedProspects > 0,
             ],
             'panelists' => $this->panelists
@@ -83,6 +113,15 @@ class BdsPitchSessionResource extends JsonResource
                         ->values();
                     $actualSubmittedCount = $submittedAssessments->count();
 
+                    $submittedJudgeIds = $submittedAssessments
+                        ->pluck('judge_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->unique();
+
+                    $missingPanelists = $this->panelists
+                        ->filter(fn ($panelist) => ! $submittedJudgeIds->contains((int) $panelist->user_id))
+                        ->values();
+
                     return [
                         'id' => $prospect->id,
                         'bds_application_id' => $prospect->bds_application_id,
@@ -95,6 +134,13 @@ class BdsPitchSessionResource extends JsonResource
                         'submitted_assessments_count' => $actualSubmittedCount,
                         'required_panel_submissions' => $panelistCount,
                         'missing_panel_submissions' => max($panelistCount - $actualSubmittedCount, 0),
+                        'missing_panelists' => $missingPanelists
+                            ->map(fn ($panelist) => [
+                                'user_id' => $panelist->user_id,
+                                'name' => $panelist->user?->name,
+                                'panel_role' => $panelist->panel_role,
+                            ])
+                            ->values(),
                         'manager_decision' => $prospect->manager_decision,
                         'manager_notes' => $prospect->manager_notes,
                         'manager_decided_at' => $prospect->manager_decided_at?->toDateTimeString(),
@@ -110,8 +156,8 @@ class BdsPitchSessionResource extends JsonResource
                             ])
                             ->values(),
                         'workflow' => [
-                            'can_consolidate' => $actualSubmittedCount >= 2,
-                            'can_approve' => (int) $prospect->submitted_assessments_count >= 2,
+                            'can_consolidate' => $actualSubmittedCount >= $panelistCount,
+                            'can_approve' => (int) $prospect->submitted_assessments_count >= $panelistCount,
                             'needs_more_panel_scores' => $actualSubmittedCount < $panelistCount,
                         ],
                     ];
