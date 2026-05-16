@@ -28,6 +28,8 @@ use App\Domains\BusinessDevelopment\Models\BdsApplication;
 use App\Domains\BusinessDevelopment\Policies\BdsApplicationPolicy;
 use App\Domains\BusinessDevelopment\Models\BdsPitchSession;
 use App\Domains\BusinessDevelopment\Policies\BdsPitchSessionPolicy;
+use App\Domains\BusinessDevelopment\Models\BdsIncubateeKpi;
+use App\Domains\BusinessDevelopment\Policies\BdsIncubateeKpiPolicy;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepository;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepositoryInterface;
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
@@ -53,9 +55,6 @@ use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->bind(
@@ -129,9 +128,6 @@ class AppServiceProvider extends ServiceProvider
         );
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         $this->configureDefaults();
@@ -140,6 +136,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(BdsApplication::class, BdsApplicationPolicy::class);
         Gate::policy(BdsPitchSession::class, BdsPitchSessionPolicy::class);
+        Gate::policy(BdsIncubateeKpi::class, BdsIncubateeKpiPolicy::class);
         Gate::policy(AttendanceRegister::class, AttendanceRegisterPolicy::class);
         Gate::policy(ProjectMilestoneAssessment::class, ProjectMilestoneAssessmentPolicy::class);
         Gate::policy(AdjudicationAssessment::class, AdjudicationAssessmentPolicy::class);
