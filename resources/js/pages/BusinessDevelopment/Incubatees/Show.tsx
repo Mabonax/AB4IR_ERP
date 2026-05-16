@@ -1,9 +1,20 @@
-import { Head, Link } from "@inertiajs/react";
+import { FormEvent, useMemo, useState } from "react";
+import { Head, Link, useForm } from "@inertiajs/react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { businessDevelopmentNavItems } from "@/config/domain-nav/business-development";
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
+
+type KpiDefinition = {
+  id: number;
+  name: string;
+  category: string;
+  measurement_type: string;
+  unit: string | null;
+  default_target_value: string | number | null;
+  weight: number;
+};
 
 type KpiReview = {
   id: number;
@@ -105,8 +116,10 @@ function riskClass(value: string | null | undefined): string {
 
 export default function BdsIncubateeShow({
   incubatee,
+  kpiDefinitions = [],
 }: {
   incubatee: Incubatee | { data: Incubatee };
+  kpiDefinitions?: KpiDefinition[];
 }) {
   const incubateeData: Incubatee =
     incubatee && typeof incubatee === "object" && "data" in incubatee
@@ -127,6 +140,30 @@ export default function BdsIncubateeShow({
     .map((kpi) => ({ kpi, review: kpi.latest_review }))
     .filter((item): item is { kpi: IncubateeKpi; review: KpiReview } => Boolean(item.review))
     .slice(0, 5);
+
+  const [reviewingKpi, setReviewingKpi] = useState<IncubateeKpi | null>(null);
+
+  const assignForm = useForm({
+    bds_kpi_definition_id: "",
+    target_value: "",
+    baseline_value: "",
+    start_date: "",
+    due_date: "",
+  });
+
+  const reviewForm = useForm({
+    review_date: new Date().toISOString().slice(0, 10),
+    actual_value: "",
+    progress_percent: 0,
+    status: "on_track",
+    evidence_notes: "",
+    mentor_comments: "",
+  });
+
+  const availableKpiDefinitions = useMemo(() => {
+    const assigned = new Set(kpis.map((kpi) => kpi.definition.id).filter(Boolean));
+    return kpiDefinitions.filter((definition) => !assigned.has(definition.id));
+  }, [kpiDefinitions, kpis]);
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Business Development", href: "/business-development" },
@@ -156,6 +193,26 @@ export default function BdsIncubateeShow({
     { label: "Status", value: formatLabel(incubateeData.status) },
     { label: "Incubated Date", value: incubateeData.incubated_date },
   ];
+
+  function submitAssignKpi(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    assignForm.post(`/business-development/incubatees/${incubateeData.id}/kpis`, {
+      preserveScroll: true,
+      onSuccess: () => assignForm.reset(),
+    });
+  }
+
+  function submitReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!reviewingKpi) return;
+    reviewForm.post(`/business-development/incubatee-kpis/${reviewingKpi.id}/reviews`, {
+      preserveScroll: true,
+      onSuccess: () => {
+        reviewForm.reset();
+        setReviewingKpi(null);
+      },
+    });
+  }
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -227,53 +284,194 @@ export default function BdsIncubateeShow({
           <div className="rounded-xl border bg-card p-4 shadow-sm lg:col-span-2">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold">KPI Portfolio</h2>
-                <p className="text-sm text-muted-foreground">Assigned performance indicators and latest review state.</p>
+                <h2 className="text-base font-semibold">Assign KPI</h2>
+                <p className="text-sm text-muted-foreground">Attach a performance indicator to this incubatee.</p>
               </div>
-              <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">{kpiSummary.total} total</span>
+              <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">{availableKpiDefinitions.length} available</span>
             </div>
 
-            <div className="mt-4 space-y-3">
-              {kpis.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
-                  No KPIs have been assigned to this incubatee yet.
-                </div>
-              ) : (
-                kpis.map((kpi) => (
-                  <div key={kpi.id} className="rounded-lg border p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold">{kpi.definition.name ?? "KPI"}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatLabel(kpi.definition.category)} • Target: {kpi.target_value ?? "-"} {kpi.definition.unit ?? ""}
-                        </div>
+            <form onSubmit={submitAssignKpi} className="mt-4 grid gap-3 md:grid-cols-5">
+              <select
+                value={assignForm.data.bds_kpi_definition_id}
+                onChange={(event) => assignForm.setData("bds_kpi_definition_id", event.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm md:col-span-2"
+                required
+              >
+                <option value="">Select KPI</option>
+                {availableKpiDefinitions.map((definition) => (
+                  <option key={definition.id} value={definition.id}>
+                    {definition.name} ({formatLabel(definition.category)})
+                  </option>
+                ))}
+              </select>
+              <input
+                value={assignForm.data.target_value}
+                onChange={(event) => assignForm.setData("target_value", event.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="Target"
+                type="number"
+                min="0"
+                step="0.01"
+              />
+              <input
+                value={assignForm.data.due_date}
+                onChange={(event) => assignForm.setData("due_date", event.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                type="date"
+              />
+              <button
+                type="submit"
+                disabled={assignForm.processing || availableKpiDefinitions.length === 0}
+                className="rounded-md bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                Assign
+              </button>
+              {assignForm.errors.bds_kpi_definition_id && (
+                <p className="text-xs text-red-600 md:col-span-5">{assignForm.errors.bds_kpi_definition_id}</p>
+              )}
+            </form>
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">KPI Portfolio</h2>
+              <p className="text-sm text-muted-foreground">Assigned performance indicators and latest review state.</p>
+            </div>
+            <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">{kpiSummary.total} total</span>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {kpis.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
+                No KPIs have been assigned to this incubatee yet.
+              </div>
+            ) : (
+              kpis.map((kpi) => (
+                <div key={kpi.id} className="rounded-lg border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold">{kpi.definition.name ?? "KPI"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatLabel(kpi.definition.category)} • Target: {kpi.target_value ?? "-"} {kpi.definition.unit ?? ""}
                       </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-full border px-2.5 py-1 text-xs ${riskClass(kpi.progress.risk_state)}`}>
                         {formatLabel(kpi.progress.risk_state)}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewingKpi(kpi);
+                          reviewForm.setData({
+                            review_date: new Date().toISOString().slice(0, 10),
+                            actual_value: "",
+                            progress_percent: kpi.progress.latest_progress_percent,
+                            status: kpi.progress.latest_status ?? "on_track",
+                            evidence_notes: "",
+                            mentor_comments: "",
+                          });
+                        }}
+                        className="rounded-md border px-2.5 py-1 text-xs hover:bg-muted"
+                      >
+                        Review
+                      </button>
                     </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-orange-500"
-                        style={{ width: `${Math.min(Math.max(kpi.progress.latest_progress_percent, 0), 100)}%` }}
-                      />
-                    </div>
-                    <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-                      <span>{kpi.progress.latest_progress_percent}% progress</span>
-                      <span>Due: {kpi.due_date ?? "No due date"}</span>
-                      <span>Status: {formatLabel(kpi.status)}</span>
-                    </div>
-                    {kpi.latest_review && (
-                      <p className="mt-3 text-sm text-muted-foreground">
-                        Latest review: {kpi.latest_review.mentor_comments ?? kpi.latest_review.evidence_notes ?? "No review notes captured."}
-                      </p>
-                    )}
                   </div>
-                ))
-              )}
-            </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-orange-500"
+                      style={{ width: `${Math.min(Math.max(kpi.progress.latest_progress_percent, 0), 100)}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+                    <span>{kpi.progress.latest_progress_percent}% progress</span>
+                    <span>Due: {kpi.due_date ?? "No due date"}</span>
+                    <span>Status: {formatLabel(kpi.status)}</span>
+                  </div>
+                  {kpi.latest_review && (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Latest review: {kpi.latest_review.mentor_comments ?? kpi.latest_review.evidence_notes ?? "No review notes captured."}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </section>
+
+        {reviewingKpi && (
+          <section className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Record KPI Review</h2>
+                <p className="text-sm text-muted-foreground">{reviewingKpi.definition.name}</p>
+              </div>
+              <button type="button" onClick={() => setReviewingKpi(null)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+                Cancel
+              </button>
+            </div>
+            <form onSubmit={submitReview} className="mt-4 grid gap-3 md:grid-cols-4">
+              <input
+                value={reviewForm.data.review_date}
+                onChange={(event) => reviewForm.setData("review_date", event.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                type="date"
+              />
+              <input
+                value={reviewForm.data.actual_value}
+                onChange={(event) => reviewForm.setData("actual_value", event.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="Actual value"
+                type="number"
+                min="0"
+                step="0.01"
+              />
+              <input
+                value={reviewForm.data.progress_percent}
+                onChange={(event) => reviewForm.setData("progress_percent", Number(event.target.value))}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                type="number"
+                min="0"
+                max="100"
+                required
+              />
+              <select
+                value={reviewForm.data.status}
+                onChange={(event) => reviewForm.setData("status", event.target.value)}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="on_track">On track</option>
+                <option value="needs_attention">Needs attention</option>
+                <option value="at_risk">At risk</option>
+                <option value="completed">Completed</option>
+              </select>
+              <textarea
+                value={reviewForm.data.evidence_notes}
+                onChange={(event) => reviewForm.setData("evidence_notes", event.target.value)}
+                className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm md:col-span-2"
+                placeholder="Evidence notes"
+              />
+              <textarea
+                value={reviewForm.data.mentor_comments}
+                onChange={(event) => reviewForm.setData("mentor_comments", event.target.value)}
+                className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm md:col-span-2"
+                placeholder="Mentor comments"
+              />
+              <div className="md:col-span-4">
+                <button
+                  type="submit"
+                  disabled={reviewForm.processing}
+                  className="rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                >
+                  Save Review
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
 
         <section className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-base font-semibold">Review Timeline</h2>
