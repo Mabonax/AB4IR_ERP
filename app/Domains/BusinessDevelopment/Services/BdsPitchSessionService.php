@@ -21,8 +21,10 @@ class BdsPitchSessionService
             ->with([
                 'creator:id,name',
                 'approver:id,name',
+                'lockedBy:id,name',
                 'panelists.user:id,name,email',
                 'prospects.application:id,full_name,company_name,assessment_status,adjudication_result',
+                'prospects.consolidator:id,name',
                 'assessments.judge:id,name',
             ])
             ->latest('scheduled_for');
@@ -40,8 +42,10 @@ class BdsPitchSessionService
             ->with([
                 'creator:id,name',
                 'approver:id,name',
+                'lockedBy:id,name',
                 'panelists.user:id,name,email',
                 'prospects.application:id,full_name,company_name,assessment_status,adjudication_result',
+                'prospects.consolidator:id,name',
                 'assessments.judge:id,name',
             ])
             ->findOrFail($id);
@@ -139,12 +143,15 @@ class BdsPitchSessionService
             ]);
         }
 
+        $startedAt = now();
         $session->update([
             'status' => 'in_progress',
-            'started_at' => now(),
+            'started_at' => $startedAt,
+            'panel_locked_at' => $startedAt,
+            'panel_locked_by' => $actor->id,
         ]);
 
-        return $session->fresh(['panelists.user', 'prospects.application']);
+        return $session->fresh(['panelists.user', 'prospects.application', 'lockedBy']);
     }
 
     public function consolidateProspect(BdsPitchSessionProspect $prospect, User $actor): BdsPitchSessionProspect
@@ -155,6 +162,12 @@ class BdsPitchSessionService
         if (! in_array($session->status, ['in_progress', 'consolidated', 'approved'], true)) {
             throw ValidationException::withMessages([
                 'session' => ['Only active or completed pitch sessions can be consolidated.'],
+            ]);
+        }
+
+        if ($prospect->manager_decision !== null) {
+            throw ValidationException::withMessages([
+                'manager_decision' => ['A prospect with a final manager decision cannot be consolidated again.'],
             ]);
         }
 
@@ -190,6 +203,8 @@ class BdsPitchSessionService
         $prospect->update([
             'consolidated_total_score' => (int) $submittedAssessments->sum('total_score'),
             'submitted_assessments_count' => $submittedAssessments->count(),
+            'consolidated_at' => now(),
+            'consolidated_by' => $actor->id,
         ]);
 
         if ($session->status === 'in_progress') {
@@ -199,7 +214,7 @@ class BdsPitchSessionService
             ]);
         }
 
-        return $prospect->fresh(['application', 'session']);
+        return $prospect->fresh(['application', 'session', 'consolidator']);
     }
 
     public function approveProspect(BdsPitchSessionProspect $prospect, User $actor, string $decision, ?string $notes = null): BdsPitchSessionProspect
@@ -217,7 +232,7 @@ class BdsPitchSessionService
             ->panelists()
             ->count();
 
-        if ((int) $prospect->submitted_assessments_count < $requiredPanelistCount) {
+        if ((int) $prospect->submitted_assessments_count < $requiredPanelistCount || $prospect->consolidated_at === null) {
             throw ValidationException::withMessages([
                 'manager_decision' => ['The full panel outcome must be consolidated before final approval.'],
             ]);
@@ -259,7 +274,7 @@ class BdsPitchSessionService
                 ]);
             }
 
-            return $prospect->fresh(['application', 'session']);
+            return $prospect->fresh(['application', 'session', 'consolidator']);
         });
     }
 
