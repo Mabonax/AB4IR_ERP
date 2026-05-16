@@ -6,6 +6,8 @@ use App\Models\provinces;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BdsIncubatee extends Model
 {
@@ -50,13 +52,18 @@ class BdsIncubatee extends Model
         'intake_approved_at' => 'datetime',
     ];
 
-    public function province()
+    public function province(): BelongsTo
     {
         return $this->belongsTo(provinces::class, 'province_id');
     }
 
-    public function intakeApprover()
+    public function intakeApprover(): BelongsTo
     {
         return $this->belongsTo(User::class, 'intake_approved_by');
+    }
+
+    public function kpis(): HasMany
+    {
+        return $this->hasMany(BdsIncubateeKpi::class, 'bds_incubatee_id');
     }
 }
