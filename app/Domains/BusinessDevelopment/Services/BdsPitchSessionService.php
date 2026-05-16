@@ -55,11 +55,7 @@ class BdsPitchSessionService
             $panelists = collect($data['panelists'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
             $prospects = collect($data['prospects'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
 
-            if ($panelists->count() < 2) {
-                throw ValidationException::withMessages([
-                    'panelists' => ['A pitch session requires at least two panel members.'],
-                ]);
-            }
+            $this->assertPanelComposition($panelists, $actor);
 
             if ($prospects->isEmpty()) {
                 throw ValidationException::withMessages([
@@ -97,11 +93,14 @@ class BdsPitchSessionService
                 'created_by' => $actor->id,
             ]);
 
-            foreach ($panelists->values() as $index => $panelistId) {
+            foreach ($panelists->values() as $panelistId) {
+                $panelist = User::query()->findOrFail($panelistId);
+                $isChair = (int) $panelist->id === (int) $actor->id;
+
                 $session->panelists()->create([
                     'user_id' => $panelistId,
-                    'panel_role' => $index === 0 ? 'bds' : 'technical',
-                    'is_chair' => $index === 0,
+                    'panel_role' => $isChair ? 'bds' : 'technical',
+                    'is_chair' => $isChair,
                 ]);
             }
 
@@ -132,11 +131,7 @@ class BdsPitchSessionService
             ]);
         }
 
-        if ($session->panelists()->count() < 2) {
-            throw ValidationException::withMessages([
-                'panelists' => ['A pitch session requires at least two panel members before it can start.'],
-            ]);
-        }
+        $this->assertStoredPanelComposition($session);
 
         if (! $session->prospects()->exists()) {
             throw ValidationException::withMessages([
@@ -156,22 +151,39 @@ class BdsPitchSessionService
     {
         $this->assertBusinessDevelopmentManager($actor);
 
-        $session = $prospect->session()->firstOrFail();
+        $session = $prospect->session()->with('panelists')->firstOrFail();
         if (! in_array($session->status, ['in_progress', 'consolidated', 'approved'], true)) {
             throw ValidationException::withMessages([
                 'session' => ['Only active or completed pitch sessions can be consolidated.'],
             ]);
         }
 
+        $requiredPanelistIds = $session->panelists()
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
         $submittedAssessments = AdjudicationAssessment::query()
             ->where('pitch_session_id', $session->id)
             ->where('smme_id', $prospect->bds_application_id)
             ->where('status', 'submitted')
+            ->whereIn('judge_id', $requiredPanelistIds->all())
             ->get();
 
-        if ($submittedAssessments->count() < 2) {
+        $submittedJudgeIds = $submittedAssessments
+            ->pluck('judge_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $missingPanelistIds = $requiredPanelistIds
+            ->diff($submittedJudgeIds)
+            ->values();
+
+        if ($missingPanelistIds->isNotEmpty()) {
             throw ValidationException::withMessages([
-                'assessments' => ['At least two submitted panel assessments are required before consolidation.'],
+                'assessments' => ['All invited panel members must submit scorecards before consolidation.'],
             ]);
         }
 
@@ -200,9 +212,14 @@ class BdsPitchSessionService
             ]);
         }
 
-        if ((int) $prospect->submitted_assessments_count < 2) {
+        $requiredPanelistCount = $prospect->session()
+            ->firstOrFail()
+            ->panelists()
+            ->count();
+
+        if ((int) $prospect->submitted_assessments_count < $requiredPanelistCount) {
             throw ValidationException::withMessages([
-                'manager_decision' => ['The panel outcome must be consolidated before final approval.'],
+                'manager_decision' => ['The full panel outcome must be consolidated before final approval.'],
             ]);
         }
 
@@ -267,6 +284,63 @@ class BdsPitchSessionService
             'domain-admin-business-development',
             'department-manager-business-development',
         ]);
+    }
+
+    protected function assertPanelComposition($panelists, User $actor): void
+    {
+        if ($panelists->count() < 2) {
+            throw ValidationException::withMessages([
+                'panelists' => ['A pitch session requires at least two panel members.'],
+            ]);
+        }
+
+        if (! $panelists->contains((int) $actor->id)) {
+            throw ValidationException::withMessages([
+                'panelists' => ['The BDS manager scheduling the session must be included as the chair panelist.'],
+            ]);
+        }
+
+        $users = User::query()
+            ->whereIn('id', $panelists->all())
+            ->get()
+            ->keyBy('id');
+
+        foreach ($panelists as $panelistId) {
+            $panelist = $users->get($panelistId);
+
+            if (! $panelist) {
+                throw ValidationException::withMessages([
+                    'panelists' => ["Selected panelist {$panelistId} could not be found."],
+                ]);
+            }
+
+            if ($this->hasWorkflowRole($panelist) && $panelist->can('domain.business-development.manage')) {
+                continue;
+            }
+
+            if ($panelist->can('business-development.adjudications.score')) {
+                continue;
+            }
+
+            throw ValidationException::withMessages([
+                'panelists' => ["{$panelist->name} does not have permission to score BDS adjudications."],
+            ]);
+        }
+    }
+
+    protected function assertStoredPanelComposition(BdsPitchSession $session): void
+    {
+        if ($session->panelists()->count() < 2) {
+            throw ValidationException::withMessages([
+                'panelists' => ['A pitch session requires at least two panel members before it can start.'],
+            ]);
+        }
+
+        if (! $session->panelists()->where('is_chair', true)->exists()) {
+            throw ValidationException::withMessages([
+                'panelists' => ['A pitch session requires a BDS chair panelist before it can start.'],
+            ]);
+        }
     }
 
     protected function assertApplicationReadyForPitchSession(BdsApplication $application): void
