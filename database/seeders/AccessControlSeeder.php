@@ -55,11 +55,16 @@ class AccessControlSeeder extends Seeder
             'attendance.manage',
         ];
 
+        $businessDevelopmentWorkflowPermissions = [
+            'business-development.adjudications.score',
+        ];
+
         $allPermissions = array_values(array_unique([
             ...$allDomainPermissions,
             ...$accessControlPermissions,
             ...$projectActivityPermissions,
             ...$attendancePermissions,
+            ...$businessDevelopmentWorkflowPermissions,
         ]));
 
         foreach ($allPermissions as $permissionName) {
@@ -118,6 +123,11 @@ class AccessControlSeeder extends Seeder
                 $departmentManagerPermissions[] = "domain.{$domain}.view";
                 $departmentManagerPermissions[] = "domain.{$domain}.manage";
                 $departmentUserPermissions[] = "domain.{$domain}.view";
+            }
+
+            if (in_array('business-development', $mappedDomains, true)) {
+                $domainAdminPermissions[] = 'business-development.adjudications.score';
+                $departmentManagerPermissions[] = 'business-development.adjudications.score';
             }
 
             $departmentManagerPermissions[] = 'domain.leave.view';
