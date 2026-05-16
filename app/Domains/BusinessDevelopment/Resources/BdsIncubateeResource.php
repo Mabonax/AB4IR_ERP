@@ -8,6 +8,16 @@ class BdsIncubateeResource extends JsonResource
 {
     public function toArray($request): array
     {
+        $kpis = $this->whenLoaded('kpis', fn () => $this->kpis, collect());
+        $latestReviews = $kpis->map(fn ($kpi) => $kpi->reviews->sortByDesc('review_date')->first())->filter();
+        $criticalCount = $latestReviews->filter(fn ($review) => $review->status === 'at_risk')->count();
+        $warningCount = $latestReviews->filter(fn ($review) => $review->status === 'needs_attention')->count();
+        $completedCount = $kpis->filter(fn ($kpi) => $kpi->status === 'completed')->count();
+        $activeCount = $kpis->filter(fn ($kpi) => $kpi->status === 'active')->count();
+        $overdueCount = $kpis
+            ->filter(fn ($kpi) => $kpi->status === 'active' && $kpi->due_date && $kpi->due_date->isPast())
+            ->count();
+
         return [
             'id' => $this->id,
             'full_name' => $this->full_name,
@@ -31,6 +41,31 @@ class BdsIncubateeResource extends JsonResource
             'technology_stage_of_development' => $this->technology_stage_of_development,
             'status' => $this->status,
             'incubated_date' => $this->incubated_date?->toDateString(),
+            'intake' => [
+                'type' => $this->intake_type,
+                'source' => $this->intake_source,
+                'justification' => $this->intake_justification,
+                'approved_at' => $this->intake_approved_at?->toDateTimeString(),
+                'approved_by' => [
+                    'id' => $this->intakeApprover?->id,
+                    'name' => $this->intakeApprover?->name,
+                ],
+            ],
+            'kpi_summary' => [
+                'total' => $kpis->count(),
+                'active' => $activeCount,
+                'completed' => $completedCount,
+                'warnings' => $warningCount,
+                'critical' => $criticalCount,
+                'overdue' => $overdueCount,
+                'health' => match (true) {
+                    $criticalCount > 0 || $overdueCount > 0 => 'critical',
+                    $warningCount > 0 => 'warning',
+                    $kpis->count() > 0 => 'healthy',
+                    default => 'unassigned',
+                },
+            ],
+            'kpis' => BdsIncubateeKpiResource::collection($kpis),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
