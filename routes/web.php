@@ -10,6 +10,7 @@ use App\Domains\Beneficiaries\Controllers\BeneficiaryController;
 use App\Domains\BusinessDevelopment\Controllers\BdsApplicationController;
 use App\Domains\BusinessDevelopment\Controllers\BdsDashboardController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeController;
+use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeKpiController;
 use App\Domains\BusinessDevelopment\Controllers\BdsPitchSessionController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\HumanResources\Controllers\HumanResourcesController;
@@ -92,6 +93,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->parameters(['incubatees' => 'incubatee'])
         ->middlewareFor(['index', 'show'], $viewPermission('business-development'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('business-development'));
+    Route::post('business-development/incubatees/{incubatee}/kpis', [BdsIncubateeKpiController::class, 'assign'])
+        ->middleware('permission:domain.business-development.manage')
+        ->whereNumber('incubatee')
+        ->name('business-development.incubatees.kpis.assign');
+    Route::post('business-development/incubatee-kpis/{kpi}/reviews', [BdsIncubateeKpiController::class, 'review'])
+        ->middleware('permission:domain.business-development.manage')
+        ->whereNumber('kpi')
+        ->name('business-development.incubatee-kpis.reviews.store');
     Route::resource('business-development/adjudications', AdjudicationAssessmentController::class)
         ->parameters(['adjudications' => 'assessment'])
         ->names('business-development.adjudications')
@@ -258,76 +267,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('milestone-templates/programs/{program}', [MilestoneTemplateController::class, 'program'])
         ->middleware('permission:domain.projects.view|domain.projects.manage')
         ->whereNumber('program')
-        ->name('milestone-templates.program');
+        ->name('milestone-templates.programs');
     Route::resource('milestone-templates', MilestoneTemplateController::class)
-        ->except(['show', 'edit', 'create'])
-        ->middlewareFor('index', $viewPermission('projects'))
-        ->middlewareFor(['store', 'update', 'destroy'], $managePermission('projects'));
+        ->middlewareFor(['index', 'show'], $viewPermission('projects'))
+        ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('projects'));
 
-    Route::get('staff/profile', [StaffController::class, 'profile'])
-        ->middleware('permission:domain.staff.view|domain.staff.manage')
-        ->name('staff.profile');
-    Route::get('staff/{staff}/profile', [StaffController::class, 'profileShow'])
-        ->middleware('permission:domain.staff.view|domain.staff.manage')
-        ->whereNumber('staff')
-        ->name('staff.profile.show');
-    Route::get('staff', [StaffController::class, 'dashboard'])
-        ->middleware('permission:domain.staff.view|domain.staff.manage')
-        ->name('staff.dashboard');
-    Route::get('staff/list', [StaffController::class, 'index'])
-        ->middleware('permission:domain.staff.view|domain.staff.manage')
-        ->name('staff.list');
     Route::resource('staff', StaffController::class)
-        ->except(['index'])
-        ->whereNumber('staff')
-        ->middlewareFor('show', $viewPermission('staff'))
+        ->middlewareFor(['index', 'show'], $viewPermission('staff'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('staff'));
     Route::resource('staff-departments', StaffDepartmentController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('staff'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('staff'));
 
-    Route::prefix('access-control')
-        ->name('access-control.')
-        ->middleware(['role:super-admin|super admin|admin', 'permission:access-control.view'])
-        ->group(function () {
-            Route::redirect('/', '/access-control/roles')->name('index');
-            Route::get('roles', [AccessControlController::class, 'rolesPage'])
-                ->middleware('permission:roles.view|roles.create|roles.update|roles.delete')
-                ->name('roles.page');
-            Route::get('permissions', [AccessControlController::class, 'permissionsPage'])
-                ->middleware('permission:permissions.view|permissions.create|permissions.update|permissions.delete')
-                ->name('permissions.page');
-            Route::get('assignments', [AccessControlController::class, 'assignmentsPage'])
-                ->middleware('permission:assignments.manage')
-                ->name('assignments.page');
-
-            Route::post('roles', [AccessControlController::class, 'storeRole'])
-                ->middleware('permission:roles.create')
-                ->name('roles.store');
-            Route::patch('roles/{role}', [AccessControlController::class, 'updateRole'])
-                ->middleware('permission:roles.update')
-                ->name('roles.update');
-            Route::delete('roles/{role}', [AccessControlController::class, 'destroyRole'])
-                ->middleware('permission:roles.delete')
-                ->name('roles.destroy');
-
-            Route::post('permissions', [AccessControlController::class, 'storePermission'])
-                ->middleware('permission:permissions.create')
-                ->name('permissions.store');
-            Route::patch('permissions/{permission}', [AccessControlController::class, 'updatePermission'])
-                ->middleware('permission:permissions.update')
-                ->name('permissions.update');
-            Route::delete('permissions/{permission}', [AccessControlController::class, 'destroyPermission'])
-                ->middleware('permission:permissions.delete')
-                ->name('permissions.destroy');
-
-            Route::put('users/{user}/roles', [AccessControlController::class, 'syncUserRoles'])
-                ->middleware('permission:assignments.manage')
-                ->name('users.roles.sync');
-            Route::put('users/{user}/permissions', [AccessControlController::class, 'syncUserPermissions'])
-                ->middleware('permission:assignments.manage')
-                ->name('users.permissions.sync');
-        });
+    Route::get('access-control', [AccessControlController::class, 'index'])
+        ->middleware('permission:access-control.view')
+        ->name('access-control.index');
+    Route::post('access-control/roles', [AccessControlController::class, 'storeRole'])
+        ->middleware('permission:roles.create|roles.update')
+        ->name('access-control.roles.store');
+    Route::put('access-control/roles/{role}', [AccessControlController::class, 'updateRole'])
+        ->middleware('permission:roles.update')
+        ->whereNumber('role')
+        ->name('access-control.roles.update');
+    Route::post('access-control/users/{user}/roles', [AccessControlController::class, 'syncUserRoles'])
+        ->middleware('permission:assignments.manage')
+        ->whereNumber('user')
+        ->name('access-control.users.roles.sync');
 });
 
 require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';
