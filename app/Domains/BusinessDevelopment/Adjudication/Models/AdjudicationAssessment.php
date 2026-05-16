@@ -28,11 +28,13 @@ class AdjudicationAssessment extends Model
         'total_score',
         'additional_notes',
         'submitted_at',
+        'submitted_snapshot',
     ];
 
     protected $casts = [
         'adjudication_date' => 'date',
         'submitted_at' => 'datetime',
+        'submitted_snapshot' => 'array',
     ];
 
     public function judge(): BelongsTo
