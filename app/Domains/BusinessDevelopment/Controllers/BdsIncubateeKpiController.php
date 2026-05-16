@@ -7,10 +7,9 @@ use App\Domains\BusinessDevelopment\Models\BdsIncubateeKpi;
 use App\Domains\BusinessDevelopment\Policies\BdsIncubateeKpiPolicy;
 use App\Domains\BusinessDevelopment\Requests\AssignBdsIncubateeKpiRequest;
 use App\Domains\BusinessDevelopment\Requests\StoreBdsIncubateeKpiReviewRequest;
-use App\Domains\BusinessDevelopment\Resources\BdsIncubateeKpiResource;
 use App\Domains\BusinessDevelopment\Services\BdsIncubateeKpiService;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 
 class BdsIncubateeKpiController extends Controller
@@ -19,25 +18,20 @@ class BdsIncubateeKpiController extends Controller
         protected BdsIncubateeKpiService $service
     ) {}
 
-    public function assign(AssignBdsIncubateeKpiRequest $request, BdsIncubatee $incubatee): JsonResponse
+    public function assign(AssignBdsIncubateeKpiRequest $request, BdsIncubatee $incubatee): RedirectResponse
     {
         Gate::authorize('assign', BdsIncubateeKpiPolicy::class);
 
-        $kpi = $this->service->assignKpi(
+        $this->service->assignKpi(
             $incubatee,
             $request->validated(),
             $request->user()
         );
 
-        return response()->json([
-            'message' => 'KPI assigned successfully.',
-            'data' => new BdsIncubateeKpiResource(
-                $kpi->load(['definition', 'reviews'])
-            ),
-        ]);
+        return redirect()->back()->with('success', 'KPI assigned successfully.');
     }
 
-    public function review(StoreBdsIncubateeKpiReviewRequest $request, BdsIncubateeKpi $kpi): JsonResponse
+    public function review(StoreBdsIncubateeKpiReviewRequest $request, BdsIncubateeKpi $kpi): RedirectResponse
     {
         Gate::authorize('review', $kpi);
 
@@ -47,11 +41,6 @@ class BdsIncubateeKpiController extends Controller
             $request->user()
         );
 
-        return response()->json([
-            'message' => 'KPI review recorded successfully.',
-            'data' => new BdsIncubateeKpiResource(
-                $kpi->fresh(['definition', 'reviews'])
-            ),
-        ]);
+        return redirect()->back()->with('success', 'KPI review recorded successfully.');
     }
 }
