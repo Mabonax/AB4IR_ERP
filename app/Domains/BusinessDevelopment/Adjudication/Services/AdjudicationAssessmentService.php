@@ -129,10 +129,17 @@ class AdjudicationAssessmentService
 
         DB::transaction(function () use ($assessment, $result, $actor): void {
             $submittedAt = now();
+            $assessment->loadMissing(['judge:id,name,email', 'smme:id,company_name,full_name', 'pitchSession:id,title,scheduled_for,status', 'scores.section']);
+
             $this->repository->update($assessment, [
                 'status' => 'submitted',
                 'submitted_at' => $submittedAt,
+                'submitted_snapshot' => $this->submittedSnapshot($assessment, $actor, $result, $submittedAt),
             ]);
+
+            if ($assessment->pitch_session_id !== null) {
+                return;
+            }
 
             $application = $assessment->smme()->firstOrFail();
             $application->update([
@@ -169,6 +176,10 @@ class AdjudicationAssessmentService
                 'submitted_at' => null,
             ]);
 
+            if ($assessment->pitch_session_id !== null) {
+                return;
+            }
+
             $assessment->smme()->update([
                 'adjudication_result' => null,
                 'adjudicated_at' => null,
@@ -177,6 +188,47 @@ class AdjudicationAssessmentService
         });
 
         return $assessment->refresh()->load(['judge:id,name', 'smme:id,company_name', 'scores.section', 'sections']);
+    }
+
+    protected function submittedSnapshot(AdjudicationAssessment $assessment, User $actor, string $result, mixed $submittedAt): array
+    {
+        return [
+            'assessment_id' => (int) $assessment->id,
+            'pitch_session_id' => $assessment->pitch_session_id ? (int) $assessment->pitch_session_id : null,
+            'application' => [
+                'id' => (int) $assessment->smme_id,
+                'company_name' => $assessment->smme?->company_name,
+                'applicant_name' => $assessment->smme?->full_name,
+            ],
+            'judge' => [
+                'id' => (int) $actor->id,
+                'name' => $actor->name,
+                'email' => $actor->email,
+            ],
+            'pitch_session' => $assessment->pitchSession ? [
+                'id' => (int) $assessment->pitchSession->id,
+                'title' => $assessment->pitchSession->title,
+                'scheduled_for' => $assessment->pitchSession->scheduled_for?->toDateTimeString(),
+                'status' => $assessment->pitchSession->status,
+            ] : null,
+            'platform_name' => $assessment->platform_name,
+            'adjudication_date' => $assessment->adjudication_date?->toDateString(),
+            'development_stage' => $assessment->development_stage,
+            'result_recommendation' => $result,
+            'total_score' => (int) $assessment->total_score,
+            'additional_notes' => $assessment->additional_notes,
+            'scores' => $assessment->scores
+                ->map(fn ($score) => [
+                    'section_id' => (int) $score->section_id,
+                    'section_title' => $score->section?->title,
+                    'max_points' => (int) ($score->section?->max_points ?? 0),
+                    'score' => (int) $score->score,
+                    'comment' => $score->comment,
+                ])
+                ->values()
+                ->all(),
+            'submitted_at' => $submittedAt?->toDateTimeString(),
+        ];
     }
 
     protected function upsertIncubateeFromApplication(array $application, int $actorId): void
