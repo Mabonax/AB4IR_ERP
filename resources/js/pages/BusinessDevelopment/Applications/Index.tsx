@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from "@inertiajs/react";
+import { Head, Link, router, useForm, usePage } from "@inertiajs/react";
 import { useMemo, useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
@@ -21,6 +21,7 @@ type ApplicationRow = {
   province_name: string | null;
   application_date: string | null;
   assessment_status: "pending" | "accepted" | "rejected";
+  assessment_status_label: string;
   assessed_by_staff_id: number | null;
   assessor_name: string | null;
   assessed_at: string | null;
@@ -29,6 +30,11 @@ type ApplicationRow = {
   adjudication_result: "incubated" | "rejected" | null;
   adjudicated_at: string | null;
   has_submitted_adjudication: boolean;
+  workflow_summary: {
+    assessment: Record<"accepted" | "rejected", { ready: boolean; blockers: string[] }>;
+    pitch: { ready: boolean; blockers: string[] };
+    adjudication: { ready: boolean; blockers: string[] };
+  };
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -39,7 +45,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function BdsApplicationsIndex({
   applications,
 }: {
-  applications: { data: ApplicationRow[] };
+  applications: {
+    data: ApplicationRow[];
+    links?: Array<{ url: string | null; label: string; active: boolean }>;
+    meta?: {
+      total?: number;
+      per_page?: number;
+      links?: Array<{ url: string | null; label: string; active: boolean }>;
+    };
+  };
 }) {
   const { props } = usePage<SharedData>();
   const flash = (props.flash ?? {}) as Record<string, unknown>;
@@ -48,6 +62,7 @@ export default function BdsApplicationsIndex({
     : [];
 
   const [selected, setSelected] = useState<ApplicationRow | null>(null);
+  const [perPage, setPerPage] = useState(String(applications.meta?.per_page ?? 15));
 
   const importForm = useForm<{ file: File | null }>({
     file: null,
@@ -61,9 +76,14 @@ export default function BdsApplicationsIndex({
   });
 
   const selectedCanPitch = useMemo(
-    () => selected?.assessment_status === "accepted",
+    () => selected?.workflow_summary.pitch.ready ?? false,
     [selected]
   );
+  const paginationLinks = useMemo(() => {
+    if (Array.isArray(applications.links)) return applications.links;
+    if (Array.isArray(applications.meta?.links)) return applications.meta.links;
+    return [];
+  }, [applications.links, applications.meta?.links]);
 
   const submitImport = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +125,24 @@ export default function BdsApplicationsIndex({
           <h1 className="text-xl font-semibold">Business Development Applications</h1>
           <div className="flex items-center gap-2">
             <DomainNav items={businessDevelopmentNavItems} />
+            <select
+              value={perPage}
+              onChange={(e) => {
+                const nextPerPage = e.currentTarget.value;
+                setPerPage(nextPerPage);
+                router.get(
+                  businessDevelopment.applications.index().url,
+                  { per_page: Number(nextPerPage) || 15 },
+                  { preserveState: true, preserveScroll: true }
+                );
+              }}
+              className="rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <option value="10">10</option>
+              <option value="15">15</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
             <button
               type="button"
               onClick={() => router.visit(businessDevelopment.applications.index().url)}
@@ -174,6 +212,7 @@ export default function BdsApplicationsIndex({
                 <th className="px-3 py-2 text-left font-medium">Company</th>
                 <th className="px-3 py-2 text-left font-medium">Province</th>
                 <th className="px-3 py-2 text-left font-medium">Status</th>
+                <th className="px-3 py-2 text-left font-medium">Workflow</th>
                 <th className="px-3 py-2 text-left font-medium">Pitch</th>
                 <th className="px-3 py-2 text-left font-medium">Adjudication</th>
                 <th className="px-3 py-2 text-left font-medium">Action</th>
@@ -182,7 +221,7 @@ export default function BdsApplicationsIndex({
             <tbody>
               {applications.data.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-4 text-muted-foreground" colSpan={7}>
+                  <td className="px-3 py-4 text-muted-foreground" colSpan={8}>
                     No applications yet.
                   </td>
                 </tr>
@@ -202,7 +241,17 @@ export default function BdsApplicationsIndex({
                       </div>
                     </td>
                     <td className="px-3 py-2">{row.province_name ?? "-"}</td>
-                    <td className="px-3 py-2 capitalize">{row.assessment_status}</td>
+                    <td className="px-3 py-2 capitalize">{row.assessment_status_label}</td>
+                    <td className="px-3 py-2">
+                      <div className="space-y-1">
+                        <div className="capitalize">{row.assessment_status_label}</div>
+                        {(!row.workflow_summary.pitch.ready || !row.workflow_summary.adjudication.ready) && (
+                          <div className="text-xs text-amber-700">
+                            Workflow blockers present
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2">
                       {row.pitch_scheduled_at ? (
                         <span className="text-green-700">{row.pitch_scheduled_at}</span>
@@ -227,36 +276,38 @@ export default function BdsApplicationsIndex({
                       >
                         View
                       </button>
-                      {row.assessment_status === "accepted" && row.pitch_scheduled_at ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            router.visit(`/business-development/adjudications/create?smme_id=${row.id}`)
-                          }
-                          className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
-                        >
-                          Start Adjudication
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelected(row);
-                            assessForm.setData({
-                              assessment_status: row.assessment_status === "rejected" ? "rejected" : "accepted",
-                            });
-                            pitchForm.setData({
-                              pitch_scheduled_at: row.pitch_scheduled_at
-                                ? row.pitch_scheduled_at.slice(0, 16)
-                                : "",
-                              pitch_notes: row.pitch_notes ?? "",
-                            });
-                          }}
-                          className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
-                        >
-                          Assess / Pitch
-                        </button>
-                      )}
+                      {row.adjudication_result === null ? (
+                        row.workflow_summary.adjudication.ready ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.visit(`/business-development/adjudications/create?smme_id=${row.id}`)
+                            }
+                            className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+                          >
+                            Start Adjudication
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelected(row);
+                              assessForm.setData({
+                                assessment_status: row.assessment_status === "rejected" ? "rejected" : "accepted",
+                              });
+                              pitchForm.setData({
+                                pitch_scheduled_at: row.pitch_scheduled_at
+                                  ? row.pitch_scheduled_at.slice(0, 16)
+                                  : "",
+                                pitch_notes: row.pitch_notes ?? "",
+                              });
+                            }}
+                            className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+                          >
+                            Assess / Pitch
+                          </button>
+                        )
+                      ) : null}
                     </td>
                   </tr>
                 ))
@@ -265,6 +316,36 @@ export default function BdsApplicationsIndex({
           </table>
         </section>
 
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {applications.data.length} of {applications.meta?.total ?? applications.data.length}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {paginationLinks.map((link, index) =>
+              link.url ? (
+                <Link
+                  key={`${link.label}-${index}`}
+                  href={link.url}
+                  preserveState
+                  preserveScroll
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    link.active
+                      ? "border-red-600 bg-red-600 text-white"
+                      : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+                  }`}
+                  dangerouslySetInnerHTML={{ __html: link.label }}
+                />
+              ) : (
+                <span
+                  key={`${link.label}-${index}`}
+                  className="rounded-md border border-muted px-3 py-1.5 text-sm text-muted-foreground"
+                  dangerouslySetInnerHTML={{ __html: link.label }}
+                />
+              )
+            )}
+          </div>
+        </div>
+
         {selected ? (
           <section className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm md:grid-cols-2">
             <div>
@@ -272,6 +353,11 @@ export default function BdsApplicationsIndex({
               <p className="mb-3 text-sm text-muted-foreground">
                 {selected.full_name} | {selected.company_name}
               </p>
+              {!selected.workflow_summary.assessment[assessForm.data.assessment_status].ready ? (
+                <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  {selected.workflow_summary.assessment[assessForm.data.assessment_status].blockers.join(" ")}
+                </div>
+              ) : null}
               <form onSubmit={submitAssessment} className="space-y-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium">Assessment Status</label>
@@ -300,7 +386,7 @@ export default function BdsApplicationsIndex({
                 </div>
                 <button
                   type="submit"
-                  disabled={assessForm.processing}
+                  disabled={assessForm.processing || !selected.workflow_summary.assessment[assessForm.data.assessment_status].ready}
                   className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
                 >
                   {assessForm.processing ? "Saving..." : "Save Assessment"}
@@ -313,6 +399,11 @@ export default function BdsApplicationsIndex({
               <p className="mb-3 text-sm text-muted-foreground">
                 Only accepted applications can be scheduled.
               </p>
+              {!selected.workflow_summary.pitch.ready ? (
+                <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  {selected.workflow_summary.pitch.blockers.join(" ")}
+                </div>
+              ) : null}
               <form onSubmit={submitPitch} className="space-y-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium">Pitch Date & Time</label>
@@ -350,7 +441,7 @@ export default function BdsApplicationsIndex({
                 </button>
                 {!selectedCanPitch ? (
                   <p className="text-sm text-amber-700">
-                    Set assessment status to accepted first.
+                    {selected.workflow_summary.pitch.blockers[0] ?? "Set assessment status to accepted first."}
                   </p>
                 ) : null}
               </form>

@@ -3,6 +3,7 @@
 namespace App\Domains\BusinessDevelopment\Adjudication\Models;
 
 use App\Domains\BusinessDevelopment\Models\BdsApplication;
+use App\Domains\BusinessDevelopment\Models\BdsPitchSession;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,7 @@ class AdjudicationAssessment extends Model
 
     protected $fillable = [
         'smme_id',
+        'pitch_session_id',
         'judge_id',
         'platform_name',
         'adjudication_date',
@@ -41,6 +43,11 @@ class AdjudicationAssessment extends Model
     public function smme(): BelongsTo
     {
         return $this->belongsTo(BdsApplication::class, 'smme_id');
+    }
+
+    public function pitchSession(): BelongsTo
+    {
+        return $this->belongsTo(BdsPitchSession::class, 'pitch_session_id');
     }
 
     public function scores(): HasMany

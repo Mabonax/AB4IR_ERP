@@ -12,6 +12,7 @@ use App\Domains\BusinessDevelopment\Adjudication\Repositories\AdjudicationAssess
 use App\Domains\BusinessDevelopment\Adjudication\Resources\AdjudicationAssessmentListResource;
 use App\Domains\BusinessDevelopment\Adjudication\Resources\AdjudicationAssessmentResource;
 use App\Domains\BusinessDevelopment\Models\BdsApplication;
+use App\Domains\BusinessDevelopment\Models\BdsPitchSession;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BusinessDevelopment\StoreAdjudicationAssessmentRequest;
 use App\Http\Requests\BusinessDevelopment\UpdateAdjudicationAssessmentRequest;
@@ -50,6 +51,16 @@ class AdjudicationAssessmentController extends Controller
             'sections' => $this->sections(),
             'smmes' => $this->smmes(),
             'initial_smme_id' => $request->integer('smme_id') ?: null,
+            'initial_pitch_session_id' => $request->integer('pitch_session_id') ?: null,
+            'pitch_sessions' => BdsPitchSession::query()
+                ->whereIn('status', ['scheduled', 'in_progress', 'consolidated'])
+                ->orderBy('scheduled_for')
+                ->get(['id', 'title', 'scheduled_for'])
+                ->map(fn (BdsPitchSession $session) => [
+                    'id' => $session->id,
+                    'title' => $session->title,
+                    'scheduled_for' => $session->scheduled_for?->toDateTimeString(),
+                ]),
         ]);
     }
 

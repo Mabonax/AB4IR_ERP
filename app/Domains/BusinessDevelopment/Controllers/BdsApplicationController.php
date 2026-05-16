@@ -5,6 +5,7 @@ namespace App\Domains\BusinessDevelopment\Controllers;
 use App\Domains\BusinessDevelopment\Requests\AssessBdsApplicationRequest;
 use App\Domains\BusinessDevelopment\Requests\ImportBdsApplicationRequest;
 use App\Domains\BusinessDevelopment\Requests\ScheduleBdsPitchRequest;
+use App\Domains\BusinessDevelopment\Models\BdsApplication;
 use App\Domains\BusinessDevelopment\Resources\BdsApplicationResource;
 use App\Domains\BusinessDevelopment\Services\BdsApplicationService;
 use App\Http\Controllers\Controller;
@@ -20,6 +21,8 @@ class BdsApplicationController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', BdsApplication::class);
+
         $perPage = (int) $request->integer('per_page', 15);
 
         return Inertia::render('BusinessDevelopment/Applications/Index', [
@@ -32,10 +35,11 @@ class BdsApplicationController extends Controller
 
     public function show(int $bds_application)
     {
+        $application = $this->service->getById($bds_application);
+        $this->authorize('view', $application);
+
         return Inertia::render('BusinessDevelopment/Applications/Show', [
-            'application' => new BdsApplicationResource(
-                $this->service->getById($bds_application)
-            ),
+            'application' => new BdsApplicationResource($application),
         ]);
     }
 
@@ -54,6 +58,7 @@ class BdsApplicationController extends Controller
 
     public function assess(AssessBdsApplicationRequest $request, int $bds_application)
     {
+        $this->authorize('assess', $this->service->getById($bds_application));
         $this->service->assess($bds_application, $request->validated());
 
         return redirect()->back()->with('success', 'Assessment saved.');
@@ -61,6 +66,7 @@ class BdsApplicationController extends Controller
 
     public function schedulePitch(ScheduleBdsPitchRequest $request, int $bds_application)
     {
+        $this->authorize('schedulePitch', $this->service->getById($bds_application));
         $this->service->schedulePitch($bds_application, $request->validated());
 
         return redirect()->back()->with('success', 'Pitch scheduled.');

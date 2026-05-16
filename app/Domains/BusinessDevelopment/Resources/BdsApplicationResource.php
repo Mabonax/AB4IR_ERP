@@ -2,12 +2,15 @@
 
 namespace App\Domains\BusinessDevelopment\Resources;
 
+use App\Domains\BusinessDevelopment\Services\BdsApplicationService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class BdsApplicationResource extends JsonResource
 {
     public function toArray($request): array
     {
+        $workflowSummary = app(BdsApplicationService::class)->getWorkflowSummary($this->resource);
+
         return [
             'id' => $this->id,
             'full_name' => $this->full_name,
@@ -31,6 +34,7 @@ class BdsApplicationResource extends JsonResource
             'technology_stage_of_development' => $this->technology_stage_of_development,
             'application_date' => $this->application_date?->toDateString(),
             'assessment_status' => $this->assessment_status,
+            'assessment_status_label' => $workflowSummary['assessment_status_label'],
             'assessed_by_staff_id' => $this->assessed_by_staff_id,
             'assessor_name' => $this->assessor
                 ? trim(($this->assessor->first_name ?? '').' '.($this->assessor->last_name ?? ''))
@@ -41,6 +45,7 @@ class BdsApplicationResource extends JsonResource
             'adjudication_result' => $this->adjudication_result,
             'adjudicated_at' => $this->adjudicated_at?->toDateTimeString(),
             'has_submitted_adjudication' => (bool) ($this->has_submitted_adjudication ?? false),
+            'workflow_summary' => $workflowSummary,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

@@ -1,4 +1,4 @@
-import { LayoutGrid, FileText, Users, ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, FileText, LayoutGrid, Presentation, Users } from "lucide-react";
 
 import { type DomainNavItem } from "@/components/domain-nav";
 
@@ -19,6 +19,12 @@ export const businessDevelopmentNavItems: DomainNavItem[] = [
     label: "Incubatees",
     href: "/business-development/incubatees",
     icon: <Users className="h-4 w-4" />,
+    requiredPermissions: ["domain.business-development.view", "domain.business-development.manage"],
+  },
+  {
+    label: "Pitch Sessions",
+    href: "/business-development/pitch-sessions",
+    icon: <Presentation className="h-4 w-4" />,
     requiredPermissions: ["domain.business-development.view", "domain.business-development.manage"],
   },
   {

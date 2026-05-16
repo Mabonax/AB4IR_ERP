@@ -191,7 +191,7 @@ export default function ProjectLocationProgress({
           <CardHeader>
             <CardTitle>Assessments</CardTitle>
             <CardDescription>
-              Click a cell to assess a beneficiary for a milestone
+              Click a cell to assess a beneficiary for a milestone. Scores may only be created or corrected while the project is active.
             </CardDescription>
           </CardHeader>
           <CardContent>

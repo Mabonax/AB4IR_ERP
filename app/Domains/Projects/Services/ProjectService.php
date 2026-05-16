@@ -4,14 +4,32 @@ namespace App\Domains\Projects\Services;
 
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
+use App\Domains\Projects\Models\ProjectEnrollment;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Repositories\ProjectRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProjectService
 {
+    protected const STATUS_TRANSITIONS = [
+        'planned' => ['active', 'on_hold', 'completed', 'cancelled'],
+        'active' => ['on_hold', 'completed', 'cancelled'],
+        'on_hold' => ['active', 'cancelled', 'completed'],
+        'completed' => [],
+        'cancelled' => [],
+    ];
+
+    protected const STATUS_LABELS = [
+        'planned' => 'Planned',
+        'active' => 'Active',
+        'completed' => 'Completed',
+        'on_hold' => 'On Hold',
+        'cancelled' => 'Cancelled',
+    ];
+
     public function __construct(
         protected ProjectRepositoryInterface $repository
     ) {}
@@ -38,6 +56,9 @@ class ProjectService
             $project = $this->repository->create($data);
 
             $this->syncProgramMilestones($project);
+            $this->assertProjectStatusReadiness($project, null, $data);
+
+            $project->refresh();
 
             return $project;
         });
@@ -69,7 +90,15 @@ class ProjectService
     {
         return DB::transaction(function () use ($id, $data) {
             $project = $this->getProjectById($id);
-            return $this->repository->update($project, $data);
+            $this->assertProjectStatusReadiness($project, $project->status, $data);
+
+            $updated = $this->repository->update($project, $data);
+
+            if (($data['status'] ?? $project->status) === 'completed') {
+                $this->markProjectEnrollmentsCompleted($updated);
+            }
+
+            return $updated->fresh(['locations', 'milestones']);
         });
     }
 
@@ -77,7 +106,193 @@ class ProjectService
     {
         return DB::transaction(function () use ($id) {
             $project = $this->getProjectById($id);
+
             return $this->repository->delete($project);
         });
+    }
+
+    public function getStatusSummary(Project $project): array
+    {
+        $project->loadMissing(['locations', 'milestones']);
+
+        $currentStatus = (string) $project->status;
+        $allowedTransitions = self::STATUS_TRANSITIONS[$currentStatus] ?? [];
+
+        return [
+            'current' => $currentStatus,
+            'current_label' => $this->statusLabel($currentStatus),
+            'allowed_transitions' => collect($allowedTransitions)
+                ->map(fn (string $status) => [
+                    'status' => $status,
+                    'label' => $this->statusLabel($status),
+                    ...$this->evaluateStatusReadiness($project, $status),
+                ])
+                ->values()
+                ->all(),
+            'readiness' => [
+                'active' => $this->evaluateStatusReadiness($project, 'active'),
+                'completed' => $this->evaluateStatusReadiness($project, 'completed'),
+            ],
+        ];
+    }
+
+    protected function assertProjectStatusReadiness(Project $project, ?string $originalStatus, array $data): void
+    {
+        $targetStatus = (string) ($data['status'] ?? $project->status);
+        $currentStatus = $originalStatus ?? $project->status;
+
+        if ($originalStatus !== null) {
+            $this->assertAllowedStatusTransition($currentStatus, $targetStatus);
+        }
+
+        if ($targetStatus === 'active' && ($originalStatus === null || $currentStatus !== 'active')) {
+            $this->assertProjectCanActivate($project);
+        }
+
+        if ($targetStatus === 'completed' && ($originalStatus === null || $currentStatus !== 'completed')) {
+            $this->assertProjectCanComplete($project, $data);
+        }
+    }
+
+    protected function assertAllowedStatusTransition(string $from, string $to): void
+    {
+        if ($from === $to) {
+            return;
+        }
+
+        if (! in_array($to, self::STATUS_TRANSITIONS[$from] ?? [], true)) {
+            throw ValidationException::withMessages([
+                'status' => ["Project status cannot transition from {$from} to {$to}."],
+            ]);
+        }
+    }
+
+    protected function assertProjectCanActivate(Project $project): void
+    {
+        $blockers = $this->activationBlockers($project);
+
+        if ($blockers !== []) {
+            throw ValidationException::withMessages([
+                'status' => $blockers,
+            ]);
+        }
+    }
+
+    protected function assertProjectCanComplete(Project $project, array $data): void
+    {
+        $blockers = $this->completionBlockers($project, $data);
+
+        if ($blockers !== []) {
+            $messages = ['status' => $blockers];
+
+            if (in_array('A completed project must have an end date.', $blockers, true)) {
+                $messages['end_date'] = ['A completed project must have an end date.'];
+            }
+
+            throw ValidationException::withMessages($messages);
+        }
+    }
+
+    protected function markProjectEnrollmentsCompleted(Project $project): void
+    {
+        ProjectEnrollment::query()
+            ->where('project_id', $project->id)
+            ->whereIn('status', ['enrolled', 'completed'])
+            ->whereHas('beneficiary', fn ($query) => $query->where('attendance_status', 'active'))
+            ->update([
+                'status' => 'completed',
+                'updated_at' => now(),
+            ]);
+    }
+
+    protected function evaluateStatusReadiness(Project $project, string $targetStatus): array
+    {
+        $blockers = match ($targetStatus) {
+            'active' => $this->activationBlockers($project),
+            'completed' => $this->completionBlockers($project),
+            default => [],
+        };
+
+        return [
+            'ready' => $blockers === [],
+            'blockers' => $blockers,
+        ];
+    }
+
+    protected function activationBlockers(Project $project): array
+    {
+        $project->loadMissing(['locations', 'milestones']);
+
+        $blockers = [];
+
+        if (! $project->locations->isNotEmpty()) {
+            $blockers[] = 'A project needs at least one location before it can become active.';
+        }
+
+        if (! $project->milestones->isNotEmpty()) {
+            $blockers[] = 'A project needs at least one milestone before it can become active.';
+        }
+
+        return $blockers;
+    }
+
+    protected function completionBlockers(Project $project, array $data = []): array
+    {
+        $project->loadMissing(['locations', 'milestones']);
+
+        $blockers = [];
+        $endDate = $data['end_date'] ?? $project->end_date?->format('Y-m-d');
+
+        if (! $endDate) {
+            $blockers[] = 'A completed project must have an end date.';
+        }
+
+        $blockers = [...$blockers, ...$this->activationBlockers($project)];
+
+        $milestoneIds = $project->milestones->pluck('id')->all();
+
+        if ($milestoneIds === []) {
+            return array_values(array_unique($blockers));
+        }
+
+        $activeEnrollments = ProjectEnrollment::query()
+            ->where('project_id', $project->id)
+            ->whereIn('status', ['enrolled', 'completed'])
+            ->whereHas('beneficiary', fn ($query) => $query->where('attendance_status', 'active'))
+            ->get(['beneficiary_id', 'project_location_id']);
+
+        if ($activeEnrollments->isEmpty()) {
+            $blockers[] = 'A completed project must still have active beneficiary delivery records before closure.';
+
+            return array_values(array_unique($blockers));
+        }
+
+        $missingAssessments = 0;
+
+        foreach ($activeEnrollments as $enrollment) {
+            foreach ($milestoneIds as $milestoneId) {
+                $completed = DB::table('project_milestone_assessments')
+                    ->where('project_milestone_id', $milestoneId)
+                    ->where('project_location_id', $enrollment->project_location_id)
+                    ->where('beneficiary_id', $enrollment->beneficiary_id)
+                    ->where('status', 'completed')
+                    ->exists();
+
+                if (! $completed) {
+                    $missingAssessments++;
+                }
+            }
+        }
+
+        if ($missingAssessments > 0) {
+            $blockers[] = "All active beneficiaries must complete every project milestone before the project can be completed. {$missingAssessments} completion record(s) are still missing.";
+        }
+
+        return array_values(array_unique($blockers));
+    }
+
+    protected function statusLabel(string $status): string
+    {
+        return self::STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
     }
 }

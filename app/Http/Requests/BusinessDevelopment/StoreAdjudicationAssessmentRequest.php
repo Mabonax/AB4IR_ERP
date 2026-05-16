@@ -17,6 +17,7 @@ class StoreAdjudicationAssessmentRequest extends FormRequest
     {
         return [
             'smme_id' => ['required', 'integer', 'exists:bds_applications,id'],
+            'pitch_session_id' => ['nullable', 'integer', 'exists:bd_pitch_sessions,id'],
             'platform_name' => ['required', 'string', 'max:255'],
             'adjudication_date' => ['required', 'date'],
             'development_stage' => ['required', Rule::in(['mvp', 'prototype', 'complete_product'])],

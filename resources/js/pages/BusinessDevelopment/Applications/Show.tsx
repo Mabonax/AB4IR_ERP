@@ -28,12 +28,18 @@ type Application = {
   technology_stage_of_development: string;
   application_date: string | null;
   assessment_status: "pending" | "accepted" | "rejected";
+  assessment_status_label: string;
   assessor_name: string | null;
   assessed_at: string | null;
   pitch_scheduled_at: string | null;
   pitch_notes: string | null;
   adjudication_result: "incubated" | "rejected" | null;
   adjudicated_at: string | null;
+  workflow_summary: {
+    assessment: Record<"accepted" | "rejected", { ready: boolean; blockers: string[] }>;
+    pitch: { ready: boolean; blockers: string[] };
+    adjudication: { ready: boolean; blockers: string[] };
+  };
 };
 
 export default function BdsApplicationShow({
@@ -72,7 +78,7 @@ export default function BdsApplicationShow({
     { label: "Technology/Product/Service", value: appData.technology_product_service },
     { label: "Stage of Development", value: appData.technology_stage_of_development },
     { label: "Application Date", value: appData.application_date },
-    { label: "Assessment Status", value: appData.assessment_status },
+    { label: "Assessment Status", value: appData.assessment_status_label },
     { label: "Assessed By", value: appData.assessor_name },
     { label: "Assessed At", value: appData.assessed_at },
     { label: "Pitch Scheduled At", value: appData.pitch_scheduled_at },
@@ -100,6 +106,46 @@ export default function BdsApplicationShow({
         </div>
 
         <section className="rounded-xl border bg-card shadow-sm">
+          <div className="border-b p-4">
+            <h2 className="text-base font-semibold">Workflow Readiness</h2>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Assessment</div>
+                <div className="mt-1 text-sm font-medium">
+                  {appData.workflow_summary.assessment.accepted.ready || appData.workflow_summary.assessment.rejected.ready
+                    ? "Ready"
+                    : "Blocked"}
+                </div>
+                {!appData.workflow_summary.assessment.accepted.ready && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    {appData.workflow_summary.assessment.accepted.blockers.join(" ")}
+                  </p>
+                )}
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Pitch</div>
+                <div className="mt-1 text-sm font-medium">
+                  {appData.workflow_summary.pitch.ready ? "Ready" : "Blocked"}
+                </div>
+                {!appData.workflow_summary.pitch.ready && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    {appData.workflow_summary.pitch.blockers.join(" ")}
+                  </p>
+                )}
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Adjudication</div>
+                <div className="mt-1 text-sm font-medium">
+                  {appData.workflow_summary.adjudication.ready ? "Ready" : "Blocked"}
+                </div>
+                {!appData.workflow_summary.adjudication.ready && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    {appData.workflow_summary.adjudication.blockers.join(" ")}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="grid gap-0 md:grid-cols-2">
             {detailRows.map((row) => (
               <div key={row.label} className="border-b p-3 md:border-r [&:nth-child(2n)]:md:border-r-0">

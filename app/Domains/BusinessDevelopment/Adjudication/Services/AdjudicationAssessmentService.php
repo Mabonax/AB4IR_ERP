@@ -4,6 +4,7 @@ namespace App\Domains\BusinessDevelopment\Adjudication\Services;
 
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationSection;
+use App\Domains\BusinessDevelopment\Models\BdsPitchSession;
 use App\Domains\BusinessDevelopment\Models\BdsIncubatee;
 use App\Domains\BusinessDevelopment\Adjudication\Repositories\AdjudicationAssessmentRepositoryInterface;
 use App\Models\User;
@@ -59,8 +60,12 @@ class AdjudicationAssessmentService
             $scores = $this->normalizeScores($data['scores'] ?? [], $sections);
             $total = $this->calculateTotal($scores);
 
+            $pitchSession = $this->resolvePitchSession($data['pitch_session_id'] ?? null);
+            $this->assertPitchSessionEligibility($pitchSession, (int) $data['smme_id'], $actor);
+
             $assessment = $this->repository->create([
                 'smme_id' => (int) $data['smme_id'],
+                'pitch_session_id' => $pitchSession?->id,
                 'judge_id' => (int) $actor->id,
                 'platform_name' => $data['platform_name'],
                 'adjudication_date' => $data['adjudication_date'],
@@ -80,15 +85,19 @@ class AdjudicationAssessmentService
     {
         Gate::forUser($actor)->authorize('update', $assessment);
 
-        return DB::transaction(function () use ($assessment, $data) {
+        return DB::transaction(function () use ($assessment, $data, $actor) {
             $sections = AdjudicationSection::query()->orderBy('sort_order')->get();
             $this->validateScoresAgainstMaxPoints($data['scores'] ?? [], $sections);
 
             $scores = $this->normalizeScores($data['scores'] ?? [], $sections);
             $total = $this->calculateTotal($scores);
 
+            $pitchSession = $this->resolvePitchSession($data['pitch_session_id'] ?? $assessment->pitch_session_id);
+            $this->assertPitchSessionEligibility($pitchSession, (int) $data['smme_id'], $actor);
+
             $assessment = $this->repository->update($assessment, [
                 'smme_id' => (int) $data['smme_id'],
+                'pitch_session_id' => $pitchSession?->id,
                 'platform_name' => $data['platform_name'],
                 'adjudication_date' => $data['adjudication_date'],
                 'development_stage' => $data['development_stage'],
@@ -251,5 +260,41 @@ class AdjudicationAssessmentService
                 ];
             })
             ->all();
+    }
+
+    protected function resolvePitchSession(?int $pitchSessionId): ?BdsPitchSession
+    {
+        if (! $pitchSessionId) {
+            return null;
+        }
+
+        return BdsPitchSession::query()
+            ->with(['panelists', 'prospects'])
+            ->findOrFail($pitchSessionId);
+    }
+
+    protected function assertPitchSessionEligibility(?BdsPitchSession $session, int $smmeId, User $actor): void
+    {
+        if (! $session) {
+            return;
+        }
+
+        if (! in_array($session->status, ['scheduled', 'in_progress', 'consolidated'], true)) {
+            throw ValidationException::withMessages([
+                'pitch_session_id' => ['Assessments can only be attached to scheduled or active pitch sessions.'],
+            ]);
+        }
+
+        if (! $session->prospects->contains(fn ($prospect) => (int) $prospect->bds_application_id === $smmeId)) {
+            throw ValidationException::withMessages([
+                'smme_id' => ['Selected application is not listed as a prospect in this pitch session.'],
+            ]);
+        }
+
+        if (! $session->panelists->contains(fn ($panelist) => (int) $panelist->user_id === (int) $actor->id)) {
+            throw ValidationException::withMessages([
+                'pitch_session_id' => ['Only invited panel members may score prospects in this pitch session.'],
+            ]);
+        }
     }
 }

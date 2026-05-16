@@ -74,4 +74,9 @@ class BdsApplication extends Model
     {
         return $this->hasMany(AdjudicationAssessment::class, 'smme_id');
     }
+
+    public function pitchSessionProspects(): HasMany
+    {
+        return $this->hasMany(BdsPitchSessionProspect::class, 'bds_application_id');
+    }
 }

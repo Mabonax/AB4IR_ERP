@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -17,6 +18,12 @@ use ZipArchive;
 
 class BdsApplicationService
 {
+    protected const STATUS_LABELS = [
+        'pending' => 'Pending',
+        'accepted' => 'Accepted',
+        'rejected' => 'Rejected',
+    ];
+
     public function __construct(
         protected BdsApplicationRepositoryInterface $repository
     ) {}
@@ -41,26 +48,14 @@ class BdsApplicationService
     {
         $application = $this->getById($id);
         $user = auth()->user();
-        $hasRequiredPermission = $user && $user->can('domain.business-development.manage');
-        $hasRequiredRole = $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole([
-            'super-admin',
-            'super admin',
-            'admin',
-            'domain-admin-business-development',
-            'department-manager-business-development',
-        ]);
-
-        if (! $hasRequiredPermission || ! $hasRequiredRole) {
-            throw ValidationException::withMessages([
-                'assessment_status' => ['You are not authorized to assess this application.'],
-            ]);
-        }
+        Gate::forUser($user)->authorize('assess', $application);
 
         $staff = StaffMember::with('department')
             ->where('user_id', (int) $user->id)
             ->first();
 
         $status = $data['assessment_status'];
+        $this->assertAssessmentTransitionAllowed($application, $status);
 
         return $this->repository->update($application, [
             'assessment_status' => $status,
@@ -77,18 +72,35 @@ class BdsApplicationService
     public function schedulePitch(int $id, array $data): BdsApplication
     {
         $application = $this->getById($id);
+        $user = auth()->user();
+        Gate::forUser($user)->authorize('schedulePitch', $application);
 
-        if ($application->assessment_status !== 'accepted') {
-            throw ValidationException::withMessages([
-                'application' => ['Only accepted applications can be scheduled for pitching.'],
-            ]);
-        }
+        $this->assertPitchSchedulingAllowed($application, $data);
 
         return $this->repository->update($application, [
             'pitch_scheduled_at' => Carbon::parse($data['pitch_scheduled_at']),
             'pitch_notes' => $data['pitch_notes'] ?? null,
             'updated_by' => auth()->id(),
         ]);
+    }
+
+    public function getWorkflowSummary(BdsApplication $application): array
+    {
+        $application->loadMissing(['adjudications']);
+
+        $hasSubmittedAdjudication = (bool) ($application->has_submitted_adjudication
+            ?? $application->adjudications->contains(fn ($adjudication) => $adjudication->status === 'submitted'));
+
+        return [
+            'assessment_status' => $application->assessment_status,
+            'assessment_status_label' => self::STATUS_LABELS[$application->assessment_status] ?? ucfirst($application->assessment_status),
+            'assessment' => [
+                'accepted' => $this->evaluateAssessmentTransition($application, 'accepted', $hasSubmittedAdjudication),
+                'rejected' => $this->evaluateAssessmentTransition($application, 'rejected', $hasSubmittedAdjudication),
+            ],
+            'pitch' => $this->evaluatePitchReadiness($application, $hasSubmittedAdjudication),
+            'adjudication' => $this->evaluateAdjudicationReadiness($application, $hasSubmittedAdjudication),
+        ];
     }
 
     public function importFromFile(UploadedFile $file): array
@@ -219,6 +231,117 @@ class BdsApplicationService
             'technology_stage_of_development' => (string) $normalized['technology product service stage of development'],
             'application_date' => $this->parseDateValue($normalized['application date'] ?? null),
             'assessment_status' => 'pending',
+        ];
+    }
+
+    protected function assertAssessmentTransitionAllowed(BdsApplication $application, string $targetStatus): void
+    {
+        $blockers = $this->evaluateAssessmentTransition(
+            $application,
+            $targetStatus,
+            (bool) ($application->has_submitted_adjudication ?? false)
+        )['blockers'];
+
+        if ($blockers !== []) {
+            throw ValidationException::withMessages([
+                'assessment_status' => $blockers,
+            ]);
+        }
+    }
+
+    protected function assertPitchSchedulingAllowed(BdsApplication $application, array $data): void
+    {
+        $blockers = $this->evaluatePitchReadiness(
+            $application,
+            (bool) ($application->has_submitted_adjudication ?? false),
+            $data
+        )['blockers'];
+
+        if ($blockers !== []) {
+            throw ValidationException::withMessages([
+                'pitch_scheduled_at' => $blockers,
+            ]);
+        }
+    }
+
+    protected function evaluateAssessmentTransition(
+        BdsApplication $application,
+        string $targetStatus,
+        bool $hasSubmittedAdjudication
+    ): array {
+        $blockers = [];
+
+        if ($application->adjudication_result !== null) {
+            $blockers[] = 'Applications with an adjudication outcome can no longer be reassessed.';
+        }
+
+        if ($hasSubmittedAdjudication) {
+            $blockers[] = 'Applications with a submitted adjudication cannot be reassessed until that adjudication is unlocked.';
+        }
+
+        if ($targetStatus === 'accepted' && $application->assessment_status === 'accepted' && $application->pitch_scheduled_at !== null) {
+            $blockers[] = 'This application is already accepted and pitched. Maintain the assessment and continue with adjudication.';
+        }
+
+        return [
+            'ready' => $blockers === [],
+            'blockers' => $blockers,
+        ];
+    }
+
+    protected function evaluatePitchReadiness(
+        BdsApplication $application,
+        bool $hasSubmittedAdjudication,
+        array $data = []
+    ): array {
+        $blockers = [];
+
+        if ($application->assessment_status !== 'accepted') {
+            $blockers[] = 'Only accepted applications can be scheduled for pitching.';
+        }
+
+        if ($application->adjudication_result !== null) {
+            $blockers[] = 'Applications with an adjudication outcome can no longer be rescheduled for pitching.';
+        }
+
+        if ($hasSubmittedAdjudication) {
+            $blockers[] = 'Pitch scheduling is locked once an adjudication has been submitted.';
+        }
+
+        $pitchAt = $data['pitch_scheduled_at'] ?? null;
+        if ($pitchAt !== null && Carbon::parse($pitchAt)->lt(now())) {
+            $blockers[] = 'Pitch scheduling must use a future date and time.';
+        }
+
+        return [
+            'ready' => $blockers === [],
+            'blockers' => $blockers,
+        ];
+    }
+
+    protected function evaluateAdjudicationReadiness(BdsApplication $application, bool $hasSubmittedAdjudication): array
+    {
+        $blockers = [];
+
+        if ($application->assessment_status !== 'accepted') {
+            $blockers[] = 'Only accepted applications can proceed to adjudication.';
+        }
+
+        if ($application->pitch_scheduled_at === null) {
+            $blockers[] = 'A pitch must be scheduled before adjudication can start.';
+        }
+
+        if ($application->adjudication_result !== null) {
+            $blockers[] = 'This application already has a final adjudication outcome.';
+        }
+
+        if ($hasSubmittedAdjudication) {
+            $blockers[] = 'A submitted adjudication already exists for this application.';
+        }
+
+        return [
+            'ready' => $blockers === [],
+            'blockers' => $blockers,
         ];
     }
 

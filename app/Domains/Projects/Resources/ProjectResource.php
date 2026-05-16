@@ -2,12 +2,15 @@
 
 namespace App\Domains\Projects\Resources;
 
+use App\Domains\Projects\Services\ProjectService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class ProjectResource extends JsonResource
 {
     public function toArray($request): array
     {
+        $statusSummary = app(ProjectService::class)->getStatusSummary($this->resource);
+
         return [
             'id' => $this->id,
             'program_id' => $this->program_id,
@@ -24,6 +27,8 @@ class ProjectResource extends JsonResource
             'start_date' => $this->start_date?->format('Y-m-d'),
             'end_date' => $this->end_date?->format('Y-m-d'),
             'status' => $this->status,
+            'status_label' => $statusSummary['current_label'],
+            'status_summary' => $statusSummary,
             'description' => $this->description,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),

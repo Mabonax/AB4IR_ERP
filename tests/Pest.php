@@ -41,7 +41,46 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
+
+function grantPermissions(User $user, array $permissions): User
 {
-    // ..
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    foreach ($permissions as $permission) {
+        Permission::firstOrCreate([
+            'name' => $permission,
+            'guard_name' => 'web',
+        ]);
+    }
+
+    $user->givePermissionTo($permissions);
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    return $user->refresh();
+}
+
+function grantSettingsAccess(User $user, bool $manage = true): User
+{
+    $permissions = ['domain.settings.view'];
+
+    if ($manage) {
+        $permissions[] = 'domain.settings.manage';
+    }
+
+    return grantPermissions($user, $permissions);
+}
+
+function grantDomainAccess(User $user, string $domain, bool $manage = true): User
+{
+    $permissions = ["domain.{$domain}.view"];
+
+    if ($manage) {
+        $permissions[] = "domain.{$domain}.manage";
+    }
+
+    return grantPermissions($user, $permissions);
 }

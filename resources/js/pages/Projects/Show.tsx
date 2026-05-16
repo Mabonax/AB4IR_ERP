@@ -17,6 +17,11 @@ const breadcrumbs: BreadcrumbItem[] = [
   { title: "Project View", href: "#" },
 ];
 
+const readinessTone = (ready: boolean) =>
+  ready
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-amber-200 bg-amber-50 text-amber-700";
+
 export default function ProjectShow({
   project,
   milestones,
@@ -27,6 +32,7 @@ export default function ProjectShow({
   locations: any[];
 }) {
   const projectData = project?.data ?? project;
+  const statusSummary = projectData.status_summary;
   const handleSyncMilestones = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -50,7 +56,7 @@ export default function ProjectShow({
               <CardDescription>Current</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl font-semibold">
-              {projectData.status ?? "-"}
+              {projectData.status_label ?? projectData.status ?? "-"}
             </CardContent>
           </Card>
           <Card>
@@ -95,6 +101,66 @@ export default function ProjectShow({
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Transition Readiness</CardTitle>
+              <CardDescription>Current workflow state and blockers</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Allowed transitions
+                </div>
+                {statusSummary?.allowed_transitions?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {statusSummary.allowed_transitions.map((transition: any) => (
+                      <span
+                        key={transition.status}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${readinessTone(transition.ready)}`}
+                      >
+                        {transition.label}
+                        {!transition.ready ? ` (${transition.blockers.length} blocker${transition.blockers.length === 1 ? "" : "s"})` : ""}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    No further transitions are allowed for this project.
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-3">
+                {(["active", "completed"] as const).map((statusKey) => {
+                  const readiness = statusSummary?.readiness?.[statusKey];
+
+                  if (!readiness) return null;
+
+                  return (
+                    <div
+                      key={statusKey}
+                      className={`rounded-lg border p-3 ${readinessTone(readiness.ready)}`}
+                    >
+                      <div className="text-xs font-semibold uppercase tracking-wide">
+                        {statusKey === "active" ? "Activation readiness" : "Completion readiness"}
+                      </div>
+                      <div className="mt-1 text-sm font-medium">
+                        {readiness.ready ? "Ready" : `${readiness.blockers.length} blocker${readiness.blockers.length === 1 ? "" : "s"}`}
+                      </div>
+                      {!readiness.ready && (
+                        <ul className="mt-2 space-y-1 text-xs">
+                          {readiness.blockers.map((blocker: string) => (
+                            <li key={blocker}>{blocker}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Milestones</CardTitle>

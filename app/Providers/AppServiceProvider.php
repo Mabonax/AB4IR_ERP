@@ -4,18 +4,30 @@ namespace App\Providers;
 
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepository;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
+use App\Domains\Beneficiaries\Models\Beneficiary;
+use App\Domains\Beneficiaries\Policies\BeneficiaryPolicy;
 use App\Domains\Assets\Repositories\AssetCategoryRepository;
 use App\Domains\Assets\Repositories\AssetCategoryRepositoryInterface;
 use App\Domains\Assets\Repositories\AssetRepository;
 use App\Domains\Assets\Repositories\AssetRepositoryInterface;
 use App\Domains\Projects\Repositories\ProjectRepository;
 use App\Domains\Projects\Repositories\ProjectRepositoryInterface;
+use App\Domains\Projects\Models\AttendanceRegister;
+use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Models\ProjectMilestoneAssessment;
+use App\Domains\Projects\Policies\AttendanceRegisterPolicy;
+use App\Domains\Projects\Policies\ProjectPolicy;
+use App\Domains\Projects\Policies\ProjectMilestoneAssessmentPolicy;
 use App\Domains\Projects\Repositories\ProjectLocationRepository;
 use App\Domains\Projects\Repositories\ProjectLocationRepositoryInterface;
 use App\Domains\Projects\Repositories\ProjectEnrollmentRepository;
 use App\Domains\Projects\Repositories\ProjectEnrollmentRepositoryInterface;
 use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepository;
 use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepositoryInterface;
+use App\Domains\BusinessDevelopment\Models\BdsApplication;
+use App\Domains\BusinessDevelopment\Policies\BdsApplicationPolicy;
+use App\Domains\BusinessDevelopment\Models\BdsPitchSession;
+use App\Domains\BusinessDevelopment\Policies\BdsPitchSessionPolicy;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepository;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepositoryInterface;
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
@@ -124,6 +136,12 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
 
+        Gate::policy(Beneficiary::class, BeneficiaryPolicy::class);
+        Gate::policy(Project::class, ProjectPolicy::class);
+        Gate::policy(BdsApplication::class, BdsApplicationPolicy::class);
+        Gate::policy(BdsPitchSession::class, BdsPitchSessionPolicy::class);
+        Gate::policy(AttendanceRegister::class, AttendanceRegisterPolicy::class);
+        Gate::policy(ProjectMilestoneAssessment::class, ProjectMilestoneAssessmentPolicy::class);
         Gate::policy(AdjudicationAssessment::class, AdjudicationAssessmentPolicy::class);
 
         Gate::before(function ($user, string $ability) {

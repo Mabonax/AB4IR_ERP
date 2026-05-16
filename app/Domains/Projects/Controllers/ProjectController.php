@@ -27,6 +27,8 @@ class ProjectController extends Controller
 
     public function index()
     {
+        $this->authorize('viewAny', Project::class);
+
         $projects = $this->service->paginateProjects();
         $programs = Program::select('id', 'title')->orderBy('title')->get();
         $stakeholders = Stakeholder::select('id', 'organization_name', 'name')
@@ -54,6 +56,8 @@ class ProjectController extends Controller
 
     public function dashboard()
     {
+        $this->authorize('viewAny', Project::class);
+
         return Inertia::render('Projects/Dashboard', [
             'stats' => [
                 'totalProjects' => Project::count(),
@@ -67,6 +71,8 @@ class ProjectController extends Controller
 
     public function store(StoreProjectRequest $request)
     {
+        $this->authorize('create', Project::class);
+
         $this->service->createProject($request->validated());
 
         return redirect()->back()->with('success', 'Project created');
@@ -84,6 +90,8 @@ class ProjectController extends Controller
                 'milestones',
             ])
             ->findOrFail($project);
+
+        $this->authorize('view', $model);
 
         $milestones = ProjectMilestone::with('assessments')
             ->where('project_id', $model->id)
@@ -150,6 +158,8 @@ class ProjectController extends Controller
         $template = ProgramMilestoneTemplate::findOrFail($data['milestone_template_id']);
 
         $projectModel = Project::findOrFail($project);
+        $this->authorize('update', $projectModel);
+
         if ($template->program_id !== $projectModel->program_id) {
             return redirect()->back()->withErrors([
                 'milestone_template_id' => 'Template does not match project program.',
@@ -175,6 +185,7 @@ class ProjectController extends Controller
     public function syncMilestones(int $project)
     {
         $projectModel = Project::findOrFail($project);
+        $this->authorize('update', $projectModel);
         $this->service->syncProgramMilestones($projectModel);
 
         return redirect()->back()->with('success', 'Program milestones synced');
@@ -182,6 +193,9 @@ class ProjectController extends Controller
 
     public function update(UpdateProjectRequest $request, int $project)
     {
+        $projectModel = Project::findOrFail($project);
+        $this->authorize('update', $projectModel);
+
         $this->service->updateProject($project, $request->validated());
 
         return redirect()->back()->with('success', 'Project updated');
@@ -189,6 +203,9 @@ class ProjectController extends Controller
 
     public function destroy(int $project)
     {
+        $projectModel = Project::findOrFail($project);
+        $this->authorize('delete', $projectModel);
+
         $this->service->deleteProject($project);
 
         return redirect()->back()->with('success', 'Project deleted');

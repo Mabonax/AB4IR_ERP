@@ -15,6 +15,93 @@ import { ProjectTableConfig } from "@/config/tables/project-table";
 import projects from "@/routes/projects";
 import { type BreadcrumbItem } from "@/types";
 
+type StatusTransition = {
+  status: string;
+  label: string;
+  ready: boolean;
+  blockers: string[];
+};
+
+type StatusSummary = {
+  current: string;
+  current_label: string;
+  allowed_transitions: StatusTransition[];
+  readiness: {
+    active: { ready: boolean; blockers: string[] };
+    completed: { ready: boolean; blockers: string[] };
+  };
+};
+
+const statusTone = (ready: boolean) =>
+  ready
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : "border-amber-200 bg-amber-50 text-amber-700";
+
+function ProjectStatusPanel({ summary }: { summary?: StatusSummary | null }) {
+  if (!summary) return null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold text-slate-900">Current Status</span>
+        <span className="rounded-full border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700">
+          {summary.current_label}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Allowed transitions
+          </p>
+          {summary.allowed_transitions.length === 0 ? (
+            <p className="mt-2 text-slate-600">No further transitions are allowed.</p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {summary.allowed_transitions.map((transition) => (
+                <span
+                  key={transition.status}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusTone(transition.ready)}`}
+                >
+                  {transition.label}
+                  {!transition.ready ? ` (${transition.blockers.length} blocker${transition.blockers.length === 1 ? "" : "s"})` : ""}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(["active", "completed"] as const).map((statusKey) => {
+            const readiness = summary.readiness[statusKey];
+
+            return (
+              <div
+                key={statusKey}
+                className={`rounded-lg border p-3 ${statusTone(readiness.ready)}`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide">
+                  {statusKey === "active" ? "Activation readiness" : "Completion readiness"}
+                </p>
+                <p className="mt-1 text-xs font-medium">
+                  {readiness.ready ? "Ready" : `${readiness.blockers.length} blocker${readiness.blockers.length === 1 ? "" : "s"}`}
+                </p>
+                {!readiness.ready && (
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {readiness.blockers.map((blocker) => (
+                      <li key={blocker}>{blocker}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* =========================================================
 | BREADCRUMBS
 ========================================================= */
@@ -71,6 +158,32 @@ export default function ProjectIndex({
       }
     : {};
 
+  const columns = ProjectTableConfig.columns.map((column) =>
+    column.key === "status"
+      ? {
+          ...column,
+          render: (row: any) => {
+            const blockers = row.status_summary?.allowed_transitions?.filter(
+              (transition: StatusTransition) => !transition.ready
+            ).length ?? 0;
+
+            return (
+              <div className="space-y-1">
+                <div className="font-medium text-slate-900">
+                  {row.status_label ?? row.status ?? "-"}
+                </div>
+                {blockers > 0 && (
+                  <div className="text-xs text-amber-700">
+                    {blockers} blocked transition{blockers === 1 ? "" : "s"}
+                  </div>
+                )}
+              </div>
+            );
+          },
+        }
+      : column
+  );
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Projects" />
@@ -117,7 +230,7 @@ export default function ProjectIndex({
         </div>
 
         <CustomTable
-          columns={ProjectTableConfig.columns}
+          columns={columns}
           data={projectPagination.data}
           actions={[
             {
@@ -157,7 +270,9 @@ export default function ProjectIndex({
             submitRoute={projects.update}
             routeParams={selectedProject.id}
             options={{ programs, stakeholders, staffMembers }}
-          />
+          >
+            <ProjectStatusPanel summary={selectedProject.status_summary} />
+          </CustomModelForm>
         )}
 
         {projectToDelete && (

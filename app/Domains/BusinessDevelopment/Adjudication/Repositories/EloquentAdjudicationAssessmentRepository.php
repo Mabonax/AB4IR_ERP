@@ -11,7 +11,7 @@ class EloquentAdjudicationAssessmentRepository implements AdjudicationAssessment
     public function paginateForUser(User $user, int $perPage = 15): LengthAwarePaginator
     {
         $query = AdjudicationAssessment::query()
-            ->with(['judge:id,name', 'smme:id,company_name', 'scores'])
+            ->with(['judge:id,name', 'smme:id,company_name,adjudication_result', 'scores'])
             ->latest();
 
         if (! $user->can('domain.business-development.manage')) {

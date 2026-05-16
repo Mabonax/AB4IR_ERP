@@ -2,66 +2,25 @@
 
 namespace App\Domains\Projects\Controllers;
 
-use App\Domains\Facilitators\Models\Facilitator;
 use App\Domains\Projects\Models\AttendanceEntry;
 use App\Domains\Projects\Models\AttendanceRegister;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectLocation;
+use App\Domains\Projects\Services\ProjectAttendanceWorkflowService;
 use App\Http\Controllers\Controller;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class ProjectAttendanceController extends Controller
 {
-    protected function hasAdminAccess(): bool
-    {
-        $user = Auth::user();
-
-        return (bool) $user?->hasAnyRole(['super-admin', 'super admin', 'admin']);
-    }
-
-    protected function hasFullProjectAccess(): bool
-    {
-        $user = Auth::user();
-
-        return (bool) $user?->can('domain.projects.view')
-            || (bool) $user?->can('domain.projects.manage');
-    }
-
-    protected function currentFacilitator(): ?Facilitator
-    {
-        $userId = Auth::id();
-        if (! $userId) {
-            return null;
-        }
-
-        $facilitator = Facilitator::query()->where('user_id', $userId)->first();
-        if ($facilitator) {
-            return $facilitator;
-        }
-
-        $email = Auth::user()?->email;
-        if (! $email) {
-            return null;
-        }
-
-        return Facilitator::query()->where('email', $email)->first();
-    }
-
-    protected function isProjectManager(Project $project): bool
-    {
-        $user = Auth::user();
-        $staffId = $user?->staffMember?->id;
-
-        return $staffId !== null && (int) $project->project_manager_id === (int) $staffId;
-    }
+    public function __construct(
+        protected ProjectAttendanceWorkflowService $workflow
+    ) {}
 
     protected function locationWithRelations(int $projectLocationId): ProjectLocation
     {
@@ -73,29 +32,6 @@ class ProjectAttendanceController extends Controller
                 'enrollments.beneficiary',
             ])
             ->findOrFail($projectLocationId);
-    }
-
-    protected function parseAndValidateDate(Project $project, string $date): Carbon
-    {
-        $attendanceDate = Carbon::parse($date)->startOfDay();
-        $startDate = Carbon::parse($project->start_date)->startOfDay();
-        $endDate = $project->end_date
-            ? Carbon::parse($project->end_date)->startOfDay()
-            : Carbon::today()->startOfDay();
-
-        if ($attendanceDate->lt($startDate) || $attendanceDate->gt($endDate)) {
-            throw ValidationException::withMessages([
-                'attendance_date' => 'Attendance date must be within the project start and end dates.',
-            ]);
-        }
-
-        if ($attendanceDate->isWeekend()) {
-            throw ValidationException::withMessages([
-                'attendance_date' => 'Attendance cannot be captured on weekends.',
-            ]);
-        }
-
-        return $attendanceDate;
     }
 
     protected function registerWithRelations(int $attendanceRegisterId): AttendanceRegister
@@ -111,57 +47,10 @@ class ProjectAttendanceController extends Controller
             ->findOrFail($attendanceRegisterId);
     }
 
-    protected function assertCanViewLocation(ProjectLocation $location): void
-    {
-        if ($this->hasFullProjectAccess() || $this->hasAdminAccess()) {
-            return;
-        }
-
-        $facilitator = $this->currentFacilitator();
-        if (! $facilitator || (int) $location->facilitator_id !== (int) $facilitator->id) {
-            abort(403, 'You can only view attendance for your assigned locations.');
-        }
-    }
-
-    protected function assertCanManageRegister(ProjectLocation $location): Facilitator
-    {
-        if ($this->hasAdminAccess()) {
-            $facilitator = $location->facilitator;
-            if (! $facilitator) {
-                abort(422, 'No facilitator is assigned to this location.');
-            }
-
-            return $facilitator;
-        }
-
-        $facilitator = $this->currentFacilitator();
-        if (! $facilitator || (int) $location->facilitator_id !== (int) $facilitator->id) {
-            abort(403, 'You can only manage attendance for your assigned locations.');
-        }
-
-        return $facilitator;
-    }
-
-    protected function assertCanMarkHoliday(Project $project): void
-    {
-        if (! $this->isProjectManager($project)) {
-            abort(403, 'Only the project manager can mark holidays.');
-        }
-    }
-
-    protected function assertCanViewProjectSummary(Project $project): void
-    {
-        if ($this->hasAdminAccess() || $this->isProjectManager($project)) {
-            return;
-        }
-
-        abort(403, 'You are not allowed to view this project attendance summary.');
-    }
-
     public function locationRegister(Request $request, int $project_location): Response
     {
         $location = $this->locationWithRelations($project_location);
-        $this->assertCanViewLocation($location);
+        $this->authorize('viewLocation', [AttendanceRegister::class, $location]);
 
         $selectedDate = $request->string('date')->toString();
         if ($selectedDate === '') {
@@ -257,16 +146,20 @@ class ProjectAttendanceController extends Controller
             'beneficiaries' => $beneficiaries,
             'dayStats' => $dayStats,
             'history' => $history,
-            'canManageRegister' => $this->hasAdminAccess()
-                || ((int) ($this->currentFacilitator()?->id ?? 0) === (int) $location->facilitator_id),
-            'canMarkHoliday' => $this->isProjectManager($location->project),
+            'canManageRegister' => $request->user()?->can('manageLocation', [AttendanceRegister::class, $location]) ?? false,
+            'canMarkHoliday' => $request->user()?->can('markHoliday', [AttendanceRegister::class, $location]) ?? false,
         ]);
     }
 
     public function saveLocationRegister(Request $request, int $project_location): RedirectResponse
     {
         $location = $this->locationWithRelations($project_location);
-        $facilitator = $this->assertCanManageRegister($location);
+        $this->authorize('manageLocation', [AttendanceRegister::class, $location]);
+
+        $facilitator = $location->facilitator;
+        if (! $facilitator) {
+            abort(422, 'No facilitator is assigned to this location.');
+        }
 
         $validated = $request->validate([
             'attendance_date' => ['required', 'date'],
@@ -276,69 +169,7 @@ class ProjectAttendanceController extends Controller
             'entries.*.excused_reason' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $attendanceDate = $this->parseAndValidateDate($location->project, $validated['attendance_date']);
-
-        $existingRegister = AttendanceRegister::query()
-            ->where('project_location_id', $location->id)
-            ->whereDate('attendance_date', $attendanceDate->format('Y-m-d'))
-            ->first();
-
-        if ($existingRegister?->is_holiday) {
-            return redirect()->back()->withErrors([
-                'attendance_date' => 'This day is marked as a holiday and cannot be edited.',
-            ]);
-        }
-
-        $activeBeneficiaryIds = $location->enrollments
-            ->map(fn ($enrollment) => $enrollment->beneficiary)
-            ->filter(fn ($beneficiary) => $beneficiary && $beneficiary->attendance_status !== 'dropout')
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
-
-        foreach ($validated['entries'] as $entry) {
-            if (! in_array((int) $entry['beneficiary_id'], $activeBeneficiaryIds, true)) {
-                throw ValidationException::withMessages([
-                    'entries' => 'One or more beneficiaries are not active in this location.',
-                ]);
-            }
-
-            if ($entry['status'] === 'excused' && blank($entry['excused_reason'] ?? null)) {
-                throw ValidationException::withMessages([
-                    'entries' => 'Excused entries require a reason.',
-                ]);
-            }
-        }
-
-        $register = AttendanceRegister::query()->updateOrCreate(
-            [
-                'project_location_id' => $location->id,
-                'attendance_date' => $attendanceDate->format('Y-m-d'),
-            ],
-            [
-                'project_id' => $location->project_id,
-                'facilitator_id' => $facilitator->id,
-                'is_holiday' => false,
-                'holiday_reason' => null,
-                'holiday_marked_by_user_id' => null,
-            ]
-        );
-
-        foreach ($validated['entries'] as $entry) {
-            AttendanceEntry::query()->updateOrCreate(
-                [
-                    'attendance_register_id' => $register->id,
-                    'beneficiary_id' => (int) $entry['beneficiary_id'],
-                ],
-                [
-                    'status' => $entry['status'],
-                    'excused_reason' => $entry['status'] === 'excused'
-                        ? ($entry['excused_reason'] ?? null)
-                        : null,
-                ]
-            );
-        }
+        $this->workflow->saveRegister($location, $facilitator, $validated);
 
         return redirect()->back()->with('success', 'Attendance register saved.');
     }
@@ -346,30 +177,14 @@ class ProjectAttendanceController extends Controller
     public function markHoliday(Request $request, int $project_location): RedirectResponse
     {
         $location = $this->locationWithRelations($project_location);
-        $this->assertCanMarkHoliday($location->project);
+        $this->authorize('markHoliday', [AttendanceRegister::class, $location]);
 
         $validated = $request->validate([
             'attendance_date' => ['required', 'date'],
             'holiday_reason' => ['required', 'string', 'max:255'],
         ]);
 
-        $attendanceDate = $this->parseAndValidateDate($location->project, $validated['attendance_date']);
-
-        $register = AttendanceRegister::query()->updateOrCreate(
-            [
-                'project_location_id' => $location->id,
-                'attendance_date' => $attendanceDate->format('Y-m-d'),
-            ],
-            [
-                'project_id' => $location->project_id,
-                'facilitator_id' => $location->facilitator_id,
-                'is_holiday' => true,
-                'holiday_reason' => $validated['holiday_reason'],
-                'holiday_marked_by_user_id' => Auth::id(),
-            ]
-        );
-
-        $register->entries()->delete();
+        $this->workflow->markHoliday($location, $validated);
 
         return redirect()->back()->with('success', 'Holiday marked successfully.');
     }
@@ -401,7 +216,7 @@ class ProjectAttendanceController extends Controller
             ->with(['locations.facilitator', 'locations.province'])
             ->findOrFail($selectedProjectId);
 
-        $this->assertCanViewProjectSummary($project);
+        $this->authorize('viewAttendanceSummary', $project);
 
         $locationIds = $project->locations->pluck('id');
 
@@ -471,13 +286,12 @@ class ProjectAttendanceController extends Controller
     public function exportRegisterPdf(int $attendance_register): SymfonyResponse
     {
         $register = $this->registerWithRelations($attendance_register);
-        $location = $register->location;
+        $this->authorize('export', $register);
 
+        $location = $register->location;
         if (! $location) {
             abort(404, 'Attendance register location not found.');
         }
-
-        $this->assertCanViewLocation($location);
 
         $entries = $register->entries
             ->map(function (AttendanceEntry $entry) {

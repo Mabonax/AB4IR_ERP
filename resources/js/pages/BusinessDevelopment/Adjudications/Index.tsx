@@ -14,6 +14,7 @@ type AssessmentRow = {
   adjudication_date: string;
   development_stage: "mvp" | "prototype" | "complete_product";
   status: "draft" | "submitted";
+  decision_status: "accepted" | "rejected" | "pending";
   total_score: number;
   judge: { id: number; name: string };
   smme: { id: number; name: string };
@@ -63,6 +64,20 @@ export default function AdjudicationsIndex({
               render: (row: AssessmentRow) => (
                 <Badge variant={row.status === "submitted" ? "secondary" : "outline"}>
                   {row.status === "submitted" ? "Submitted" : "Draft"}
+                </Badge>
+              ),
+            },
+            {
+              key: "decision_status",
+              label: "Decision",
+              className: "px-3 py-2",
+              render: (row: AssessmentRow) => (
+                <Badge variant={row.decision_status === "accepted" ? "secondary" : "outline"}>
+                  {row.decision_status === "accepted"
+                    ? "Accepted"
+                    : row.decision_status === "rejected"
+                      ? "Rejected"
+                      : "Pending"}
                 </Badge>
               ),
             },

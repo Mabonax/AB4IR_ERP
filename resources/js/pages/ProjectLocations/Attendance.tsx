@@ -189,7 +189,7 @@ export default function ProjectLocationAttendance({
             <div className="text-sm text-muted-foreground md:col-span-2">
               Project window: {location.start_date ?? "-"} to {location.end_date ?? "ongoing"}
               <br />
-              Weekend days are blocked. Excused entries require a reason.
+              Weekend days are blocked. Excused entries require a reason. Attendance may only be captured for today or the previous day while the project is active.
             </div>
           </div>
         </div>

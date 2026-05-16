@@ -10,6 +10,7 @@ use App\Domains\Beneficiaries\Controllers\BeneficiaryController;
 use App\Domains\BusinessDevelopment\Controllers\BdsApplicationController;
 use App\Domains\BusinessDevelopment\Controllers\BdsDashboardController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeController;
+use App\Domains\BusinessDevelopment\Controllers\BdsPitchSessionController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\HumanResources\Controllers\HumanResourcesController;
 use App\Domains\Leave\Controllers\LeaveRequestController;
@@ -63,6 +64,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.business-development.manage')
         ->whereNumber('bds_application')
         ->name('business-development.applications.schedule-pitch');
+    Route::get('business-development/pitch-sessions', [BdsPitchSessionController::class, 'index'])
+        ->middleware('permission:domain.business-development.view|domain.business-development.manage')
+        ->name('business-development.pitch-sessions.index');
+    Route::get('business-development/pitch-sessions/{pitch_session}', [BdsPitchSessionController::class, 'show'])
+        ->middleware('permission:domain.business-development.view|domain.business-development.manage')
+        ->whereNumber('pitch_session')
+        ->name('business-development.pitch-sessions.show');
+    Route::post('business-development/pitch-sessions', [BdsPitchSessionController::class, 'store'])
+        ->middleware('permission:domain.business-development.manage')
+        ->name('business-development.pitch-sessions.store');
+    Route::post('business-development/pitch-sessions/{pitch_session}/start', [BdsPitchSessionController::class, 'start'])
+        ->middleware('permission:domain.business-development.manage')
+        ->whereNumber('pitch_session')
+        ->name('business-development.pitch-sessions.start');
+    Route::post('business-development/pitch-sessions/{pitch_session}/prospects/{prospect}/consolidate', [BdsPitchSessionController::class, 'consolidate'])
+        ->middleware('permission:domain.business-development.manage')
+        ->whereNumber('pitch_session')
+        ->whereNumber('prospect')
+        ->name('business-development.pitch-sessions.prospects.consolidate');
+    Route::post('business-development/pitch-sessions/{pitch_session}/prospects/{prospect}/approve', [BdsPitchSessionController::class, 'approve'])
+        ->middleware('permission:domain.business-development.manage')
+        ->whereNumber('pitch_session')
+        ->whereNumber('prospect')
+        ->name('business-development.pitch-sessions.prospects.approve');
     Route::resource('business-development/incubatees', BdsIncubateeController::class)
         ->parameters(['incubatees' => 'incubatee'])
         ->middlewareFor(['index', 'show'], $viewPermission('business-development'))

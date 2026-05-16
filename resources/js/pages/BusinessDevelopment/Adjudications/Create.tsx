@@ -17,6 +17,7 @@ type Section = {
 };
 
 type SmmeOption = { id: number; name: string };
+type PitchSessionOption = { id: number; title: string; scheduled_for: string | null };
 
 type ScoreInput = { section_id: number; score: number; comment: string };
 
@@ -30,16 +31,21 @@ export default function CreateAdjudication({
   sections,
   smmes,
   initial_smme_id,
+  initial_pitch_session_id,
+  pitch_sessions,
 }: {
   sections: Section[];
   smmes: SmmeOption[];
   initial_smme_id?: number | null;
+  initial_pitch_session_id?: number | null;
+  pitch_sessions: PitchSessionOption[];
 }) {
   const { props } = usePage<SharedData>();
   const judgeName = props.auth?.user?.name ?? "Current user";
 
   const form = useForm({
     smme_id: initial_smme_id ?? smmes[0]?.id ?? 0,
+    pitch_session_id: initial_pitch_session_id ?? "",
     platform_name: "",
     adjudication_date: new Date().toISOString().slice(0, 10),
     development_stage: "mvp" as "mvp" | "prototype" | "complete_product",
@@ -131,6 +137,27 @@ export default function CreateAdjudication({
                 <option value="mvp">MVP</option>
                 <option value="prototype">Prototype</option>
                 <option value="complete_product">Complete product</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-sm font-medium">Pitch Session</label>
+              <select
+                value={String(form.data.pitch_session_id)}
+                onChange={(e) =>
+                  form.setData(
+                    "pitch_session_id",
+                    e.currentTarget.value ? Number(e.currentTarget.value) : ""
+                  )
+                }
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Independent adjudication</option>
+                {pitch_sessions.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {session.title}
+                    {session.scheduled_for ? ` | ${session.scheduled_for}` : ""}
+                  </option>
+                ))}
               </select>
             </div>
           </section>

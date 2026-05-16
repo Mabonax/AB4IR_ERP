@@ -7,54 +7,19 @@ use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Requests\StoreProjectLocationRequest;
 use App\Domains\Projects\Requests\UpdateProjectLocationRequest;
 use App\Domains\Projects\Resources\ProjectLocationResource;
+use App\Domains\Projects\Services\ProjectAccessService;
 use App\Domains\Projects\Services\ProjectLocationService;
 use App\Http\Controllers\Controller;
 use App\Models\Provinces;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Models\ProjectLocation;
 
 class ProjectLocationController extends Controller
 {
-    protected function hasFullProjectAccess(): bool
-    {
-        $user = Auth::user();
-
-        return (bool) $user?->can('domain.projects.view')
-            || (bool) $user?->can('domain.projects.manage');
-    }
-
-    protected function currentFacilitatorOrAbort(): Facilitator
-    {
-        $userId = Auth::id();
-        if (! $userId) {
-            abort(403, 'No authenticated facilitator profile found.');
-        }
-
-        $facilitator = Facilitator::query()
-            ->where('user_id', $userId)
-            ->first();
-
-        // Backward compatibility for older facilitator records not linked yet.
-        if (! $facilitator) {
-            $email = Auth::user()?->email;
-            if ($email) {
-                $facilitator = Facilitator::query()
-                    ->where('email', $email)
-                    ->first();
-            }
-        }
-
-        if (! $facilitator) {
-            abort(403, 'No facilitator profile found for this account.');
-        }
-
-        return $facilitator;
-    }
-
     public function __construct(
-        protected ProjectLocationService $service
+        protected ProjectLocationService $service,
+        protected ProjectAccessService $access
     ) {}
 
     public function index()
@@ -89,8 +54,8 @@ class ProjectLocationController extends Controller
             ])
             ->orderBy('id');
 
-        if (! $this->hasFullProjectAccess()) {
-            $facilitator = $this->currentFacilitatorOrAbort();
+        if (! $this->access->hasFullProjectAccess()) {
+            $facilitator = $this->access->currentFacilitatorOrAbort('No facilitator profile found for this account.');
             $query->where('facilitator_id', $facilitator->id);
         }
 
@@ -172,12 +137,7 @@ class ProjectLocationController extends Controller
             ])
             ->findOrFail($project_location);
 
-        if (! $this->hasFullProjectAccess()) {
-            $facilitator = $this->currentFacilitatorOrAbort();
-            if ((int) $location->facilitator_id !== (int) $facilitator->id) {
-                abort(403, 'You can only access progress for your assigned locations.');
-            }
-        }
+        $this->access->assertAssignedLocationAccess($location, 'You can only access progress for your assigned locations.');
 
         $milestones = ProjectMilestone::with('assessments')
             ->where('project_id', $location->project_id)

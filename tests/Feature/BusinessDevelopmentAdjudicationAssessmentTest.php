@@ -1,10 +1,12 @@
 <?php
 
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
+use App\Domains\BusinessDevelopment\Services\BdsApplicationService;
 use App\Models\User;
 use Database\Seeders\AdjudicationSectionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -287,4 +289,60 @@ test('admin can view all assessments and unlock submitted ones', function () {
         'id' => $assessment->id,
         'status' => 'draft',
     ]);
+});
+
+test('applications with submitted adjudications cannot be reassessed', function () {
+    $judge = createUserWithBusinessDevelopmentPermission();
+    $smmeId = createSmmeApplication();
+
+    AdjudicationAssessment::query()->create([
+        'smme_id' => $smmeId,
+        'judge_id' => $judge->id,
+        'platform_name' => 'Locked Assessment',
+        'adjudication_date' => now()->toDateString(),
+        'development_stage' => 'prototype',
+        'status' => 'submitted',
+        'total_score' => 18,
+        'submitted_at' => now(),
+    ]);
+
+    $this->actingAs($judge)
+        ->post(route('business-development.applications.assess', $smmeId), [
+            'assessment_status' => 'accepted',
+        ])
+        ->assertForbidden();
+});
+
+test('pitch scheduling must use a future date and time', function () {
+    $judge = createUserWithBusinessDevelopmentPermission(asAdmin: true);
+    $smmeId = createSmmeApplication();
+
+    DB::table('bds_applications')->where('id', $smmeId)->update([
+        'assessment_status' => 'accepted',
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($judge);
+
+    expect(fn () => app(BdsApplicationService::class)->schedulePitch($smmeId, [
+            'pitch_scheduled_at' => now()->subDay()->toDateTimeString(),
+            'pitch_notes' => 'Too late',
+        ]))->toThrow(ValidationException::class);
+});
+
+test('application resource exposes workflow blockers before pitching and adjudication', function () {
+    $judge = createUserWithBusinessDevelopmentPermission();
+    $smmeId = createSmmeApplication();
+
+    $response = $this->actingAs($judge)
+        ->get(route('business-development.applications.show', $smmeId))
+        ->assertOk();
+
+    $application = $response->viewData('page')['props']['application']['data'] ?? $response->viewData('application')['data'] ?? null;
+
+    expect($application)->not->toBeNull();
+    expect($application['workflow_summary']['pitch']['ready'])->toBeFalse();
+    expect($application['workflow_summary']['adjudication']['ready'])->toBeFalse();
+    expect($application['workflow_summary']['pitch']['blockers'])->toContain('Only accepted applications can be scheduled for pitching.');
+    expect($application['workflow_summary']['adjudication']['blockers'])->toContain('A pitch must be scheduled before adjudication can start.');
 });
