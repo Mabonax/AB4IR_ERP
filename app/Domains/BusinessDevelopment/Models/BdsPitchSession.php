@@ -23,6 +23,8 @@ class BdsPitchSession extends Model
         'notes',
         'status',
         'started_at',
+        'panel_locked_at',
+        'panel_locked_by',
         'consolidated_at',
         'approved_at',
         'created_by',
@@ -32,6 +34,7 @@ class BdsPitchSession extends Model
     protected $casts = [
         'scheduled_for' => 'datetime',
         'started_at' => 'datetime',
+        'panel_locked_at' => 'datetime',
         'consolidated_at' => 'datetime',
         'approved_at' => 'datetime',
     ];
@@ -59,5 +62,10 @@ class BdsPitchSession extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function lockedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'panel_locked_by');
     }
 }
