@@ -3,6 +3,7 @@
 namespace App\Domains\BusinessDevelopment\Models;
 
 use App\Models\provinces;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,6 +15,11 @@ class BdsIncubatee extends Model
 
     protected $fillable = [
         'bds_application_id',
+        'intake_type',
+        'intake_source',
+        'intake_justification',
+        'intake_approved_at',
+        'intake_approved_by',
         'full_name',
         'id_number',
         'gender',
@@ -41,10 +47,16 @@ class BdsIncubatee extends Model
     protected $casts = [
         'has_business_plan' => 'boolean',
         'incubated_date' => 'date',
+        'intake_approved_at' => 'datetime',
     ];
 
     public function province()
     {
         return $this->belongsTo(provinces::class, 'province_id');
+    }
+
+    public function intakeApprover()
+    {
+        return $this->belongsTo(User::class, 'intake_approved_by');
     }
 }
