@@ -2,6 +2,7 @@
 
 namespace App\Domains\BusinessDevelopment\Controllers;
 
+use App\Domains\BusinessDevelopment\Models\BdsKpiDefinition;
 use App\Domains\BusinessDevelopment\Requests\StoreBdsIncubateeRequest;
 use App\Domains\BusinessDevelopment\Requests\UpdateBdsIncubateeRequest;
 use App\Domains\BusinessDevelopment\Resources\BdsIncubateeResource;
@@ -43,10 +44,19 @@ class BdsIncubateeController extends Controller
 
     public function show(int $incubatee)
     {
-        $model = $this->service->getById($incubatee);
+        $model = $this->service->getById($incubatee)->load([
+            'intakeApprover:id,name',
+            'kpis.definition',
+            'kpis.reviews.reviewer:id,name',
+        ]);
 
         return Inertia::render('BusinessDevelopment/Incubatees/Show', [
             'incubatee' => new BdsIncubateeResource($model),
+            'kpiDefinitions' => BdsKpiDefinition::query()
+                ->where('is_active', true)
+                ->orderBy('category')
+                ->orderBy('name')
+                ->get(['id', 'name', 'category', 'measurement_type', 'unit', 'default_target_value', 'weight']),
         ]);
     }
 
