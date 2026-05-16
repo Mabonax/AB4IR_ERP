@@ -13,10 +13,22 @@ class AdjudicationAssessmentPolicy
             && $user->hasAnyRole(['super-admin', 'super admin', 'admin']);
     }
 
+    protected function canScore(User $user): bool
+    {
+        return $user->can('domain.business-development.manage')
+            || $user->can('business-development.adjudications.score');
+    }
+
+    protected function ownsAssessment(User $user, AdjudicationAssessment $assessment): bool
+    {
+        return (int) $assessment->judge_id === (int) $user->id;
+    }
+
     public function viewAny(User $user): bool
     {
         return $user->can('domain.business-development.view')
-            || $user->can('domain.business-development.manage');
+            || $user->can('domain.business-development.manage')
+            || $user->can('business-development.adjudications.score');
     }
 
     public function view(User $user, AdjudicationAssessment $assessment): bool
@@ -25,12 +37,13 @@ class AdjudicationAssessmentPolicy
             return true;
         }
 
-        return $assessment->judge_id === (int) $user->id;
+        return $this->ownsAssessment($user, $assessment)
+            && $this->canScore($user);
     }
 
     public function create(User $user): bool
     {
-        return $user->can('domain.business-development.manage');
+        return $this->canScore($user);
     }
 
     public function update(User $user, AdjudicationAssessment $assessment): bool
@@ -40,8 +53,8 @@ class AdjudicationAssessmentPolicy
         }
 
         return $assessment->status === 'draft'
-            && $assessment->judge_id === (int) $user->id
-            && $user->can('domain.business-development.manage');
+            && $this->ownsAssessment($user, $assessment)
+            && $this->canScore($user);
     }
 
     public function submit(User $user, AdjudicationAssessment $assessment): bool
@@ -51,8 +64,8 @@ class AdjudicationAssessmentPolicy
         }
 
         return $assessment->status === 'draft'
-            && $assessment->judge_id === (int) $user->id
-            && $user->can('domain.business-development.manage');
+            && $this->ownsAssessment($user, $assessment)
+            && $this->canScore($user);
     }
 
     public function delete(User $user, AdjudicationAssessment $assessment): bool
@@ -61,7 +74,9 @@ class AdjudicationAssessmentPolicy
             return true;
         }
 
-        return $assessment->status === 'draft' && $assessment->judge_id === (int) $user->id;
+        return $assessment->status === 'draft'
+            && $this->ownsAssessment($user, $assessment)
+            && $this->canScore($user);
     }
 
     public function unlock(User $user, AdjudicationAssessment $assessment): bool
