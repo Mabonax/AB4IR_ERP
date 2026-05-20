@@ -7,6 +7,7 @@ use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Models\ProjectEnrollment;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Repositories\ProjectRepositoryInterface;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,8 @@ class ProjectService
     ];
 
     public function __construct(
-        protected ProjectRepositoryInterface $repository
+        protected ProjectRepositoryInterface $repository,
+        protected ProjectHistoryService $historyService
     ) {}
 
     public function paginateProjects(): LengthAwarePaginator
@@ -50,15 +52,30 @@ class ProjectService
         return $project;
     }
 
-    public function createProject(array $data): Project
+    public function createProject(array $data, ?User $actor = null): Project
     {
-        return DB::transaction(function () use ($data) {
-            $project = $this->repository->create($data);
+        return DB::transaction(function () use ($data, $actor) {
+            $partnerIds = collect($data['partner_stakeholder_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+            $projectData = collect($data)->except('partner_stakeholder_ids')->all();
+
+            $project = $this->repository->create($projectData);
+            $project->partners()->sync($partnerIds);
 
             $this->syncProgramMilestones($project);
             $this->assertProjectStatusReadiness($project, null, $data);
 
-            $project->refresh();
+            $project->load(['partners']);
+            $this->historyService->record(
+                $project,
+                'created',
+                'Project created.',
+                $actor,
+                [
+                    'status' => $project->status,
+                    'project_manager_id' => $project->project_manager_id,
+                    'partner_count' => count($partnerIds),
+                ]
+            );
 
             return $project;
         });
@@ -86,19 +103,41 @@ class ProjectService
         }
     }
 
-    public function updateProject(int $id, array $data): Project
+    public function updateProject(int $id, array $data, ?User $actor = null): Project
     {
-        return DB::transaction(function () use ($id, $data) {
+        return DB::transaction(function () use ($id, $data, $actor) {
             $project = $this->getProjectById($id);
+            $original = $project->replicate();
+            $partnerIds = collect($data['partner_stakeholder_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+            $projectData = collect($data)->except('partner_stakeholder_ids')->all();
             $this->assertProjectStatusReadiness($project, $project->status, $data);
 
-            $updated = $this->repository->update($project, $data);
+            $updated = $this->repository->update($project, $projectData);
+            $updated->partners()->sync($partnerIds);
+            $changes = array_keys($updated->getChanges());
 
             if (($data['status'] ?? $project->status) === 'completed') {
                 $this->markProjectEnrollmentsCompleted($updated);
             }
 
-            return $updated->fresh(['locations', 'milestones']);
+            $fresh = $updated->fresh(['locations', 'milestones', 'partners']);
+
+            if ($actor !== null || $changes !== []) {
+                $this->historyService->record(
+                    $fresh,
+                    'updated',
+                    'Project updated.',
+                    $actor,
+                    [
+                        'from_status' => $original->status,
+                        'to_status' => $fresh->status,
+                        'changed_fields' => $changes,
+                        'partner_count' => count($partnerIds),
+                    ]
+                );
+            }
+
+            return $fresh;
         });
     }
 

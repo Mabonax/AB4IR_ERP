@@ -19,10 +19,20 @@ class ProjectResource extends JsonResource
             'sponsor_name' => $this->sponsor
                 ? trim($this->sponsor->organization_name.' - '.$this->sponsor->name)
                 : null,
+            'partner_stakeholder_ids' => $this->partners
+                ? $this->partners->pluck('id')->map(fn ($id) => (string) $id)->values()->all()
+                : [],
+            'partner_names' => $this->partners
+                ? $this->partners->map(fn ($partner) => trim($partner->organization_name.' - '.$partner->name))->values()->all()
+                : [],
             'project_manager_id' => $this->project_manager_id,
             'project_manager_name' => $this->projectManager
                 ? trim($this->projectManager->first_name.' '.$this->projectManager->last_name)
                 : null,
+            'contract_reference' => $this->contract_reference,
+            'funding_amount' => $this->funding_amount !== null ? (float) $this->funding_amount : null,
+            'reporting_cadence' => $this->reporting_cadence,
+            'reporting_obligations' => $this->reporting_obligations,
             'name' => $this->name,
             'start_date' => $this->start_date?->format('Y-m-d'),
             'end_date' => $this->end_date?->format('Y-m-d'),

@@ -1,4 +1,4 @@
-import { Head, useForm } from "@inertiajs/react";
+import { Head, Link, useForm } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 
 import AppLayout from "@/layouts/app-layout";
@@ -136,7 +136,10 @@ export default function ProjectLocationAttendance({
       location_name: location.province,
       training_venue_address: location.training_venue_address,
       facilitator_name: location.facilitator_name,
-      entries: historyItem.entries,
+      entries: historyItem.entries.map((entry) => ({
+        ...entry,
+        excused_reason: entry.excused_reason ?? null,
+      })),
     });
     setDetailOpen(true);
   };
@@ -244,7 +247,15 @@ export default function ProjectLocationAttendance({
               <tbody>
                 {form.data.entries.map((entry, idx) => (
                   <tr key={entry.beneficiary_id} className="border-b">
-                    <td className="px-3 py-2">{beneficiaries[idx]?.name ?? "Unknown"}</td>
+                    <td className="px-3 py-2">
+                      {beneficiaries[idx] ? (
+                        <Link href={`/beneficiaries/${beneficiaries[idx].id}`} className="text-red-600 hover:underline">
+                          {beneficiaries[idx].name}
+                        </Link>
+                      ) : (
+                        "Unknown"
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       <select
                         className="rounded-md border px-2 py-1"
@@ -464,7 +475,11 @@ export default function ProjectLocationAttendance({
                     {selectedRegisterDetail.entries.map((entry, index) => (
                       <tr key={entry.beneficiary_id} className="border-b">
                         <td className="px-3 py-2">{index + 1}</td>
-                        <td className="px-3 py-2">{entry.beneficiary_name}</td>
+                        <td className="px-3 py-2">
+                          <Link href={`/beneficiaries/${entry.beneficiary_id}`} className="text-red-600 hover:underline">
+                            {entry.beneficiary_name}
+                          </Link>
+                        </td>
                         <td className="px-3 py-2 capitalize">{entry.status}</td>
                         <td className="px-3 py-2">{entry.excused_reason ?? "-"}</td>
                       </tr>

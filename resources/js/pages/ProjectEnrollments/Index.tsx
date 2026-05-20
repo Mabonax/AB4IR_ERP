@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Head } from "@inertiajs/react";
+import { Head, Link } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
@@ -111,7 +111,11 @@ export default function ProjectEnrollmentIndex({
                       {loc.beneficiaries?.length > 0 && (
                         <ul className="mt-2 list-disc pl-5 text-xs text-gray-700">
                           {loc.beneficiaries.map((b: any) => (
-                            <li key={b.id}>{b.name}</li>
+                            <li key={b.id}>
+                              <Link href={`/beneficiaries/${b.id}`} className="text-red-600 hover:underline">
+                                {b.name}
+                              </Link>
+                            </li>
                           ))}
                         </ul>
                       )}

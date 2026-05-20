@@ -18,6 +18,10 @@ class Project extends Model
         'program_id',
         'sponsor_stakeholder_id',
         'project_manager_id',
+        'contract_reference',
+        'funding_amount',
+        'reporting_cadence',
+        'reporting_obligations',
         'name',
         'start_date',
         'end_date',
@@ -28,6 +32,7 @@ class Project extends Model
     protected $casts = [
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
+        'funding_amount' => 'decimal:2',
     ];
 
     public function program()
@@ -38,6 +43,16 @@ class Project extends Model
     public function sponsor()
     {
         return $this->belongsTo(Stakeholder::class, 'sponsor_stakeholder_id');
+    }
+
+    public function partners()
+    {
+        return $this->belongsToMany(
+            Stakeholder::class,
+            'project_partner_stakeholders',
+            'project_id',
+            'stakeholder_id'
+        )->withTimestamps();
     }
 
     public function projectManager()
@@ -58,6 +73,26 @@ class Project extends Model
     public function milestones()
     {
         return $this->hasMany(ProjectMilestone::class);
+    }
+
+    public function closure()
+    {
+        return $this->hasOne(ProjectClosure::class);
+    }
+
+    public function closureEvidence()
+    {
+        return $this->hasMany(ProjectClosureEvidence::class)->latest();
+    }
+
+    public function reports()
+    {
+        return $this->hasMany(ProjectReport::class)->latest('report_date')->latest('id');
+    }
+
+    public function history()
+    {
+        return $this->hasMany(ProjectHistory::class)->latest();
     }
 
     public function attendanceRegisters()

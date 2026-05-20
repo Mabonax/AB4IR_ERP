@@ -119,11 +119,13 @@ export default function ProjectIndex({
   projects: projectPagination,
   programs,
   stakeholders,
+  partnerStakeholders,
   staffMembers,
 }: {
   projects: { data: any[] };
   programs: { id: number; title: string }[];
   stakeholders: { id: number; name: string }[];
+  partnerStakeholders: { id: number; name: string }[];
   staffMembers: { id: number; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
@@ -150,11 +152,22 @@ export default function ProjectIndex({
           selectedProject.sponsor_stakeholder_id !== undefined
             ? String(selectedProject.sponsor_stakeholder_id)
             : "",
+        partner_stakeholder_ids: Array.isArray(selectedProject.partner_stakeholder_ids)
+          ? selectedProject.partner_stakeholder_ids
+          : [],
         project_manager_id:
           selectedProject.project_manager_id !== null &&
           selectedProject.project_manager_id !== undefined
             ? String(selectedProject.project_manager_id)
             : "",
+        contract_reference: selectedProject.contract_reference ?? "",
+        funding_amount:
+          selectedProject.funding_amount !== null &&
+          selectedProject.funding_amount !== undefined
+            ? String(selectedProject.funding_amount)
+            : "",
+        reporting_cadence: selectedProject.reporting_cadence ?? "",
+        reporting_obligations: selectedProject.reporting_obligations ?? "",
       }
     : {};
 
@@ -225,7 +238,7 @@ export default function ProjectIndex({
             description={ProjectModelFormConfig.description}
             fields={ProjectModelFormConfig.fields}
             submitRoute={projects.store}
-            options={{ programs, stakeholders, staffMembers }}
+            options={{ programs, stakeholders, partnerStakeholders, staffMembers }}
           />
         </div>
 
@@ -269,7 +282,7 @@ export default function ProjectIndex({
             initialData={mappedProjectData}
             submitRoute={projects.update}
             routeParams={selectedProject.id}
-            options={{ programs, stakeholders, staffMembers }}
+            options={{ programs, stakeholders, partnerStakeholders, staffMembers }}
           >
             <ProjectStatusPanel summary={selectedProject.status_summary} />
           </CustomModelForm>

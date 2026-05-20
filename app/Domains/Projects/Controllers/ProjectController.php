@@ -4,25 +4,34 @@ namespace App\Domains\Projects\Controllers;
 
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
+use App\Domains\Projects\Models\ProjectClosureEvidence;
+use App\Domains\Projects\Models\ProjectHistory;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Models\ProjectMilestoneAssessment;
+use App\Domains\Projects\Models\ProjectReport;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Requests\StoreProjectRequest;
 use App\Domains\Projects\Requests\UpdateProjectRequest;
 use App\Domains\Projects\Resources\ProjectResource;
+use App\Domains\Projects\Services\ProjectGovernanceService;
+use App\Domains\Projects\Services\ProjectProgressService;
 use App\Domains\Projects\Services\ProjectService;
 use App\Domains\Projects\Models\ProjectEnrollment;
 use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
     public function __construct(
-        protected ProjectService $service
+        protected ProjectService $service,
+        protected ProjectProgressService $progressService,
+        protected ProjectGovernanceService $governanceService
     ) {}
 
     public function index()
@@ -50,6 +59,7 @@ class ProjectController extends Controller
             'projects' => ProjectResource::collection($projects),
             'programs' => $programs,
             'stakeholders' => $stakeholders,
+            'partnerStakeholders' => $stakeholders,
             'staffMembers' => $staffMembers,
         ]);
     }
@@ -57,6 +67,19 @@ class ProjectController extends Controller
     public function dashboard()
     {
         $this->authorize('viewAny', Project::class);
+
+        $projects = Project::with([
+                'projectManager',
+                'locations.facilitator',
+                'locations.province',
+                'locations.enrollments.beneficiary',
+                'locations.milestoneAssessments',
+                'locations.attendanceRegisters.entries',
+                'milestones',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
+        $portfolio = $this->progressService->summarizePortfolio($projects);
 
         return Inertia::render('Projects/Dashboard', [
             'stats' => [
@@ -66,6 +89,7 @@ class ProjectController extends Controller
                 'totalBeneficiaries' => ProjectEnrollment::count(),
                 'totalLocations' => ProjectLocation::count(),
             ],
+            'portfolio' => $portfolio,
         ]);
     }
 
@@ -73,7 +97,7 @@ class ProjectController extends Controller
     {
         $this->authorize('create', Project::class);
 
-        $this->service->createProject($request->validated());
+        $this->service->createProject($request->validated(), $request->user());
 
         return redirect()->back()->with('success', 'Project created');
     }
@@ -83,7 +107,14 @@ class ProjectController extends Controller
         $model = Project::with([
                 'program',
                 'sponsor',
+                'partners',
                 'projectManager',
+                'closure.requestedBy',
+                'closure.concludedBy',
+                'closure.evidence.uploadedBy',
+                'closureEvidence.uploadedBy',
+                'history.actor',
+                'reports.createdBy',
                 'locations.facilitator',
                 'locations.province',
                 'locations.enrollments.beneficiary',
@@ -97,56 +128,75 @@ class ProjectController extends Controller
             ->where('project_id', $model->id)
             ->orderBy('sort_order')
             ->get();
-
-        $locationStats = $model->locations->map(function ($location) use ($milestones) {
-            $beneficiaries = $location->enrollments->map(function ($enrollment) {
-                return [
-                    'id' => $enrollment->beneficiary_id,
-                    'name' => $enrollment->beneficiary
-                        ? trim($enrollment->beneficiary->name.' '.$enrollment->beneficiary->surname)
-                        : null,
-                ];
-            })->filter(fn ($b) => $b['name'] !== null)->values();
-
-            $milestoneProgress = $milestones->map(function ($milestone) use ($location) {
-                $total = $location->enrollments->count();
-                $assessments = $milestone->assessments
-                    ->where('project_location_id', $location->id);
-
-                return [
-                    'id' => $milestone->id,
-                    'title' => $milestone->title,
-                    'total' => $total,
-                    'assessed' => $assessments->count(),
-                    'passed' => $assessments->where('status', 'completed')->count(),
-                ];
-            });
-
-            $totalBeneficiaries = $beneficiaries->count();
-            $completedAll = $totalBeneficiaries > 0
-                ? $milestoneProgress->every(fn ($m) => $m['assessed'] >= $totalBeneficiaries)
-                    ? $totalBeneficiaries
-                    : $milestoneProgress->min('assessed') ?? 0
-                : 0;
-
-            return [
-                'id' => $location->id,
-                'location' => $location->province?->name,
-                'facilitator_name' => $location->facilitator
-                    ? trim($location->facilitator->name.' '.$location->facilitator->surname)
-                    : null,
-                'beneficiaries' => $beneficiaries,
-                'total_beneficiaries' => $totalBeneficiaries,
-                'milestones' => $milestoneProgress,
-                'completed_all' => $completedAll,
-            ];
-        });
+        $progress = $this->progressService->summarizeProject($model);
 
         return Inertia::render('Projects/Show', [
             'project' => new ProjectResource($model),
             'milestones' => $milestones,
-            'locations' => $locationStats,
+            'progress' => $progress,
+            'locations' => $progress['locations'],
+            'closure' => $this->governanceService->mapClosure($model->closure),
+            'closureEvidence' => $model->closureEvidence->map(fn (ProjectClosureEvidence $evidence) => $this->governanceService->mapEvidence($evidence))->values(),
+            'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
+            'reports' => $model->reports->map(fn (ProjectReport $report) => $this->governanceService->mapReport($report))->values(),
         ]);
+    }
+
+    public function conclude(Request $request, int $project)
+    {
+        $projectModel = Project::with('partners')->findOrFail($project);
+        $this->authorize('conclude', $projectModel);
+
+        $data = $request->validate([
+            'closure_date' => 'required|date',
+            'signoff_notes' => 'nullable|string|max:4000',
+            'final_report_summary' => 'nullable|string|max:4000',
+            'report_title' => 'nullable|string|max:255',
+            'key_findings' => 'nullable|string|max:4000',
+            'recommendations' => 'nullable|string|max:4000',
+        ]);
+
+        $this->governanceService->concludeProject($projectModel, $data, $request->user());
+
+        return redirect()->back()->with('success', 'Project concluded and final report generated.');
+    }
+
+    public function createReport(Request $request, int $project)
+    {
+        $projectModel = Project::with('closure')->findOrFail($project);
+        $this->authorize('createReport', $projectModel);
+
+        $data = $request->validate([
+            'report_type' => 'required|in:progress,final',
+            'title' => 'nullable|string|max:255',
+            'report_date' => 'required|date',
+            'executive_summary' => 'nullable|string|max:4000',
+            'key_findings' => 'nullable|string|max:4000',
+            'recommendations' => 'nullable|string|max:4000',
+        ]);
+
+        $this->governanceService->createReport($projectModel, $data, $request->user());
+
+        return redirect()->back()->with('success', ucfirst($data['report_type']).' report created.');
+    }
+
+    public function downloadReport(Request $request, int $project, int $report)
+    {
+        $projectModel = Project::findOrFail($project);
+        $this->authorize('viewReport', $projectModel);
+
+        $reportModel = ProjectReport::with(['project.projectManager', 'createdBy'])
+            ->where('project_id', $projectModel->id)
+            ->findOrFail($report);
+
+        $pdf = Pdf::loadView('pdf.project-report', [
+            'project' => $projectModel->loadMissing(['projectManager', 'program', 'sponsor', 'partners']),
+            'report' => $reportModel,
+        ])->setPaper('a4', 'portrait');
+
+        $safeTitle = str($reportModel->title)->slug();
+
+        return $pdf->download("project-report-{$safeTitle}.pdf");
     }
 
     public function addMilestone(Request $request, int $project)
@@ -196,7 +246,7 @@ class ProjectController extends Controller
         $projectModel = Project::findOrFail($project);
         $this->authorize('update', $projectModel);
 
-        $this->service->updateProject($project, $request->validated());
+        $this->service->updateProject($project, $request->validated(), $request->user());
 
         return redirect()->back()->with('success', 'Project updated');
     }
@@ -209,5 +259,47 @@ class ProjectController extends Controller
         $this->service->deleteProject($project);
 
         return redirect()->back()->with('success', 'Project deleted');
+    }
+
+    public function uploadClosureEvidence(Request $request, int $project)
+    {
+        $projectModel = Project::with('closure')->findOrFail($project);
+        $this->authorize('conclude', $projectModel);
+
+        $data = $request->validate([
+            'title' => 'required|string|max:255',
+            'notes' => 'nullable|string|max:2000',
+            'file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg,xlsx,csv|max:10240',
+        ]);
+
+        $this->governanceService->uploadClosureEvidence($projectModel, $data, $request->file('file'), $request->user());
+
+        return redirect()->back()->with('success', 'Project evidence uploaded.');
+    }
+
+    public function downloadClosureEvidence(Request $request, int $project, int $evidence)
+    {
+        $projectModel = Project::findOrFail($project);
+        $this->authorize('viewReport', $projectModel);
+
+        $evidenceModel = ProjectClosureEvidence::query()
+            ->where('project_id', $projectModel->id)
+            ->findOrFail($evidence);
+
+        return Storage::disk($evidenceModel->disk)->download($evidenceModel->path, $evidenceModel->file_name);
+    }
+
+    public function deleteClosureEvidence(Request $request, int $project, int $evidence)
+    {
+        $projectModel = Project::findOrFail($project);
+        $this->authorize('conclude', $projectModel);
+
+        $evidenceModel = ProjectClosureEvidence::query()
+            ->where('project_id', $projectModel->id)
+            ->findOrFail($evidence);
+
+        $this->governanceService->deleteClosureEvidence($projectModel, $evidenceModel, $request->user());
+
+        return redirect()->back()->with('success', 'Project evidence removed.');
     }
 }

@@ -1,4 +1,4 @@
-import { Head, router } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import { useMemo, useState } from "react";
 
 import AppLayout from "@/layouts/app-layout";
@@ -176,7 +176,9 @@ export default function ProjectLocationProgress({
               ) : (
                 beneficiaries.map((b) => (
                   <div key={b.id} className="flex justify-between">
-                    <span>{b.name}</span>
+                    <Link href={`/beneficiaries/${b.id}`} className="text-red-600 hover:underline">
+                      {b.name}
+                    </Link>
                     <span>
                       {b.assessed_milestones}/{totalMilestones}
                     </span>
@@ -213,7 +215,11 @@ export default function ProjectLocationProgress({
                 <tbody>
                   {beneficiaries.map((b) => (
                     <tr key={b.id} className="border-t">
-                      <td className="px-4 py-2 font-medium">{b.name}</td>
+                      <td className="px-4 py-2 font-medium">
+                        <Link href={`/beneficiaries/${b.id}`} className="text-red-600 hover:underline">
+                          {b.name}
+                        </Link>
+                      </td>
                       {milestoneOptions.map((m) => {
                         const assessment = b.assessments?.[m.id];
                         const statusLabel = assessment
