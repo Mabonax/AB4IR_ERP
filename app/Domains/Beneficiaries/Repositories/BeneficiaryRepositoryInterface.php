@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 
 interface BeneficiaryRepositoryInterface
 {
-    public function paginate(int $perPage = 15): LengthAwarePaginator;
+    public function paginate(?int $programId = null, ?int $projectId = null, int $perPage = 15): LengthAwarePaginator;
 
     public function all(): Collection;
 

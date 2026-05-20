@@ -7,13 +7,12 @@ use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Services\BeneficiaryService;
 use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
-
+use App\Domains\Programs\Models\Program;
 use App\Models\Provinces;
 use App\Domains\Projects\Models\ProjectLocation;
-
-
 use App\Domains\Beneficiaries\Resources\BeneficiaryResource;
 use App\Domains\Projects\Models\Project;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class BeneficiaryController extends Controller
@@ -22,14 +21,44 @@ class BeneficiaryController extends Controller
         protected BeneficiaryService $service
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('viewAny', Beneficiary::class);
 
+        $selectedProgramId = $request->integer('program_id') ?: null;
+        $selectedProjectId = $request->integer('project_id') ?: null;
+        $filterProjects = Project::query()
+            ->select('id', 'name', 'program_id', 'start_date', 'end_date', 'status')
+            ->when($selectedProgramId, fn ($query) => $query->where('program_id', $selectedProgramId))
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($project) => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'program_id' => $project->program_id,
+                'start_date' => $project->start_date?->format('Y-m-d'),
+                'end_date' => $project->end_date?->format('Y-m-d'),
+                'status' => $project->status,
+            ]);
+
         return Inertia::render('Beneficiaries/Index', [
             'beneficiary' => BeneficiaryResource::collection(
-                $this->service->paginateBeneficiaries()
+                $this->service->paginateBeneficiaries($selectedProgramId, $selectedProjectId)
             ),
+            'programs' => Program::query()
+                ->select('id', 'title')
+                ->orderBy('title')
+                ->get()
+                ->map(fn ($program) => [
+                    'id' => $program->id,
+                    'title' => $program->title,
+                ]),
+            'selectedProgramId' => $selectedProgramId,
+            'selectedProjectId' => $selectedProjectId,
+            'filterProjects' => $filterProjects,
+            'selectedProjectSummary' => $selectedProjectId
+                ? $filterProjects->firstWhere('id', $selectedProjectId)
+                : null,
             'provinces' => Provinces::select('id', 'name')->get(),
             'projects' => Project::select('id', 'name')->orderBy('name')->get(),
             'projectLocations' => ProjectLocation::with(['project:id,name', 'province:id,name'])
@@ -56,12 +85,35 @@ class BeneficiaryController extends Controller
         return redirect()->back()->with('success', 'Beneficiary created');
     }
 
-    public function show(int $beneficiary)
+    public function show(Request $request, int $beneficiary)
     {
         $model = $this->service->getById($beneficiary);
         $this->authorize('view', $model);
 
-        return response()->json(new BeneficiaryResource($model));
+        $resource = new BeneficiaryResource($model);
+
+        if ($request->expectsJson()) {
+            return response()->json($resource);
+        }
+
+        return Inertia::render('Beneficiaries/Show', [
+            'beneficiary' => $resource->resolve(),
+            'canManageBeneficiary' => $request->user()?->can('update', $model) ?? false,
+            'provinces' => Provinces::select('id', 'name')->get(),
+            'projects' => Project::select('id', 'name')->orderBy('name')->get(),
+            'projectLocations' => ProjectLocation::with(['project:id,name', 'province:id,name'])
+                ->select('id', 'project_id', 'province_id')
+                ->orderBy('province_id')
+                ->get()
+                ->map(fn ($location) => [
+                    'id' => $location->id,
+                    'project_id' => $location->project_id,
+                    'name' => ($location->project?->name
+                            ? $location->project->name.' - '
+                            : '')
+                        .$location->province?->name,
+                ]),
+        ]);
     }
 
     public function update(UpdateBeneficiaryRequest $request, int $beneficiary)

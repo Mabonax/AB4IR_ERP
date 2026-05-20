@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "@inertiajs/react";
+import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,18 +29,24 @@ type FieldConfig = {
   id: string;
   name: string;
   label: string;
-  type: "text" | "email" | "number" | "tel" | "date" | "textarea" | "select";
+  type: string;
+  multiple?: boolean;
   optionsSource?: string;
   optionLabel?: string;
   optionValue?: string;
   options?: Array<{ label: string; value: string | number }>;
+  placeholder?: string;
+  autoFocus?: boolean;
+  required?: boolean;
+  rows?: number;
+  min?: number;
 };
 
 type CustomModalFormProps = {
   addButton?: {
     label: string;
-    icon?: any;
-    variant?: any;
+    icon?: LucideIcon;
+    variant?: string | null;
     className?: string;
   };
   title: string;
@@ -134,7 +141,7 @@ export const CustomModelForm = ({
   ------------------------------ */
   const form = useForm(
     fields.reduce((acc, field) => {
-      acc[field.name] = initialData[field.name] ?? "";
+      acc[field.name] = initialData[field.name] ?? (field.multiple ? [] : "");
       return acc;
     }, {} as Record<string, any>)
   );
@@ -144,23 +151,26 @@ export const CustomModelForm = ({
   /* ------------------------------
    | Hydration logic (FIXED)
   ------------------------------ */
-useEffect(() => {
-  if ((mode === "edit" || mode === "view") && dialogOpen) {
-    fields.forEach((field) => {
-      const value = initialData[field.name];
+  useEffect(() => {
+    if (dialogOpen) {
+      fields.forEach((field) => {
+        const value = initialData[field.name];
 
-      if (field.type === "select") {
-        setData(field.name, value !== null && value !== undefined ? String(value) : "");
-      } else {
-        setData(field.name, value ?? "");
-      }
-    });
-  }
-
-  if (mode === "create" && dialogOpen) {
-    reset();
-  }
-}, [mode, dialogOpen]);
+        if (field.type === "select") {
+          if (field.multiple) {
+            setData(
+              field.name,
+              Array.isArray(value) ? value.map((item) => String(item)) : []
+            );
+          } else {
+            setData(field.name, value !== null && value !== undefined ? String(value) : "");
+          }
+        } else {
+          setData(field.name, value ?? "");
+        }
+      });
+    }
+  }, [dialogOpen, fields, initialData, setData]);
 
 
   /* ------------------------------
@@ -183,8 +193,8 @@ useEffect(() => {
 
     const routeDef = submitRoute(routeParams);
 
+    form.transform(() => nestedPayload);
     form.submit(routeDef.method, routeDef.url, {
-      data: nestedPayload,
       preserveScroll: true,
       onSuccess: () => {
         if (preserveOnSuccessFields.length > 0) {
@@ -217,7 +227,7 @@ useEffect(() => {
       {!hideTrigger && addButton && (
         <DialogTrigger asChild>
           <Button
-            variant={addButton.variant}
+            variant={addButton.variant as React.ComponentProps<typeof Button>["variant"]}
             className={addButton.className}
           >
             {Icon && <Icon className="h-4 w-4 mr-2" />}
@@ -278,14 +288,22 @@ useEffect(() => {
                 {field.type === "select" && (
                   <select
                     value={data[field.name]}
+                    multiple={field.multiple}
                     disabled={isView}
-                    onChange={(e) => setData(field.name, e.target.value)}
+                    onChange={(e) =>
+                      setData(
+                        field.name,
+                        field.multiple
+                          ? Array.from(e.target.selectedOptions, (option) => option.value)
+                          : e.target.value
+                      )
+                    }
                     className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
                   >
-                    <option value="">Select option</option>
+                    {!field.multiple && <option value="">Select option</option>}
 
                     {/* 🔹 STATIC OPTIONS (gender, enums, etc.) */}
-                    {field.options?.map((opt: any) => (
+                    {field.options?.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
@@ -302,6 +320,12 @@ useEffect(() => {
                         </option>
                       ))}
                   </select>
+                )}
+
+                {field.type === "select" && field.multiple && (
+                  <p className="text-xs text-muted-foreground">
+                    Hold Ctrl or Cmd to select multiple options.
+                  </p>
                 )}
 
 

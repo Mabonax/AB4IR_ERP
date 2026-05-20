@@ -36,7 +36,13 @@ class StakeholderController extends Controller
     {
         $stakeholderModel = $this->service->getStakeholderById($stakeholder);
 
-        return response()->json(new StakeholderResource($stakeholderModel));
+        if (request()->wantsJson()) {
+            return response()->json(new StakeholderResource($stakeholderModel));
+        }
+
+        return Inertia::render('Stakeholders/Show', [
+            'stakeholder' => (new StakeholderResource($stakeholderModel))->resolve(),
+        ]);
     }
 
     public function update(UpdateStakeholderRequest $request, int $stakeholder)

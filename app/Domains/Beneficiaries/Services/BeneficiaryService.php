@@ -23,9 +23,9 @@ class BeneficiaryService
         return $this->repository->all();
     }
 
-    public function paginateBeneficiaries(): LengthAwarePaginator
+    public function paginateBeneficiaries(?int $programId = null, ?int $projectId = null): LengthAwarePaginator
     {
-        return $this->repository->paginate();
+        return $this->repository->paginate($programId, $projectId);
     }
 
     public function getById(int $id): Beneficiary

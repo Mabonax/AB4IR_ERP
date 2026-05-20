@@ -8,19 +8,37 @@ use Illuminate\Support\Collection;
 
 class BeneficiaryRepository implements BeneficiaryRepositoryInterface
 {
-    public function paginate(int $perPage = 15): LengthAwarePaginator
+    protected function baseQuery()
     {
-        return Beneficiary::with(['nextOfKin', 'project', 'projectEnrollments.location'])->latest()->paginate($perPage);
+        return Beneficiary::with([
+            'nextOfKin',
+            'project.program',
+            'projectEnrollments.project.program',
+            'projectEnrollments.location.province',
+        ])->latest();
+    }
+
+    public function paginate(?int $programId = null, ?int $projectId = null, int $perPage = 15): LengthAwarePaginator
+    {
+        $query = $this->baseQuery();
+
+        if ($projectId) {
+            $query->whereHas('projectEnrollments', fn ($enrollmentQuery) => $enrollmentQuery->where('project_id', $projectId));
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     public function all(): Collection
     {
-        return Beneficiary::with(['nextOfKin', 'project', 'projectEnrollments.location'])->latest()->get();
+        return $this->baseQuery()->get();
     }
 
     public function find(int $id): ?Beneficiary
     {
-        return Beneficiary::with(['nextOfKin', 'project', 'projectEnrollments.location'])->find($id);
+        return $this->baseQuery()->find($id);
     }
 
     public function create(array $data): Beneficiary

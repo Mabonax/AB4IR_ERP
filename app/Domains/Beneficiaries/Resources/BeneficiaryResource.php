@@ -35,6 +35,8 @@ class BeneficiaryResource extends JsonResource
             'project_location' => $this->projectEnrollments
                 ? $this->projectEnrollments->firstWhere('project_id', $this->project_id)?->location?->province?->name
                 : null,
+            'program_id' => $this->project?->program?->id,
+            'program_title' => $this->project?->program?->title,
 
             // Address
             'street_address' => $this->street_address,
@@ -58,6 +60,47 @@ class BeneficiaryResource extends JsonResource
                     'phone' => $this->nextOfKin->phone,
                     'email' => $this->nextOfKin->email,
                 ];
+            }),
+            'current_participation' => $this->whenLoaded('projectEnrollments', function () {
+                $currentEnrollment = $this->projectEnrollments
+                    ->sortByDesc(fn ($enrollment) => optional($enrollment->enrolled_at)?->timestamp ?? 0)
+                    ->firstWhere('project_id', $this->project_id)
+                    ?? $this->projectEnrollments
+                        ->sortByDesc(fn ($enrollment) => optional($enrollment->enrolled_at)?->timestamp ?? 0)
+                        ->first();
+
+                if (! $currentEnrollment) {
+                    return null;
+                }
+
+                return [
+                    'project_id' => $currentEnrollment->project_id,
+                    'project_name' => $currentEnrollment->project?->name,
+                    'program_id' => $currentEnrollment->project?->program?->id,
+                    'program_title' => $currentEnrollment->project?->program?->title,
+                    'location_id' => $currentEnrollment->project_location_id,
+                    'location_name' => $currentEnrollment->location?->province?->name,
+                    'status' => $currentEnrollment->status,
+                    'enrolled_at' => $currentEnrollment->enrolled_at?->format('Y-m-d H:i:s'),
+                ];
+            }),
+            'participation_history' => $this->whenLoaded('projectEnrollments', function () {
+                return $this->projectEnrollments
+                    ->sortByDesc(fn ($enrollment) => optional($enrollment->enrolled_at)?->timestamp ?? 0)
+                    ->values()
+                    ->map(fn ($enrollment) => [
+                        'id' => $enrollment->id,
+                        'project_id' => $enrollment->project_id,
+                        'project_name' => $enrollment->project?->name,
+                        'program_id' => $enrollment->project?->program?->id,
+                        'program_title' => $enrollment->project?->program?->title,
+                        'location_id' => $enrollment->project_location_id,
+                        'location_name' => $enrollment->location?->province?->name,
+                        'status' => $enrollment->status,
+                        'project_start_date' => $enrollment->project?->start_date?->format('Y-m-d'),
+                        'project_end_date' => $enrollment->project?->end_date?->format('Y-m-d'),
+                        'enrolled_at' => $enrollment->enrolled_at?->format('Y-m-d H:i:s'),
+                    ]);
             }),
 
             // Audit

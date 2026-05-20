@@ -11,6 +11,7 @@ export type DomainNavItem = {
   icon?: ReactNode;
   requiredPermissions?: string[];
   requiredRoles?: string[];
+  native?: boolean;
 };
 
 export function DomainNav({
@@ -29,19 +30,26 @@ export function DomainNav({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {visibleItems.map((item) => {
-        const isActive = url === item.href || url.startsWith(`${item.href}/`);
+        const isAnchor = item.href.startsWith("#") || item.native;
+        const isActive = !isAnchor && (url === item.href || url.startsWith(`${item.href}/`));
+        const className = cn(
+          "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm transition",
+          isActive
+            ? "border-red-600 bg-red-600 text-white"
+            : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+        );
+
+        if (isAnchor) {
+          return (
+            <a key={item.href} href={item.href} className={className}>
+              {item.icon}
+              {item.label}
+            </a>
+          );
+        }
 
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm transition",
-              isActive
-                ? "border-red-600 bg-red-600 text-white"
-                : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
-            )}
-          >
+          <Link key={item.href} href={item.href} className={className}>
             {item.icon}
             {item.label}
           </Link>

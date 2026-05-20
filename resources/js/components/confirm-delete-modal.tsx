@@ -1,4 +1,5 @@
 import { router } from "@inertiajs/react";
+import type { Method } from "@inertiajs/core";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-type RouteFn = (args?: any) => { url: string; method: string };
+type RouteFn = (args?: any) => { url: string; method: Method };
 
 type Props = {
   open: boolean;

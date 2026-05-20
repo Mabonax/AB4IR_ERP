@@ -1,20 +1,59 @@
 import { Link } from "@inertiajs/react";
 import { route } from "ziggy-js";
 import * as LucideIcons from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
-interface TableAction {
-  icon: keyof typeof LucideIcons;
-  onClick?: (row: any) => void;
-  route?: string;
-  method?: "get" | "post" | "put" | "delete";
-  variant?: "danger" | "primary";
+type RowData = Record<string, any>;
+
+interface TableColumn<T extends RowData = RowData> {
+  key: string;
+  label: string;
+  className?: string;
+  isAction?: boolean;
+  render?: (row: T) => ReactNode;
 }
 
-export const CustomTable = ({ columns, actions, data = [] }: any) => {
-  const RenderActions = ({ row }: { row: any }) => (
-    <div className="flex gap-2">
+interface TableAction {
+  icon: keyof typeof LucideIcons | LucideIcon;
+  label?: string;
+  onClick?: (row: any) => void;
+  route?: string;
+  href?: string | ((row: any) => string);
+  method?: "get" | "post" | "put" | "delete";
+  variant?: "danger" | "primary";
+  visible?: (row: any) => boolean;
+}
+
+interface CustomTableProps<T extends RowData = RowData> {
+  columns: TableColumn<T>[];
+  actions?: TableAction[];
+  data?: T[];
+}
+
+export const CustomTable = <T extends RowData>({
+  columns,
+  actions = [],
+  data = [],
+}: CustomTableProps<T>) => {
+  const RenderActions = ({ row }: { row: T }) => (
+    <div className="flex flex-wrap gap-2">
       {actions.map((action: TableAction, index: number) => {
-        const Icon = LucideIcons[action.icon];
+        if (action.visible && !action.visible(row)) {
+          return null;
+        }
+
+        const Icon =
+          typeof action.icon === "string"
+            ? (LucideIcons[action.icon as keyof typeof LucideIcons] as LucideIcon | undefined)
+            : action.icon;
+        const label = action.label ?? (typeof action.icon === "string" ? action.icon : "Action");
+        const baseClassName = `inline-flex items-center justify-center rounded-md border p-2 transition
+          ${
+            action.variant === "danger"
+              ? "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+              : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+          }`;
 
         /* ===============================
          * CASE 1: onClick (modal / custom logic)
@@ -25,15 +64,11 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
               key={index}
               type="button"
               onClick={() => action.onClick?.(row)}
-              className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition
-                ${
-                  action.variant === "danger"
-                    ? "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
-                    : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
-                }
-              `}
+              className={baseClassName}
+              title={label}
+              aria-label={label}
             >
-              {Icon && <Icon size={14} className="opacity-90" />}
+              {Icon ? <Icon size={14} className="opacity-90" /> : <span className="font-semibold">?</span>}
             </button>
           );
         }
@@ -48,15 +83,29 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
               as="button"
               href={route(action.route, row.id)}
               method={action.method ?? "get"}
-              className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border transition
-                ${
-                  action.variant === "danger"
-                    ? "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
-                    : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
-                }
-              `}
+              className={baseClassName}
+              title={label}
+              aria-label={label}
             >
-              {Icon && <Icon size={14} className="opacity-90" />}
+              {Icon ? <Icon size={14} className="opacity-90" /> : <span className="font-semibold">?</span>}
+            </Link>
+          );
+        }
+
+        if (action.href) {
+          const href = typeof action.href === "function" ? action.href(row) : action.href;
+
+          return (
+            <Link
+              key={index}
+              as="button"
+              href={href}
+              method={action.method ?? "get"}
+              className={baseClassName}
+              title={label}
+              aria-label={label}
+            >
+              {Icon ? <Icon size={14} className="opacity-90" /> : <span className="font-semibold">?</span>}
             </Link>
           );
         }
@@ -113,7 +162,7 @@ export const CustomTable = ({ columns, actions, data = [] }: any) => {
               </td>
             </tr>
           ) : (
-            data.map((row: any) => (
+            data.map((row) => (
                 <tr
                   key={row.id}
                   className="
