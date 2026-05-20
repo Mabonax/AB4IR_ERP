@@ -5,18 +5,25 @@ namespace App\Domains\Assets\Services;
 use App\Domains\Assets\Models\Asset;
 use App\Domains\Assets\Models\AssetAssignment;
 use App\Domains\Assets\Models\AssetBatch;
+use App\Domains\Assets\Models\AssetDecommissionRecord;
+use App\Domains\Assets\Models\AssetMaintenanceRecord;
 use App\Domains\Assets\Repositories\AssetRepositoryInterface;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\TaskManagement\Models\SupportTicket;
+use App\Domains\TaskManagement\Services\SupportTicketService;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssetService
 {
     public function __construct(
-        protected AssetRepositoryInterface $repository
+        protected AssetRepositoryInterface $repository,
+        protected SupportTicketService $supportTicketService
     ) {}
 
     public function paginateAssets(array $filters = []): LengthAwarePaginator
@@ -41,6 +48,12 @@ class AssetService
             if (($data['status'] ?? 'unassigned') === 'assigned') {
                 throw ValidationException::withMessages([
                     'status' => ['Use the Assign action to set an asset as assigned.'],
+                ]);
+            }
+
+            if (in_array(($data['status'] ?? 'unassigned'), ['maintenance', 'retired'], true)) {
+                throw ValidationException::withMessages([
+                    'status' => ['Use the maintenance or decommission workflow instead of setting this status directly.'],
                 ]);
             }
 
@@ -70,6 +83,16 @@ class AssetService
                         'status' => ['Use the Assign action to create assignment history before setting assigned status.'],
                     ]);
                 }
+            }
+
+            if (
+                isset($data['status'])
+                && $data['status'] !== $asset->status
+                && in_array($data['status'], ['maintenance', 'retired'], true)
+            ) {
+                throw ValidationException::withMessages([
+                    'status' => ['Use the maintenance or decommission workflow instead of editing the status directly.'],
+                ]);
             }
 
             return $this->repository->update($asset, $data);
@@ -300,6 +323,215 @@ class AssetService
         });
     }
 
+    public function startMaintenance(int $assetId, array $data, User $actor): AssetMaintenanceRecord
+    {
+        return DB::transaction(function () use ($assetId, $data, $actor) {
+            $asset = $this->getAssetById($assetId);
+
+            if ($asset->status === 'retired' || $asset->decommissionRecord) {
+                throw ValidationException::withMessages([
+                    'asset' => ['Decommissioned assets cannot be moved into maintenance.'],
+                ]);
+            }
+
+            if ($asset->activeMaintenanceRecord) {
+                throw ValidationException::withMessages([
+                    'asset' => ['This asset is already in maintenance.'],
+                ]);
+            }
+
+            $supportTicketId = isset($data['support_ticket_id']) && $data['support_ticket_id'] !== null && $data['support_ticket_id'] !== ''
+                ? (int) $data['support_ticket_id']
+                : null;
+
+            if ($supportTicketId) {
+                $ticket = SupportTicket::query()->find($supportTicketId);
+                if (! $ticket) {
+                    throw ValidationException::withMessages([
+                        'support_ticket_id' => ['Selected support ticket does not exist.'],
+                    ]);
+                }
+
+                if ((int) ($ticket->asset_id ?? 0) !== (int) $asset->id) {
+                    throw ValidationException::withMessages([
+                        'support_ticket_id' => ['Support ticket must belong to the selected asset.'],
+                    ]);
+                }
+            }
+
+            $this->closeActiveAssignmentForWorkflow($asset, 'Returned for maintenance');
+
+            $asset->update([
+                'staff_member_id' => null,
+                'status' => 'maintenance',
+            ]);
+
+            return AssetMaintenanceRecord::query()->create([
+                'asset_id' => $asset->id,
+                'support_ticket_id' => $supportTicketId,
+                'started_by_user_id' => $actor->id,
+                'issue_summary' => $data['issue_summary'],
+                'maintenance_notes' => $data['maintenance_notes'] ?? null,
+                'status' => 'in_progress',
+                'started_at' => now(),
+            ]);
+        });
+    }
+
+    public function completeMaintenance(int $assetId, array $data, User $actor): AssetMaintenanceRecord
+    {
+        return DB::transaction(function () use ($assetId, $data, $actor) {
+            $asset = $this->getAssetById($assetId);
+            $record = $asset->activeMaintenanceRecord;
+
+            if (! $record) {
+                throw ValidationException::withMessages([
+                    'asset' => ['No active maintenance record exists for this asset.'],
+                ]);
+            }
+
+            $notes = trim(implode("\n", array_filter([
+                $record->maintenance_notes,
+                $data['completion_notes'] ?? null,
+            ])));
+
+            $record->update([
+                'completed_by_user_id' => $actor->id,
+                'maintenance_notes' => $notes !== '' ? $notes : null,
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
+
+            $asset->update([
+                'status' => 'unassigned',
+            ]);
+
+            return $record->fresh(['supportTicket', 'startedBy', 'completedBy']);
+        });
+    }
+
+    public function decommissionAsset(int $assetId, array $data, User $actor): AssetDecommissionRecord
+    {
+        return DB::transaction(function () use ($assetId, $data, $actor) {
+            $asset = $this->getAssetById($assetId);
+
+            if ($asset->decommissionRecord) {
+                throw ValidationException::withMessages([
+                    'asset' => ['This asset has already been decommissioned.'],
+                ]);
+            }
+
+            if ($asset->activeMaintenanceRecord) {
+                throw ValidationException::withMessages([
+                    'asset' => ['Complete the maintenance workflow before decommissioning this asset.'],
+                ]);
+            }
+
+            $this->closeActiveAssignmentForWorkflow($asset, 'Returned for decommissioning');
+
+            $asset->update([
+                'staff_member_id' => null,
+                'status' => 'retired',
+            ]);
+
+            return AssetDecommissionRecord::query()->create([
+                'asset_id' => $asset->id,
+                'decommissioned_by_user_id' => $actor->id,
+                'reason' => $data['reason'],
+                'notes' => $data['notes'] ?? null,
+                'decommissioned_at' => now(),
+            ]);
+        });
+    }
+
+    public function reportFault(int $assetId, array $data, User $actor): SupportTicket
+    {
+        return DB::transaction(function () use ($assetId, $data, $actor) {
+            $asset = $this->getAssetById($assetId);
+
+            $this->assertCanReportFault($asset, $actor);
+
+            $title = trim($data['title'] ?? '') !== ''
+                ? $data['title']
+                : 'Asset fault: '.($asset->asset_code ?: $asset->name);
+
+            return $this->supportTicketService->createTicket([
+                'title' => $title,
+                'description' => $data['description'],
+                'priority' => $data['priority'],
+                'project_id' => $data['project_id'] ?? null,
+                'program_id' => $data['program_id'] ?? null,
+                'asset_id' => $asset->id,
+            ], $actor);
+        });
+    }
+
+    public function exportAssetsSpreadsheet(?int $categoryId = null): StreamedResponse
+    {
+        $category = null;
+        $query = Asset::query()
+            ->with([
+                'category',
+                'staffMember',
+                'currentAssignment.department',
+                'currentAssignment.staffMember',
+                'currentAssignment.project',
+                'activeMaintenanceRecord',
+                'decommissionRecord',
+            ])
+            ->orderBy('asset_category_id')
+            ->orderBy('model_name')
+            ->orderBy('asset_code');
+
+        if ($categoryId) {
+            $category = \App\Domains\Assets\Models\AssetCategory::query()->findOrFail($categoryId);
+            $query->where('asset_category_id', $categoryId);
+        }
+
+        $fileName = $category
+            ? 'assets-'.$this->slugify($category->name).'-'.now()->format('Ymd-His').'.csv'
+            : 'assets-register-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                'Category',
+                'Asset Code',
+                'Asset Name',
+                'Type',
+                'Model',
+                'Serial State',
+                'Serial Number',
+                'Status',
+                'Assigned To',
+                'Maintenance Status',
+                'Decommissioned',
+            ]);
+
+            $query->chunk(200, function ($assets) use ($handle) {
+                foreach ($assets as $asset) {
+                    fputcsv($handle, [
+                        $asset->category?->name,
+                        $asset->asset_code,
+                        $asset->name,
+                        $asset->type,
+                        $asset->model_name,
+                        $asset->serial_state,
+                        $asset->serial_number,
+                        $asset->status,
+                        $this->formatAssignedTo($asset),
+                        $asset->activeMaintenanceRecord ? 'In Maintenance' : ($asset->maintenanceRecords()->exists() ? 'Maintenance History' : 'None'),
+                        $asset->decommissionRecord?->decommissioned_at?->toDateString(),
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function managerDashboardData(): array
     {
         $user = auth()->user();
@@ -309,15 +541,39 @@ class AssetService
         if (! $departmentId) {
             return [
                 'stats' => [
+                    'portfolioAssets' => 0,
                     'departmentAssets' => 0,
                     'staffAssets' => 0,
+                    'maintenanceAssets' => 0,
+                    'retiredAssets' => 0,
                     'unreturnedAssets' => 0,
                     'recentActivities' => 0,
                 ],
+                'assetRows' => [],
                 'assetsByStaff' => [],
                 'activityRows' => [],
             ];
         }
+
+        $scopedAssets = Asset::query()
+            ->with([
+                'category',
+                'staffMember',
+                'currentAssignment.department',
+                'currentAssignment.staffMember',
+                'currentAssignment.project',
+                'maintenanceRecords',
+                'activeMaintenanceRecord.supportTicket',
+                'decommissionRecord.decommissionedBy',
+            ])
+            ->whereHas('assignments', function ($query) use ($departmentId) {
+                $query->where('department_id', $departmentId)
+                    ->orWhereHas('staffMember', function ($staffQuery) use ($departmentId) {
+                        $staffQuery->where('department_id', $departmentId);
+                    });
+            })
+            ->latest('updated_at')
+            ->get();
 
         $activeAssignments = AssetAssignment::query()
             ->with(['asset.category', 'staffMember', 'department', 'project', 'assignedBy', 'returnedBy'])
@@ -330,6 +586,23 @@ class AssetService
             })
             ->latest('assigned_at')
             ->get();
+
+        $assetRows = $scopedAssets->map(function (Asset $asset) {
+            return [
+                'asset_id' => $asset->id,
+                'asset_code' => $asset->asset_code,
+                'asset_name' => $asset->name,
+                'category_name' => $asset->category?->name,
+                'status' => $asset->status,
+                'assigned_to' => $this->formatAssignedTo($asset),
+                'maintenance_state' => $asset->activeMaintenanceRecord
+                    ? 'in_progress'
+                    : ($asset->maintenanceRecords()->exists() ? 'history' : 'none'),
+                'maintenance_issue' => $asset->activeMaintenanceRecord?->issue_summary,
+                'decommissioned_at' => $asset->decommissionRecord?->decommissioned_at?->toDateTimeString(),
+                'updated_at' => $asset->updated_at?->toDateTimeString(),
+            ];
+        })->values();
 
         $activityRows = AssetAssignment::query()
             ->with(['asset', 'staffMember', 'department', 'project', 'assignedBy', 'returnedBy'])
@@ -389,11 +662,15 @@ class AssetService
 
         return [
             'stats' => [
+                'portfolioAssets' => $scopedAssets->count(),
                 'departmentAssets' => $activeAssignments->whereNotNull('department_id')->count(),
                 'staffAssets' => $activeAssignments->whereNotNull('staff_member_id')->count(),
+                'maintenanceAssets' => $scopedAssets->where('status', 'maintenance')->count(),
+                'retiredAssets' => $scopedAssets->where('status', 'retired')->count(),
                 'unreturnedAssets' => $activeAssignments->count(),
                 'recentActivities' => $activityRows->count(),
             ],
+            'assetRows' => $assetRows,
             'assetsByStaff' => $assetsByStaff,
             'activityRows' => $activityRows,
         ];
@@ -404,6 +681,60 @@ class AssetService
         return 'AST-'.str_pad((string) $id, 6, '0', STR_PAD_LEFT);
     }
 
+    protected function closeActiveAssignmentForWorkflow(Asset $asset, string $notes): void
+    {
+        $active = AssetAssignment::query()
+            ->where('asset_id', $asset->id)
+            ->whereNull('returned_at')
+            ->latest('assigned_at')
+            ->first();
+
+        if (! $active) {
+            return;
+        }
+
+        $active->update([
+            'returned_at' => now(),
+            'returned_by' => auth()->id(),
+            'notes' => trim(($active->notes ? $active->notes."\n" : '').$notes),
+        ]);
+    }
+
+    protected function assertCanReportFault(Asset $asset, User $actor): void
+    {
+        if ($actor->can('domain.assets.manage')) {
+            return;
+        }
+
+        $staff = $actor->staffMember;
+        $assignment = $asset->currentAssignment;
+
+        $canReport = $staff && $assignment && (
+            (int) ($assignment->staff_member_id ?? 0) === (int) $staff->id
+            || (
+                $assignment->department_id !== null
+                && (int) $assignment->department_id === (int) ($staff->department_id ?? 0)
+            )
+        );
+
+        if (! $canReport) {
+            throw ValidationException::withMessages([
+                'asset' => ['You can only report faults for assets currently assigned to you or your department.'],
+            ]);
+        }
+    }
+
+    protected function formatAssignedTo(Asset $asset): ?string
+    {
+        return $asset->currentAssignment?->project
+            ? 'Project: '.$asset->currentAssignment->project->name
+            : ($asset->currentAssignment?->staffMember
+                ? 'Staff: '.trim($asset->currentAssignment->staffMember->first_name.' '.$asset->currentAssignment->staffMember->last_name)
+                : ($asset->currentAssignment?->department
+                    ? 'Department: '.$asset->currentAssignment->department->name
+                    : null));
+    }
+
     protected function normalizeSerialState(array $data): array
     {
         if (($data['serial_state'] ?? 'recorded') !== 'recorded') {
@@ -411,5 +742,12 @@ class AssetService
         }
 
         return $data;
+    }
+
+    protected function slugify(string $value): string
+    {
+        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9]+/', '-', $value) ?? 'assets', '-'));
+
+        return $slug !== '' ? $slug : 'assets';
     }
 }

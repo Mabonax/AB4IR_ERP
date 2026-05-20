@@ -67,6 +67,46 @@ class AssetResource extends JsonResource
             'model_name' => $this->model_name,
             'serial_number' => $this->serial_number,
             'status' => $this->status,
+            'active_maintenance_record' => $this->activeMaintenanceRecord ? [
+                'id' => $this->activeMaintenanceRecord->id,
+                'support_ticket_id' => $this->activeMaintenanceRecord->support_ticket_id,
+                'support_ticket_title' => $this->activeMaintenanceRecord->supportTicket?->title,
+                'issue_summary' => $this->activeMaintenanceRecord->issue_summary,
+                'maintenance_notes' => $this->activeMaintenanceRecord->maintenance_notes,
+                'started_at' => $this->activeMaintenanceRecord->started_at?->toDateTimeString(),
+            ] : null,
+            'maintenance_history' => $this->whenLoaded('maintenanceRecords', function () {
+                return $this->maintenanceRecords->map(fn ($record) => [
+                    'id' => $record->id,
+                    'support_ticket_id' => $record->support_ticket_id,
+                    'support_ticket_title' => $record->supportTicket?->title,
+                    'issue_summary' => $record->issue_summary,
+                    'maintenance_notes' => $record->maintenance_notes,
+                    'status' => $record->status,
+                    'started_by_name' => $record->startedBy?->name,
+                    'completed_by_name' => $record->completedBy?->name,
+                    'started_at' => $record->started_at?->toDateTimeString(),
+                    'completed_at' => $record->completed_at?->toDateTimeString(),
+                ])->values();
+            }),
+            'decommission_record' => $this->decommissionRecord ? [
+                'id' => $this->decommissionRecord->id,
+                'reason' => $this->decommissionRecord->reason,
+                'notes' => $this->decommissionRecord->notes,
+                'decommissioned_by_name' => $this->decommissionRecord->decommissionedBy?->name,
+                'decommissioned_at' => $this->decommissionRecord->decommissioned_at?->toDateTimeString(),
+            ] : null,
+            'support_tickets' => $this->whenLoaded('supportTickets', function () {
+                return $this->supportTickets->map(fn ($ticket) => [
+                    'id' => $ticket->id,
+                    'title' => $ticket->title,
+                    'status' => $ticket->status,
+                    'priority' => $ticket->priority,
+                    'requester_name' => $ticket->requester?->name,
+                    'assignee_name' => $ticket->assignee?->name,
+                    'created_at' => $ticket->created_at?->toDateTimeString(),
+                ])->values();
+            }),
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

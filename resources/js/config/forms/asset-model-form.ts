@@ -78,8 +78,6 @@ export const AssetModelFormConfig = {
       options: [
         { label: "Assigned", value: "assigned" },
         { label: "Unassigned", value: "unassigned" },
-        { label: "Maintenance", value: "maintenance" },
-        { label: "Retired", value: "retired" },
       ],
     },
   ],

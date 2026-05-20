@@ -19,15 +19,31 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function AssetManagerDashboard({
   stats,
+  assetRows,
   assetsByStaff,
   activityRows,
 }: {
   stats: {
+    portfolioAssets: number;
     departmentAssets: number;
     staffAssets: number;
+    maintenanceAssets: number;
+    retiredAssets: number;
     unreturnedAssets: number;
     recentActivities: number;
   };
+  assetRows: Array<{
+    asset_id: number;
+    asset_code: string | null;
+    asset_name: string | null;
+    category_name: string | null;
+    status: string;
+    assigned_to: string | null;
+    maintenance_state: string;
+    maintenance_issue: string | null;
+    decommissioned_at: string | null;
+    updated_at: string | null;
+  }>;
   assetsByStaff: Array<{
     staff_member_id: number;
     staff_name: string;
@@ -64,39 +80,105 @@ export default function AssetManagerDashboard({
           <DomainNav items={assetNavItems} />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <Card>
             <CardHeader>
-              <CardTitle>Department Assets</CardTitle>
-              <CardDescription>Assigned to department scope</CardDescription>
+              <CardTitle>Portfolio</CardTitle>
+              <CardDescription>Assets in your department history</CardDescription>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">{stats.departmentAssets}</CardContent>
+            <CardContent className="text-2xl font-semibold">{stats.portfolioAssets}</CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Staff Assets</CardTitle>
-              <CardDescription>Assigned to staff members</CardDescription>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{stats.staffAssets}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Unreturned</CardTitle>
-              <CardDescription>Currently active assignments</CardDescription>
+              <CardTitle>Active Assignments</CardTitle>
+              <CardDescription>Still out in circulation</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl font-semibold">{stats.unreturnedAssets}</CardContent>
           </Card>
           <Card>
             <CardHeader>
+              <CardTitle>Maintenance</CardTitle>
+              <CardDescription>Assets currently in repair</CardDescription>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">{stats.maintenanceAssets}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Retired</CardTitle>
+              <CardDescription>Decommissioned assets in scope</CardDescription>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">{stats.retiredAssets}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff Assets</CardTitle>
+              <CardDescription>Actively assigned to staff members</CardDescription>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">{stats.staffAssets}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>History events in scope</CardDescription>
+              <CardDescription>Assignment events in department scope</CardDescription>
             </CardHeader>
             <CardContent className="text-2xl font-semibold">{stats.recentActivities}</CardContent>
           </Card>
         </div>
 
+        <section className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-base font-semibold">Department Asset Portfolio</h2>
+            <p className="text-sm text-muted-foreground">
+              Current state of every asset that has moved through your department.
+            </p>
+          </div>
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted">
+              <tr>
+                <th className="px-3 py-2 text-left">Asset</th>
+                <th className="px-3 py-2 text-left">Category</th>
+                <th className="px-3 py-2 text-left">Status</th>
+                <th className="px-3 py-2 text-left">Assigned To</th>
+                <th className="px-3 py-2 text-left">Maintenance</th>
+                <th className="px-3 py-2 text-left">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assetRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-4 text-muted-foreground">
+                    No assets have been routed through your department yet.
+                  </td>
+                </tr>
+              ) : (
+                assetRows.map((row) => (
+                  <tr key={row.asset_id} className="border-t">
+                    <td className="px-3 py-2">
+                      {row.asset_code ?? "-"} | {row.asset_name ?? "-"}
+                    </td>
+                    <td className="px-3 py-2">{row.category_name ?? "-"}</td>
+                    <td className="px-3 py-2 capitalize">{row.status.replaceAll("_", " ")}</td>
+                    <td className="px-3 py-2">{row.assigned_to ?? "-"}</td>
+                    <td className="px-3 py-2">
+                      {row.maintenance_state === "in_progress"
+                        ? row.maintenance_issue ?? "In maintenance"
+                        : row.maintenance_state === "history"
+                          ? "Maintenance history"
+                          : "None"}
+                    </td>
+                    <td className="px-3 py-2">{row.updated_at ?? row.decommissioned_at ?? "-"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </section>
+
         <section className="rounded-xl border bg-card p-4 shadow-sm">
           <h2 className="text-base font-semibold">Assets By Staff</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Only active staff allocations appear here. Assets in maintenance or retired state stay in the portfolio table above.
+          </p>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
             {assetsByStaff.length === 0 ? (
               <p className="text-sm text-muted-foreground">No active assignments in your department scope.</p>
@@ -122,6 +204,9 @@ export default function AssetManagerDashboard({
         <section className="overflow-x-auto rounded-xl border bg-card shadow-sm">
           <div className="border-b px-4 py-3">
             <h2 className="text-base font-semibold">Recent Assignment Activity</h2>
+            <p className="text-sm text-muted-foreground">
+              Assignment history stays separate from the live portfolio state.
+            </p>
           </div>
           <table className="min-w-full text-sm">
             <thead className="bg-muted">

@@ -5,7 +5,11 @@ namespace App\Domains\Assets\Controllers;
 use App\Domains\Assets\Models\AssetBatch;
 use App\Domains\Assets\Models\AssetCategory;
 use App\Domains\Assets\Requests\AssignAssetRequest;
+use App\Domains\Assets\Requests\CompleteAssetMaintenanceRequest;
+use App\Domains\Assets\Requests\DecommissionAssetRequest;
+use App\Domains\Assets\Requests\ReportAssetFaultRequest;
 use App\Domains\Assets\Requests\ReturnAssetRequest;
+use App\Domains\Assets\Requests\StartAssetMaintenanceRequest;
 use App\Domains\Assets\Requests\StoreAssetBatchRequest;
 use App\Domains\Assets\Requests\StoreAssetRequest;
 use App\Domains\Assets\Requests\UpdateAssetBatchRequest;
@@ -13,9 +17,11 @@ use App\Domains\Assets\Requests\UpdateAssetRequest;
 use App\Domains\Assets\Resources\AssetResource;
 use App\Domains\Assets\Services\AssetService;
 use App\Domains\Assets\Models\Asset;
+use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\TaskManagement\Models\SupportTicket;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -34,19 +40,7 @@ class AssetController extends Controller
 
         $assets = $this->service->paginateAssets($filters);
 
-        $categories = AssetCategory::select('id', 'name')->orderBy('name')->get();
-        $departments = StaffDepartment::select('id', 'name')->orderBy('name')->get();
-        $staffMembers = StaffMember::select('id', 'first_name', 'last_name')
-            ->with('department:id,name')
-            ->orderBy('first_name')
-            ->get()
-            ->map(fn ($staff) => [
-                'id' => $staff->id,
-                'name' => trim($staff->first_name.' '.$staff->last_name),
-                'department_id' => $staff->department_id,
-                'department_name' => $staff->department?->name,
-            ]);
-        $projects = Project::select('id', 'name', 'project_manager_id')->orderBy('name')->get();
+        $context = $this->assetPageContext();
         $batches = AssetBatch::with('category:id,name')
             ->latest()
             ->limit(100)
@@ -65,10 +59,7 @@ class AssetController extends Controller
 
         return Inertia::render('Assets/Index', [
             'assets' => AssetResource::collection($assets),
-            'categories' => $categories,
-            'departments' => $departments,
-            'staffMembers' => $staffMembers,
-            'projects' => $projects,
+            ...$context,
             'batches' => $batches,
             'filters' => $filters,
         ]);
@@ -206,11 +197,19 @@ class AssetController extends Controller
         return redirect()->back()->with('success', 'Asset created');
     }
 
-    public function show(int $asset)
+    public function show(Request $request, int $asset)
     {
         $model = $this->service->getAssetById($asset);
 
-        return response()->json(new AssetResource($model));
+        if ($request->wantsJson()) {
+            return response()->json(new AssetResource($model));
+        }
+
+        return Inertia::render('Assets/Show', [
+            'assetId' => $model->id,
+            'asset' => (new AssetResource($model))->resolve(),
+            ...$this->assetPageContext(),
+        ]);
     }
 
     public function update(UpdateAssetRequest $request, int $asset)
@@ -260,5 +259,81 @@ class AssetController extends Controller
         $this->service->returnAsset($asset, $request->validated()['notes'] ?? null);
 
         return redirect()->back()->with('success', 'Asset returned');
+    }
+
+    public function exportRegister(Request $request)
+    {
+        $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
+
+        return $this->service->exportAssetsSpreadsheet($categoryId);
+    }
+
+    public function startMaintenance(StartAssetMaintenanceRequest $request, int $asset)
+    {
+        $this->service->startMaintenance($asset, $request->validated(), $request->user());
+
+        return redirect()->back()->with('success', 'Asset moved into maintenance.');
+    }
+
+    public function completeMaintenance(CompleteAssetMaintenanceRequest $request, int $asset)
+    {
+        $this->service->completeMaintenance($asset, $request->validated(), $request->user());
+
+        return redirect()->back()->with('success', 'Asset maintenance completed.');
+    }
+
+    public function decommission(DecommissionAssetRequest $request, int $asset)
+    {
+        $this->service->decommissionAsset($asset, $request->validated(), $request->user());
+
+        return redirect()->back()->with('success', 'Asset decommissioned.');
+    }
+
+    public function reportFault(ReportAssetFaultRequest $request, int $asset)
+    {
+        $ticket = $this->service->reportFault($asset, $request->validated(), $request->user());
+
+        return redirect()->back()->with('success', "Fault reported to technical support as ticket #{$ticket->id}.");
+    }
+
+    protected function assetPageContext(): array
+    {
+        $categories = AssetCategory::select('id', 'name')->orderBy('name')->get();
+        $departments = StaffDepartment::select('id', 'name')->orderBy('name')->get();
+        $staffMembers = StaffMember::select('id', 'first_name', 'last_name', 'department_id')
+            ->with('department:id,name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn ($staff) => [
+                'id' => $staff->id,
+                'name' => trim($staff->first_name.' '.$staff->last_name),
+                'department_id' => $staff->department_id,
+                'department_name' => $staff->department?->name,
+            ]);
+        $projects = Project::select('id', 'name', 'project_manager_id')->orderBy('name')->get();
+        $programs = Program::select('id', 'title')->orderBy('title')->get();
+        $supportTickets = SupportTicket::query()
+            ->with('asset:id,name,asset_code')
+            ->whereNotNull('asset_id')
+            ->whereIn('status', ['open', 'assigned', 'in_progress'])
+            ->latest()
+            ->limit(200)
+            ->get()
+            ->map(fn (SupportTicket $ticket) => [
+                'id' => $ticket->id,
+                'title' => $ticket->title,
+                'asset_id' => $ticket->asset_id,
+                'asset_code' => $ticket->asset?->asset_code,
+                'asset_name' => $ticket->asset?->name,
+            ]);
+
+        return [
+            'categories' => $categories,
+            'departments' => $departments,
+            'staffMembers' => $staffMembers,
+            'projects' => $projects,
+            'programs' => $programs,
+            'supportTickets' => $supportTickets,
+        ];
     }
 }

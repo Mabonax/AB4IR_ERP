@@ -49,4 +49,24 @@ class Asset extends Model
     {
         return $this->hasOne(AssetAssignment::class)->whereNull('returned_at')->latestOfMany('assigned_at');
     }
+
+    public function maintenanceRecords()
+    {
+        return $this->hasMany(AssetMaintenanceRecord::class)->latest('started_at');
+    }
+
+    public function activeMaintenanceRecord()
+    {
+        return $this->hasOne(AssetMaintenanceRecord::class)->where('status', 'in_progress')->latestOfMany('started_at');
+    }
+
+    public function decommissionRecord()
+    {
+        return $this->hasOne(AssetDecommissionRecord::class);
+    }
+
+    public function supportTickets()
+    {
+        return $this->hasMany(\App\Domains\TaskManagement\Models\SupportTicket::class)->latest();
+    }
 }
