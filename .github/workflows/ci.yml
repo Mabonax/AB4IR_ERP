@@ -9,6 +9,10 @@ on:
     branches:
       - main
       - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -17,23 +21,33 @@ concurrency:
 jobs:
   application:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
-          extensions: mbstring, pdo_sqlite, sqlite3
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3, dom, curl
           coverage: none
+          tools: composer:v2
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
@@ -44,19 +58,23 @@ jobs:
       - name: Prepare application environment
         run: |
           cp .env.example .env
-          mkdir -p database
+          mkdir -p database bootstrap/cache
           touch database/database.sqlite
           {
             echo "APP_ENV=testing"
             echo "APP_DEBUG=true"
+            echo "APP_URL=http://localhost"
             echo "DB_CONNECTION=sqlite"
             echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite"
             echo "CACHE_STORE=array"
             echo "QUEUE_CONNECTION=sync"
             echo "SESSION_DRIVER=array"
+            echo "MAIL_MAILER=log"
             echo "RUN_MIGRATIONS=false"
           } >> .env
-          php artisan key:generate
+
+          php artisan key:generate --force
+          php artisan config:clear
 
       - name: Run backend checks
         run: composer test
@@ -70,10 +88,11 @@ jobs:
 
   containers:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Copy deploy environment
         run: cp .env.example .env
