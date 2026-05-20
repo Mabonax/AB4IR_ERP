@@ -375,6 +375,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])
         ->middleware('permission:domain.leave.view|domain.leave.manage|domain.staff.view|domain.staff.manage')
         ->name('leave-requests.index');
+    Route::get('leave-requests/{leave_request}', [LeaveRequestController::class, 'show'])
+        ->middleware('permission:domain.leave.view|domain.leave.manage|domain.staff.view|domain.staff.manage|domain.human-resources.view|domain.human-resources.manage')
+        ->whereNumber('leave_request')
+        ->name('leave-requests.show');
     Route::post('leave-requests', [LeaveRequestController::class, 'store'])
         ->middleware('permission:domain.leave.view|domain.leave.manage')
         ->name('leave-requests.store');

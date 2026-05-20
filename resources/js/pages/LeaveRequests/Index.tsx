@@ -144,7 +144,17 @@ export default function LeaveRequestsIndex({
             <CardDescription>Approved leave records (who is on leave and for which dates)</CardDescription>
           </CardHeader>
           <CardContent>
-            <CustomTable columns={columns} data={mapRequests(leaveRegister)} actions={[]} />
+            <CustomTable
+              columns={[...columns, { label: "Actions", key: "actions", isAction: true, className: "px-4 py-2 text-left" }]}
+              data={mapRequests(leaveRegister)}
+              actions={[
+                {
+                  icon: "Eye",
+                  label: "View leave request",
+                  href: (row) => `/leave-requests/${row.id}`,
+                },
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -158,6 +168,11 @@ export default function LeaveRequestsIndex({
               columns={[...columns, { label: "Actions", key: "actions", isAction: true, className: "px-4 py-2 text-left" }]}
               data={mapRequests(myRequests)}
               actions={[
+                {
+                  icon: "Eye",
+                  label: "View leave request",
+                  href: (row) => `/leave-requests/${row.id}`,
+                },
                 {
                   icon: "Undo2",
                   label: "Revoke leave request",
@@ -193,6 +208,11 @@ export default function LeaveRequestsIndex({
               data={mapRequests(managerQueue)}
               actions={[
                 {
+                  icon: "Eye",
+                  label: "View leave request",
+                  href: (row) => `/leave-requests/${row.id}`,
+                },
+                {
                   icon: "CheckCircle",
                   label: "Approve request",
                   onClick: (row) => openAction(row, "manager_approve"),
@@ -218,6 +238,11 @@ export default function LeaveRequestsIndex({
               columns={[...columns, { label: "Actions", key: "actions", isAction: true, className: "px-4 py-2 text-left" }]}
               data={mapRequests(hrQueue)}
               actions={[
+                {
+                  icon: "Eye",
+                  label: "View leave request",
+                  href: (row) => `/leave-requests/${row.id}`,
+                },
                 {
                   icon: "CheckCircle",
                   label: "Approve request",

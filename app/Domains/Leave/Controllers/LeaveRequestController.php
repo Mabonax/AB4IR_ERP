@@ -94,6 +94,22 @@ class LeaveRequestController extends Controller
         return redirect()->back()->with('success', 'Leave request submitted');
     }
 
+    public function show(Request $request, int $leave_request)
+    {
+        $leave = LeaveRequest::query()
+            ->with(['staffMember.department', 'manager'])
+            ->findOrFail($leave_request);
+
+        abort_unless(
+            $this->leaveManagementService->canViewLeaveRequest($request->user(), $leave),
+            403
+        );
+
+        return Inertia::render('LeaveRequests/Show', [
+            'leaveRequest' => $this->leaveManagementService->mapLeaveDetail($leave, $request->user()),
+        ]);
+    }
+
     public function managerApprove(Request $request, int $leave_request)
     {
         $data = $request->validate([

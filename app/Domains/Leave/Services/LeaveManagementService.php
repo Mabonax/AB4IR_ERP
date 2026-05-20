@@ -373,12 +373,83 @@ class LeaveManagementService
             'reason' => $leave->reason,
             'manager_comment' => $leave->manager_comment,
             'hr_comment' => $leave->hr_comment,
+            'submitted_at' => $leave->submitted_at?->toDateTimeString(),
+            'manager_approved_at' => $leave->manager_approved_at?->toDateTimeString(),
+            'hr_approved_at' => $leave->hr_approved_at?->toDateTimeString(),
+            'created_at' => $leave->created_at?->toDateTimeString(),
+            'updated_at' => $leave->updated_at?->toDateTimeString(),
             'can_revoke' => in_array($leave->status, ['submitted', 'manager_approved'], true),
             'balance_impact' => [
                 'bucket' => $leave->leave_type,
                 'days' => (float) $leave->total_days,
             ],
         ];
+    }
+
+    public function mapLeaveDetail(LeaveRequest $leave, ?User $user = null): array
+    {
+        $staff = $user?->staffMember;
+        $isHrUser = $this->isHrUser($user);
+        $canManagerAction = $staff && (int) $leave->manager_id === (int) $staff->id && $leave->status === 'submitted';
+        $canHrAction = $isHrUser && $leave->status === 'manager_approved';
+        $canRevoke = $staff && (int) $leave->staff_member_id === (int) $staff->id && in_array($leave->status, ['submitted', 'manager_approved'], true);
+
+        return array_merge($this->mapLeave($leave), [
+            'staff_member' => [
+                'id' => $leave->staffMember?->id,
+                'name' => $this->staffName($leave->staffMember),
+                'email' => $leave->staffMember?->email,
+                'employee_number' => $leave->staffMember?->employee_number,
+                'department_name' => $leave->staffMember?->department?->name,
+            ],
+            'manager' => [
+                'id' => $leave->manager?->id,
+                'name' => $this->staffName($leave->manager),
+                'email' => $leave->manager?->email,
+            ],
+            'status_label' => $this->statusLabel($leave->status),
+            'requested_period' => [
+                'start_date' => $leave->start_date?->format('Y-m-d'),
+                'end_date' => $leave->end_date?->format('Y-m-d'),
+                'total_days' => (float) $leave->total_days,
+                'calculated_working_days' => (float) $leave->total_days,
+            ],
+            'timeline' => $this->timelineForLeave($leave),
+            'permissions' => [
+                'can_manager_approve' => (bool) $canManagerAction,
+                'can_manager_reject' => (bool) $canManagerAction,
+                'can_hr_approve' => (bool) $canHrAction,
+                'can_hr_reject' => (bool) $canHrAction,
+                'can_revoke' => (bool) $canRevoke,
+                'is_hr_user' => $isHrUser,
+                'is_manager_user' => $staff ? (int) $leave->manager_id === (int) $staff->id : false,
+                'is_requester' => $staff ? (int) $leave->staff_member_id === (int) $staff->id : false,
+            ],
+        ]);
+    }
+
+    public function canViewLeaveRequest(User $user, LeaveRequest $leave): bool
+    {
+        if ($this->isHrUser($user)) {
+            return true;
+        }
+
+        $staff = $user->staffMember;
+        if (! $staff) {
+            return false;
+        }
+
+        if ((int) $leave->staff_member_id === (int) $staff->id) {
+            return true;
+        }
+
+        if ((int) $leave->manager_id === (int) $staff->id) {
+            return true;
+        }
+
+        return $leave->status === 'hr_approved'
+            && $staff->department_id !== null
+            && (int) $leave->staffMember?->department_id === (int) $staff->department_id;
     }
 
     public function teamSummaryForManager(StaffMember $manager): array
@@ -477,6 +548,76 @@ class LeaveManagementService
         if ((int) $leave->manager_id !== (int) $actor->id) {
             throw new AuthorizationException('You are not allowed to action this leave request.');
         }
+    }
+
+    protected function timelineForLeave(LeaveRequest $leave): array
+    {
+        $timeline = [
+            [
+                'key' => 'submitted',
+                'label' => 'Request submitted',
+                'timestamp' => $leave->submitted_at?->toDateTimeString() ?? $leave->created_at?->toDateTimeString(),
+                'actor' => $this->staffName($leave->staffMember),
+                'comment' => $leave->reason,
+                'status' => 'completed',
+            ],
+        ];
+
+        if ($leave->manager_comment || $leave->manager_approved_at || in_array($leave->status, ['manager_rejected'], true)) {
+            $timeline[] = [
+                'key' => 'manager_review',
+                'label' => in_array($leave->status, ['manager_rejected'], true) ? 'Manager rejected request' : 'Manager reviewed request',
+                'timestamp' => $leave->manager_approved_at?->toDateTimeString() ?? $leave->updated_at?->toDateTimeString(),
+                'actor' => $this->staffName($leave->manager),
+                'comment' => $leave->manager_comment,
+                'status' => in_array($leave->status, ['manager_rejected'], true) ? 'rejected' : 'completed',
+            ];
+        }
+
+        if ($leave->hr_comment || $leave->hr_approved_at || in_array($leave->status, ['hr_rejected'], true)) {
+            $timeline[] = [
+                'key' => 'hr_review',
+                'label' => in_array($leave->status, ['hr_rejected'], true) ? 'HR rejected request' : 'HR reviewed request',
+                'timestamp' => $leave->hr_approved_at?->toDateTimeString() ?? $leave->updated_at?->toDateTimeString(),
+                'actor' => 'Human Resources',
+                'comment' => $leave->hr_comment,
+                'status' => in_array($leave->status, ['hr_rejected'], true) ? 'rejected' : 'completed',
+            ];
+        }
+
+        if ($leave->status === 'cancelled') {
+            $timeline[] = [
+                'key' => 'revoked',
+                'label' => 'Request revoked',
+                'timestamp' => $leave->updated_at?->toDateTimeString(),
+                'actor' => $this->staffName($leave->staffMember),
+                'comment' => null,
+                'status' => 'cancelled',
+            ];
+        }
+
+        return $timeline;
+    }
+
+    protected function isHrUser(?User $user): bool
+    {
+        return (bool) $user && (
+            $user->can('domain.human-resources.view')
+            || $user->can('domain.human-resources.manage')
+        );
+    }
+
+    protected function statusLabel(?string $status): string
+    {
+        return match ($status) {
+            'submitted' => 'Awaiting Manager Approval',
+            'manager_approved' => 'Awaiting HR Approval',
+            'manager_rejected' => 'Rejected by Manager',
+            'hr_approved' => 'Approved',
+            'hr_rejected' => 'Rejected by HR',
+            'cancelled' => 'Revoked',
+            default => ucfirst(str_replace('_', ' ', (string) $status)),
+        };
     }
 
     protected function notifyRequester(LeaveRequest $leave, string $title, string $message, string $event): void

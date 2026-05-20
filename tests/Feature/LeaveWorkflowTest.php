@@ -216,6 +216,133 @@ test('wrong manager cannot approve another managers leave request', function () 
     expect($leave->fresh()->status)->toBe('submitted');
 });
 
+test('requester can view their leave request detail page', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.show@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser, $staff] = makeLeaveStaffUser(
+        $department,
+        'staff.show@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-20',
+        'reason' => 'Family leave',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($staffUser)
+        ->get("/leave-requests/{$leave->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('LeaveRequests/Show')
+            ->where('leaveRequest.staff_member.name', trim($staff->first_name.' '.$staff->last_name))
+            ->where('leaveRequest.requested_period.total_days', 2)
+            ->where('leaveRequest.permissions.is_requester', true)
+            ->where('leaveRequest.permissions.can_revoke', true)
+            ->has('leaveRequest.timeline', 1)
+        );
+});
+
+test('manager can view the leave request detail page for their direct report', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.detail@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.detail@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-19',
+        'reason' => 'Personal day',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($managerUser)
+        ->get("/leave-requests/{$leave->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('LeaveRequests/Show')
+            ->where('leaveRequest.permissions.is_manager_user', true)
+            ->where('leaveRequest.permissions.can_manager_approve', true)
+            ->where('leaveRequest.permissions.can_hr_approve', false)
+        );
+});
+
+test('hr can view the leave request detail page for hr approval stage', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.hrshow@example.test', permissions: ['domain.leave.manage']);
+    [$hrUser] = makeLeaveStaffUser($department, 'hr.hrshow@example.test', permissions: ['domain.human-resources.manage']);
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.hrshow@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-20',
+        'reason' => 'Family leave',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($managerUser)->post("/leave-requests/{$leave->id}/manager-approve", [
+        'manager_comment' => 'Approved',
+    ]);
+
+    $this->actingAs($hrUser)
+        ->get("/leave-requests/{$leave->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('LeaveRequests/Show')
+            ->where('leaveRequest.permissions.is_hr_user', true)
+            ->where('leaveRequest.permissions.can_hr_approve', true)
+            ->where('leaveRequest.manager_comment', 'Approved')
+            ->has('leaveRequest.timeline', 2)
+        );
+});
+
+test('unrelated staff member cannot view another pending leave request detail page', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.private@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.private@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+    [$outsiderUser] = makeLeaveStaffUser(
+        $department,
+        'outsider.private@example.test',
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-19',
+        'reason' => 'Private leave',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($outsiderUser)
+        ->get("/leave-requests/{$leave->id}")
+        ->assertForbidden();
+});
+
 test('settings leave page receives annual and sick summaries', function () {
     $department = makeLeaveDepartment();
     [, $managerStaff] = makeLeaveStaffUser($department, 'manager.settings@example.test', permissions: ['domain.leave.manage']);

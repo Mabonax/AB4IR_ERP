@@ -253,6 +253,11 @@ export default function HumanResourcesDashboard({
                 data={pendingLeaveApprovals}
                 actions={[
                   {
+                    icon: "Eye",
+                    label: "View leave request",
+                    href: (row) => `/leave-requests/${row.id}`,
+                  },
+                  {
                     icon: "CheckCircle",
                     label: "Approve request",
                     onClick: (row) =>
