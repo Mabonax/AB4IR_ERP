@@ -39,6 +39,30 @@ export default function LeaveRequestShow({
     router.post(`/leave-requests/${leaveRequest.id}/revoke`);
   };
 
+  const roleContext = leaveRequest.permissions?.is_hr_user
+    ? {
+        title: "HR Review",
+        description: "This request is in the human resources review workflow.",
+        className: "border-green-200 bg-green-50 text-green-800",
+      }
+    : leaveRequest.permissions?.is_manager_user
+      ? {
+          title: "Manager Review",
+          description: "This request belongs to your reporting line and may require your decision.",
+          className: "border-blue-200 bg-blue-50 text-blue-800",
+        }
+      : leaveRequest.permissions?.is_requester
+        ? {
+            title: "Requester View",
+            description: "This is your leave request record and status history.",
+            className: "border-amber-200 bg-amber-50 text-amber-800",
+          }
+        : {
+            title: "Leave Record",
+            description: "You are viewing this request based on your allowed leave visibility.",
+            className: "border-slate-200 bg-slate-50 text-slate-800",
+          };
+
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Human Resources", href: "/human-resources" },
     { title: "Leave Management", href: "/leave-requests" },
@@ -65,6 +89,11 @@ export default function LeaveRequestShow({
             {String(flash.success)}
           </div>
         ) : null}
+
+        <div className={`rounded-lg border px-4 py-3 ${roleContext.className}`}>
+          <div className="text-sm font-semibold">{roleContext.title}</div>
+          <div className="text-sm opacity-90">{roleContext.description}</div>
+        </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
