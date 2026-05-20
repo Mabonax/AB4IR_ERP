@@ -28,7 +28,7 @@ class StaffController extends Controller
             ->get();
 
         $managers = StaffMember::select('id', 'first_name', 'last_name')
-            ->addSelect('department_id', 'is_manager')
+            ->addSelect('department_id', 'is_manager', 'is_ceo')
             ->orderBy('first_name')
             ->get()
             ->map(fn ($staff) => [
@@ -36,6 +36,7 @@ class StaffController extends Controller
                 'name' => trim($staff->first_name.' '.$staff->last_name),
                 'department_id' => $staff->department_id,
                 'is_manager' => (bool) $staff->is_manager,
+                'is_ceo' => (bool) $staff->is_ceo,
             ]);
 
         return [$departments, $managers];

@@ -386,12 +386,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.leave.manage')
         ->whereNumber('leave_request')
         ->name('leave-requests.manager-reject');
+    Route::post('leave-requests/{leave_request}/revoke', [LeaveRequestController::class, 'revoke'])
+        ->middleware('permission:domain.leave.view|domain.leave.manage')
+        ->whereNumber('leave_request')
+        ->name('leave-requests.revoke');
     Route::post('leave-requests/{leave_request}/hr-approve', [LeaveRequestController::class, 'hrApprove'])
-        ->middleware('permission:domain.leave.manage')
+        ->middleware('permission:domain.human-resources.manage')
         ->whereNumber('leave_request')
         ->name('leave-requests.hr-approve');
     Route::post('leave-requests/{leave_request}/hr-reject', [LeaveRequestController::class, 'hrReject'])
-        ->middleware('permission:domain.leave.manage')
+        ->middleware('permission:domain.human-resources.manage')
         ->whereNumber('leave_request')
         ->name('leave-requests.hr-reject');
 

@@ -1,9 +1,8 @@
 import { Head, router } from "@inertiajs/react";
 import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-import { humanResourcesNavItems } from "@/config/domain-nav/human-resources";
 import {
   Card,
   CardContent,
@@ -18,13 +17,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CustomTable } from "@/components/custom-table";
+import { humanResourcesNavItems } from "@/config/domain-nav/human-resources";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Human Resources", href: "/human-resources" },
   { title: "Leave Management", href: "/leave-requests" },
 ];
+
+type LeaveRow = {
+  id: number;
+  staff_member_name?: string | null;
+  department_name?: string | null;
+  manager_name?: string | null;
+  leave_type_label?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  total_days?: number;
+  status?: string;
+  can_revoke?: boolean;
+};
 
 export default function LeaveRequestsIndex({
   myRequests,
@@ -33,18 +46,18 @@ export default function LeaveRequestsIndex({
   leaveRegister,
   teamLeaveSummary,
 }: {
-  myRequests: any[];
-  managerQueue: any[];
-  hrQueue: any[];
-  leaveRegister: any[];
+  myRequests: LeaveRow[];
+  managerQueue: LeaveRow[];
+  hrQueue: LeaveRow[];
+  leaveRegister: LeaveRow[];
   teamLeaveSummary: any[];
 }) {
   const [actionOpen, setActionOpen] = useState(false);
   const [actionType, setActionType] = useState<"manager_approve" | "manager_reject" | "hr_approve" | "hr_reject" | null>(null);
-  const [selectedLeave, setSelectedLeave] = useState<any | null>(null);
+  const [selectedLeave, setSelectedLeave] = useState<LeaveRow | null>(null);
   const [comment, setComment] = useState("");
 
-  const openAction = (leave: any, type: typeof actionType) => {
+  const openAction = (leave: LeaveRow, type: typeof actionType) => {
     setSelectedLeave(leave);
     setActionType(type);
     setComment("");
@@ -59,10 +72,10 @@ export default function LeaveRequestsIndex({
       actionType === "manager_approve"
         ? `/leave-requests/${selectedLeave.id}/manager-approve`
         : actionType === "manager_reject"
-        ? `/leave-requests/${selectedLeave.id}/manager-reject`
-        : actionType === "hr_approve"
-        ? `/leave-requests/${selectedLeave.id}/hr-approve`
-        : `/leave-requests/${selectedLeave.id}/hr-reject`;
+          ? `/leave-requests/${selectedLeave.id}/manager-reject`
+          : actionType === "hr_approve"
+            ? `/leave-requests/${selectedLeave.id}/hr-approve`
+            : `/leave-requests/${selectedLeave.id}/hr-reject`;
 
     const payload =
       actionType === "manager_approve" || actionType === "manager_reject"
@@ -76,6 +89,10 @@ export default function LeaveRequestsIndex({
     });
   };
 
+  const revokeRequest = (leave: LeaveRow) => {
+    router.post(`/leave-requests/${leave.id}/revoke`, {}, { preserveScroll: true });
+  };
+
   const columns = [
     { label: "Employee", key: "staff_name", className: "px-4 py-2 text-left" },
     { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
@@ -87,7 +104,7 @@ export default function LeaveRequestsIndex({
     { label: "Manager", key: "manager_name", className: "px-4 py-2 text-left" },
   ];
 
-  const mapRequests = (items: any[]) =>
+  const mapRequests = (items: LeaveRow[]) =>
     items.map((item) => ({
       ...item,
       staff_name: item.staff_member_name ?? "-",
@@ -115,7 +132,7 @@ export default function LeaveRequestsIndex({
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Leave Management" />
 
-      <div className="p-4 space-y-6">
+      <div className="space-y-6 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Leave Management</h1>
           <DomainNav items={humanResourcesNavItems} />
@@ -137,7 +154,19 @@ export default function LeaveRequestsIndex({
             <CardDescription>Submitted leave requests</CardDescription>
           </CardHeader>
           <CardContent>
-            <CustomTable columns={columns} data={mapRequests(myRequests)} actions={[]} />
+            <CustomTable
+              columns={[...columns, { label: "Actions", key: "actions", isAction: true, className: "px-4 py-2 text-left" }]}
+              data={mapRequests(myRequests)}
+              actions={[
+                {
+                  icon: "Undo2",
+                  label: "Revoke leave request",
+                  variant: "danger",
+                  visible: (row) => row.can_revoke === true,
+                  onClick: (row) => revokeRequest(row),
+                },
+              ]}
+            />
           </CardContent>
         </Card>
 
@@ -165,10 +194,12 @@ export default function LeaveRequestsIndex({
               actions={[
                 {
                   icon: "CheckCircle",
+                  label: "Approve request",
                   onClick: (row) => openAction(row, "manager_approve"),
                 },
                 {
                   icon: "XCircle",
+                  label: "Reject request",
                   variant: "danger",
                   onClick: (row) => openAction(row, "manager_reject"),
                 },
@@ -189,10 +220,12 @@ export default function LeaveRequestsIndex({
               actions={[
                 {
                   icon: "CheckCircle",
+                  label: "Approve request",
                   onClick: (row) => openAction(row, "hr_approve"),
                 },
                 {
                   icon: "XCircle",
+                  label: "Reject request",
                   variant: "danger",
                   onClick: (row) => openAction(row, "hr_reject"),
                 },
@@ -207,7 +240,7 @@ export default function LeaveRequestsIndex({
           <DialogHeader>
             <DialogTitle>Leave Decision</DialogTitle>
             <DialogDescription>
-              {selectedLeave?.staff_member_name ?? "Employee"} •{" "}
+              {selectedLeave?.staff_member_name ?? "Employee"} {" • "}
               {selectedLeave?.start_date ?? "-"} to {selectedLeave?.end_date ?? "-"}
             </DialogDescription>
           </DialogHeader>

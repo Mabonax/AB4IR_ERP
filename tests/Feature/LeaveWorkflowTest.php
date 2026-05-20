@@ -1,11 +1,13 @@
 <?php
 
 use App\Domains\Leave\Models\LeaveRequest;
+use App\Domains\Leave\Notifications\LeaveRequestNotification;
 use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -66,6 +68,8 @@ test('staff can submit annual leave and working days are calculated correctly', 
         permissions: ['domain.leave.view']
     );
 
+    Notification::fake();
+
     $this->actingAs($staffUser)
         ->post('/leave-requests', [
             'leave_type' => 'annual',
@@ -81,6 +85,8 @@ test('staff can submit annual leave and working days are calculated correctly', 
     expect($leave)->not->toBeNull()
         ->and($leave->leave_type)->toBe('annual')
         ->and((float) $leave->total_days)->toBe(2.0);
+
+    Notification::assertSentTo($managerUser, LeaveRequestNotification::class);
 });
 
 test('staff can submit sick leave', function () {
@@ -153,6 +159,8 @@ test('assigned manager can approve leave and balances change only after hr appro
     [$hrUser] = makeLeaveStaffUser($department, 'hr.approve@example.test', permissions: ['domain.leave.manage', 'domain.human-resources.manage']);
     [$staffUser, $staff] = makeLeaveStaffUser($department, 'staff.approve@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
 
+    Notification::fake();
+
     $this->actingAs($staffUser)->post('/leave-requests', [
         'leave_type' => 'annual',
         'start_date' => '2026-05-19',
@@ -181,6 +189,9 @@ test('assigned manager can approve leave and balances change only after hr appro
     $after = $service->summarizeStaff($staff);
     expect($after['annual']['taken'])->toBe(2.0)
         ->and($after['annual']['available'])->toBeLessThan($before['annual']['available']);
+
+    Notification::assertSentTo($staffUser, LeaveRequestNotification::class, 2);
+    Notification::assertSentTo($hrUser, LeaveRequestNotification::class);
 });
 
 test('wrong manager cannot approve another managers leave request', function () {
@@ -271,6 +282,74 @@ test('hr dashboard receives leave summary register', function () {
             ->component('HumanResources/Dashboard')
             ->has('leaveSummary.staff', 2)
             ->where('leaveSummary.totals.sick_available', 20)
+        );
+});
+
+test('staff can revoke a pending leave request and manager is notified', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser(
+        $department,
+        'manager.revoke@example.test',
+        permissions: ['domain.leave.manage', 'domain.human-resources.view']
+    );
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.revoke@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    Notification::fake();
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-21',
+        'end_date' => '2026-05-22',
+        'reason' => 'Travel',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($staffUser)
+        ->post("/leave-requests/{$leave->id}/revoke")
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Leave request revoked');
+
+    expect($leave->fresh()->status)->toBe('cancelled');
+
+    Notification::assertSentTo($managerUser, LeaveRequestNotification::class, 2);
+});
+
+test('manager dashboard shows actionable pending leave approvals for direct reports', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser(
+        $department,
+        'manager.board@example.test',
+        permissions: ['domain.leave.manage', 'domain.human-resources.view']
+    );
+    [$staffUser, $staff] = makeLeaveStaffUser(
+        $department,
+        'staff.board@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-19',
+        'reason' => 'Family event',
+    ]);
+
+    $this->actingAs($managerUser)
+        ->get('/human-resources')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('HumanResources/Dashboard')
+            ->where('canManageManagerLeave', true)
+            ->where('canManageHrLeave', false)
+            ->has('pendingLeaveApprovals', 1)
+            ->where('pendingLeaveApprovals.0.staff_member_name', trim($staff->first_name.' '.$staff->last_name))
         );
 });
 

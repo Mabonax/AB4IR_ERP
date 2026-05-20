@@ -18,7 +18,12 @@ class HumanResourcesController extends Controller
 
     public function dashboard(Request $request)
     {
+        $user = $request->user();
+        $actor = $user?->staffMember?->load(['department', 'manager']);
         $selectedDepartmentId = $request->integer('department_id') ?: null;
+        $canManageManagerLeave = (bool) $user?->can('domain.leave.manage');
+        $canManageHrLeave = (bool) $user?->can('domain.human-resources.manage');
+        $canViewHrBoard = (bool) $user?->can('domain.human-resources.view') || $canManageHrLeave;
 
         $departments = StaffDepartment::query()
             ->withCount('staffMembers')
@@ -63,6 +68,31 @@ class HumanResourcesController extends Controller
             ])
             ->values();
 
+        $pendingLeaveApprovals = collect();
+
+        if ($canManageManagerLeave && $actor) {
+            $pendingLeaveApprovals = LeaveRequest::query()
+                ->with(['staffMember.department', 'manager'])
+                ->where('manager_id', $actor->id)
+                ->where('status', 'submitted');
+
+            if ($selectedDepartmentId) {
+                $pendingLeaveApprovals->whereHas('staffMember', fn ($query) => $query->where('department_id', $selectedDepartmentId));
+            }
+        } elseif ($canViewHrBoard) {
+            $pendingLeaveApprovals = LeaveRequest::query()
+                ->with(['staffMember.department', 'manager'])
+                ->when(
+                    $canManageHrLeave,
+                    fn ($query) => $query->where('status', 'manager_approved'),
+                    fn ($query) => $query->whereRaw('1 = 0')
+                );
+
+            if ($selectedDepartmentId) {
+                $pendingLeaveApprovals->whereHas('staffMember', fn ($query) => $query->where('department_id', $selectedDepartmentId));
+            }
+        }
+
         return Inertia::render('HumanResources/Dashboard', [
             'stats' => [
                 'totalStaff' => StaffMember::count(),
@@ -76,7 +106,16 @@ class HumanResourcesController extends Controller
             'managers' => $managerOptions,
             'leaveSummary' => $organizationLeave,
             'staffDirectory' => $staffDirectory,
+            'pendingLeaveApprovals' => $pendingLeaveApprovals instanceof \Illuminate\Database\Eloquent\Builder
+                ? $pendingLeaveApprovals
+                    ->orderByDesc('created_at')
+                    ->get()
+                    ->map(fn (LeaveRequest $leave) => $this->leaveManagementService->mapLeave($leave))
+                    ->values()
+                : [],
             'selectedDepartmentId' => $selectedDepartmentId,
+            'canManageManagerLeave' => $canManageManagerLeave && (bool) $actor,
+            'canManageHrLeave' => $canManageHrLeave,
         ]);
     }
 }

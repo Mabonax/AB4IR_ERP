@@ -3,10 +3,13 @@
 namespace App\Domains\Leave\Services;
 
 use App\Domains\Leave\Models\LeaveRequest;
+use App\Domains\Leave\Notifications\LeaveRequestNotification;
 use App\Domains\Staff\Models\StaffMember;
+use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class LeaveManagementService
@@ -86,7 +89,7 @@ class LeaveManagementService
             ]);
         }
 
-        return LeaveRequest::query()->create([
+        $leave = LeaveRequest::query()->create([
             'staff_member_id' => $staff->id,
             'manager_id' => $staff->manager_id,
             'leave_type' => $leaveType,
@@ -97,6 +100,26 @@ class LeaveManagementService
             'status' => 'submitted',
             'submitted_at' => now(),
         ]);
+
+        $leave = $leave->fresh(['staffMember.department', 'manager.user']);
+        $managerUser = $leave->manager?->user;
+
+        if ($managerUser) {
+            $managerUser->notify(new LeaveRequestNotification(
+                $leave,
+                'New leave request submitted',
+                sprintf(
+                    '%s submitted %s from %s to %s.',
+                    $this->staffName($leave->staffMember),
+                    $this->leaveTypeLabel($leave->leave_type),
+                    $leave->start_date?->format('Y-m-d'),
+                    $leave->end_date?->format('Y-m-d')
+                ),
+                'submitted'
+            ));
+        }
+
+        return $leave;
     }
 
     public function managerApprove(StaffMember $actor, LeaveRequest $leave, ?string $comment = null): LeaveRequest
@@ -115,7 +138,36 @@ class LeaveManagementService
             'manager_approved_at' => now(),
         ]);
 
-        return $leave->fresh(['staffMember.department', 'manager']);
+        $leave = $leave->fresh(['staffMember.department', 'staffMember.user', 'manager', 'manager.user']);
+
+        $this->notifyRequester(
+            $leave,
+            'Leave request approved by manager',
+            sprintf(
+                '%s approved your %s request for %s to %s.',
+                $this->staffName($leave->manager),
+                $this->leaveTypeLabel($leave->leave_type),
+                $leave->start_date?->format('Y-m-d'),
+                $leave->end_date?->format('Y-m-d')
+            ),
+            'manager_approved'
+        );
+
+        $this->notifyHrReviewers(
+            $leave,
+            'Leave request awaiting HR approval',
+            sprintf(
+                "%s has approved %s's %s request for %s to %s.",
+                $this->staffName($leave->manager),
+                $this->staffName($leave->staffMember),
+                $this->leaveTypeLabel($leave->leave_type),
+                $leave->start_date?->format('Y-m-d'),
+                $leave->end_date?->format('Y-m-d')
+            ),
+            'hr_review_required'
+        );
+
+        return $leave;
     }
 
     public function managerReject(StaffMember $actor, LeaveRequest $leave, ?string $comment = null): LeaveRequest
@@ -133,7 +185,22 @@ class LeaveManagementService
             'manager_comment' => $comment,
         ]);
 
-        return $leave->fresh(['staffMember.department', 'manager']);
+        $leave = $leave->fresh(['staffMember.department', 'staffMember.user', 'manager', 'manager.user']);
+
+        $this->notifyRequester(
+            $leave,
+            'Leave request rejected by manager',
+            sprintf(
+                '%s rejected your %s request for %s to %s.',
+                $this->staffName($leave->manager),
+                $this->leaveTypeLabel($leave->leave_type),
+                $leave->start_date?->format('Y-m-d'),
+                $leave->end_date?->format('Y-m-d')
+            ),
+            'manager_rejected'
+        );
+
+        return $leave;
     }
 
     public function hrApprove(LeaveRequest $leave, ?string $comment = null): LeaveRequest
@@ -150,7 +217,21 @@ class LeaveManagementService
             'hr_approved_at' => now(),
         ]);
 
-        return $leave->fresh(['staffMember.department', 'manager']);
+        $leave = $leave->fresh(['staffMember.department', 'staffMember.user', 'manager', 'manager.user']);
+
+        $this->notifyRequester(
+            $leave,
+            'Leave request approved by HR',
+            sprintf(
+                'HR approved your %s request for %s to %s.',
+                $this->leaveTypeLabel($leave->leave_type),
+                $leave->start_date?->format('Y-m-d'),
+                $leave->end_date?->format('Y-m-d')
+            ),
+            'hr_approved'
+        );
+
+        return $leave;
     }
 
     public function hrReject(LeaveRequest $leave, ?string $comment = null): LeaveRequest
@@ -166,7 +247,55 @@ class LeaveManagementService
             'hr_comment' => $comment,
         ]);
 
-        return $leave->fresh(['staffMember.department', 'manager']);
+        $leave = $leave->fresh(['staffMember.department', 'staffMember.user', 'manager', 'manager.user']);
+
+        $this->notifyRequester(
+            $leave,
+            'Leave request rejected by HR',
+            sprintf(
+                'HR rejected your %s request for %s to %s.',
+                $this->leaveTypeLabel($leave->leave_type),
+                $leave->start_date?->format('Y-m-d'),
+                $leave->end_date?->format('Y-m-d')
+            ),
+            'hr_rejected'
+        );
+
+        return $leave;
+    }
+
+    public function revokeRequest(StaffMember $actor, LeaveRequest $leave): LeaveRequest
+    {
+        if ((int) $leave->staff_member_id !== (int) $actor->id) {
+            throw new AuthorizationException('You are not allowed to revoke this leave request.');
+        }
+
+        if (! in_array($leave->status, ['submitted', 'manager_approved'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Only pending leave requests can be revoked.',
+            ]);
+        }
+
+        $leave->update([
+            'status' => 'cancelled',
+        ]);
+
+        $leave = $leave->fresh(['staffMember.department', 'staffMember.user', 'manager', 'manager.user']);
+
+        $this->notifyManager(
+            $leave,
+            'Leave request revoked',
+            sprintf(
+                '%s revoked their %s request for %s to %s.',
+                $this->staffName($leave->staffMember),
+                $this->leaveTypeLabel($leave->leave_type),
+                $leave->start_date?->format('Y-m-d'),
+                $leave->end_date?->format('Y-m-d')
+            ),
+            'revoked'
+        );
+
+        return $leave;
     }
 
     public function summarizeStaff(StaffMember $staff, ?Carbon $now = null): array
@@ -244,6 +373,7 @@ class LeaveManagementService
             'reason' => $leave->reason,
             'manager_comment' => $leave->manager_comment,
             'hr_comment' => $leave->hr_comment,
+            'can_revoke' => in_array($leave->status, ['submitted', 'manager_approved'], true),
             'balance_impact' => [
                 'bucket' => $leave->leave_type,
                 'days' => (float) $leave->total_days,
@@ -347,5 +477,52 @@ class LeaveManagementService
         if ((int) $leave->manager_id !== (int) $actor->id) {
             throw new AuthorizationException('You are not allowed to action this leave request.');
         }
+    }
+
+    protected function notifyRequester(LeaveRequest $leave, string $title, string $message, string $event): void
+    {
+        $requester = $leave->staffMember?->user;
+
+        if ($requester) {
+            $requester->notify(new LeaveRequestNotification($leave, $title, $message, $event));
+        }
+    }
+
+    protected function notifyManager(LeaveRequest $leave, string $title, string $message, string $event): void
+    {
+        $manager = $leave->manager?->user;
+
+        if ($manager) {
+            $manager->notify(new LeaveRequestNotification($leave, $title, $message, $event));
+        }
+    }
+
+    protected function notifyHrReviewers(LeaveRequest $leave, string $title, string $message, string $event): void
+    {
+        $this->hrReviewers()
+            ->each(fn (User $user) => $user->notify(new LeaveRequestNotification($leave, $title, $message, $event)));
+    }
+
+    protected function hrReviewers(): Collection
+    {
+        return User::query()
+            ->permission('domain.human-resources.manage')
+            ->get()
+            ->unique('id')
+            ->values();
+    }
+
+    protected function staffName(?StaffMember $staff): string
+    {
+        if (! $staff) {
+            return 'Staff member';
+        }
+
+        return trim($staff->first_name.' '.$staff->last_name);
+    }
+
+    protected function leaveTypeLabel(?string $leaveType): string
+    {
+        return $leaveType === 'sick' ? 'Sick Leave' : 'Annual Leave';
     }
 }

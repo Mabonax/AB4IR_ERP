@@ -96,3 +96,58 @@ test('ordinary staff manager cannot promote another staff member to manager', fu
 
     expect($staff->fresh()->is_manager)->toBeFalse();
 });
+
+test('manager staff members can only be assigned to the ceo as their manager', function () {
+    $department = makePromotionDepartment();
+    [$adminUser] = makePromotionStaffUser($department, 'admin.staff@example.test', ['domain.staff.manage']);
+    [, $ceoStaff] = makePromotionStaffUser($department, 'ceo.staff@example.test', [], [
+        'is_ceo' => true,
+        'is_manager' => true,
+    ]);
+    [, $departmentManager] = makePromotionStaffUser($department, 'manager.staff@example.test', [], [
+        'is_manager' => true,
+        'manager_id' => $ceoStaff->id,
+    ]);
+
+    $payload = [
+        'staff' => [
+            'first_name' => 'New',
+            'last_name' => 'Manager',
+            'email' => 'new.manager@example.test',
+            'phone' => '0715550000',
+            'employee_number' => 'NEWM-001',
+            'start_date' => now()->toDateString(),
+            'status' => 'active',
+            'department_id' => $department->id,
+            'manager_id' => $departmentManager->id,
+            'is_ceo' => false,
+            'is_board_member' => false,
+            'is_manager' => true,
+            'is_intern' => false,
+        ],
+        'next_of_kin' => [
+            'full_name' => 'Next Of Kin',
+            'relationship' => 'Sibling',
+            'phone' => '0715550001',
+            'email' => 'nok@example.test',
+        ],
+    ];
+
+    $this->actingAs($adminUser)
+        ->post('/staff', $payload)
+        ->assertSessionHasErrors(['staff.manager_id']);
+
+    $payload['staff']['manager_id'] = $ceoStaff->id;
+    $payload['staff']['email'] = 'new.manager.ceo@example.test';
+    $payload['staff']['employee_number'] = 'NEWM-002';
+
+    $this->actingAs($adminUser)
+        ->post('/staff', $payload)
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $created = StaffMember::query()->where('email', 'new.manager.ceo@example.test')->firstOrFail();
+
+    expect((int) $created->manager_id)->toBe((int) $ceoStaff->id)
+        ->and($created->is_manager)->toBeTrue();
+});

@@ -56,6 +56,12 @@ class StaffService
             $staffData = $this->normalizeStaffData($data['staff']);
             $previousUserId = $staff->user_id;
 
+            if ((int) ($staffData['manager_id'] ?? 0) === (int) $staff->id) {
+                throw ValidationException::withMessages([
+                    'staff.manager_id' => 'A staff member cannot manage themselves.',
+                ]);
+            }
+
             $user = $this->ensureLinkedUser($staffData, $staff);
             $staffData['user_id'] = $user->id;
 
@@ -223,11 +229,49 @@ class StaffService
     protected function normalizeStaffData(array $staffData): array
     {
         $isIntern = filter_var($staffData['is_intern'] ?? false, FILTER_VALIDATE_BOOL);
+        $isManager = filter_var($staffData['is_manager'] ?? false, FILTER_VALIDATE_BOOL);
+        $isCeo = filter_var($staffData['is_ceo'] ?? false, FILTER_VALIDATE_BOOL);
+        $managerId = isset($staffData['manager_id']) && $staffData['manager_id'] !== ''
+            ? (int) $staffData['manager_id']
+            : null;
 
         if (! $isIntern) {
             $staffData['intern_sponsor_name'] = null;
             $staffData['internship_start_date'] = null;
             $staffData['internship_end_date'] = null;
+        }
+
+        if ($isCeo) {
+            $staffData['manager_id'] = null;
+            $staffData['is_manager'] = true;
+
+            return $staffData;
+        }
+
+        if ($managerId === null) {
+            $staffData['manager_id'] = null;
+
+            return $staffData;
+        }
+
+        $manager = StaffMember::query()->find($managerId);
+
+        if (! $manager) {
+            throw ValidationException::withMessages([
+                'staff.manager_id' => 'The selected manager could not be found.',
+            ]);
+        }
+
+        if ($isManager && ! $manager->is_ceo) {
+            throw ValidationException::withMessages([
+                'staff.manager_id' => 'Managers can only report to the CEO.',
+            ]);
+        }
+
+        if (! $isManager && ! $manager->is_manager && ! $manager->is_ceo) {
+            throw ValidationException::withMessages([
+                'staff.manager_id' => 'The selected manager must be a manager or the CEO.',
+            ]);
         }
 
         return $staffData;

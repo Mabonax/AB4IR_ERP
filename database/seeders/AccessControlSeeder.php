@@ -156,12 +156,12 @@ class AccessControlSeeder extends Seeder
 
             $departmentManagerPermissions[] = 'domain.leave.view';
             $departmentManagerPermissions[] = 'domain.leave.manage';
+            $departmentManagerPermissions[] = 'domain.human-resources.view';
             $departmentManagerPermissions[] = 'domain.settings.view';
             $departmentManagerPermissions[] = 'domain.staff.view';
             $departmentManagerPermissions[] = 'travel-claims.submit';
 
             $departmentUserPermissions[] = 'domain.leave.view';
-            $departmentUserPermissions[] = 'domain.leave.manage';
             $departmentUserPermissions[] = 'domain.settings.view';
 
             $domainAdminRole = Role::firstOrCreate([

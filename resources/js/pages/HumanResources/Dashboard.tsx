@@ -1,10 +1,10 @@
 import { Head, Link, router } from "@inertiajs/react";
 import { Users, UserPlus } from "lucide-react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
+import { Button } from "@/components/ui/button";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-import { humanResourcesNavItems } from "@/config/domain-nav/human-resources";
-import staff from "@/routes/staff";
 import {
   Card,
   CardContent,
@@ -12,20 +12,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CustomTable } from "@/components/custom-table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { humanResourcesNavItems } from "@/config/domain-nav/human-resources";
+import AppLayout from "@/layouts/app-layout";
+import staff from "@/routes/staff";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Human Resources", href: "/human-resources" },
 ];
 
+type PendingLeaveApproval = {
+  id: number;
+  staff_member_name: string | null;
+  department_name: string | null;
+  manager_name: string | null;
+  leave_type_label: string;
+  start_date: string | null;
+  end_date: string | null;
+  total_days: number;
+  status: string;
+};
+
 export default function HumanResourcesDashboard({
   stats,
   departments,
   leaveSummary,
   staffDirectory,
+  pendingLeaveApprovals,
   selectedDepartmentId,
+  canManageManagerLeave,
+  canManageHrLeave,
 }: {
   stats: {
     totalStaff: number;
@@ -69,8 +92,16 @@ export default function HumanResourcesDashboard({
     department_name: string | null;
     manager_name: string | null;
   }[];
+  pendingLeaveApprovals: PendingLeaveApproval[];
   selectedDepartmentId: number | null;
+  canManageManagerLeave: boolean;
+  canManageHrLeave: boolean;
 }) {
+  const [actionOpen, setActionOpen] = useState(false);
+  const [actionType, setActionType] = useState<"manager_approve" | "manager_reject" | "hr_approve" | "hr_reject" | null>(null);
+  const [selectedLeave, setSelectedLeave] = useState<PendingLeaveApproval | null>(null);
+  const [comment, setComment] = useState("");
+
   const leaveColumns = [
     { label: "Employee", key: "staff_name", className: "px-4 py-2 text-left" },
     { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
@@ -91,6 +122,17 @@ export default function HumanResourcesDashboard({
     pending_count: item.leave_account.pending.count,
   }));
 
+  const pendingColumns = [
+    { label: "Employee", key: "staff_member_name", className: "px-4 py-2 text-left" },
+    { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
+    { label: "Type", key: "leave_type_label", className: "px-4 py-2 text-left" },
+    { label: "Start", key: "start_date", className: "px-4 py-2 text-left" },
+    { label: "End", key: "end_date", className: "px-4 py-2 text-left" },
+    { label: "Days", key: "total_days", className: "px-4 py-2 text-left" },
+    { label: "Status", key: "status", className: "px-4 py-2 text-left" },
+    { label: "Actions", key: "actions", isAction: true, className: "px-4 py-2 text-left" },
+  ];
+
   const staffColumns = [
     { label: "Employee", key: "name", className: "px-4 py-2 text-left" },
     { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
@@ -106,11 +148,49 @@ export default function HumanResourcesDashboard({
     manager_name: item.manager_name ?? "-",
   }));
 
+  const openAction = (leave: PendingLeaveApproval, type: typeof actionType) => {
+    setSelectedLeave(leave);
+    setActionType(type);
+    setComment("");
+    setActionOpen(true);
+  };
+
+  const submitAction = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedLeave || !actionType) return;
+
+    const url =
+      actionType === "manager_approve"
+        ? `/leave-requests/${selectedLeave.id}/manager-approve`
+        : actionType === "manager_reject"
+          ? `/leave-requests/${selectedLeave.id}/manager-reject`
+          : actionType === "hr_approve"
+            ? `/leave-requests/${selectedLeave.id}/hr-approve`
+            : `/leave-requests/${selectedLeave.id}/hr-reject`;
+
+    const payload =
+      actionType === "manager_approve" || actionType === "manager_reject"
+        ? { manager_comment: comment }
+        : { hr_comment: comment };
+
+    router.post(url, payload, {
+      preserveScroll: true,
+      onSuccess: () => setActionOpen(false),
+    });
+  };
+
+  const approvalTitle = canManageHrLeave
+    ? "HR Leave Approvals"
+    : "Manager Leave Approvals";
+  const approvalDescription = canManageHrLeave
+    ? "Requests that are ready for HR action."
+    : "Requests from your reporting line that still need your decision.";
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Human Resources" />
 
-      <div className="p-4 space-y-6">
+      <div className="space-y-6 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Human Resources</h1>
           <DomainNav items={humanResourcesNavItems} />
@@ -122,89 +202,99 @@ export default function HumanResourcesDashboard({
               <CardTitle>Total Staff</CardTitle>
               <CardDescription>All staff members</CardDescription>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {stats.totalStaff}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{stats.totalStaff}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Active Staff</CardTitle>
               <CardDescription>Currently active</CardDescription>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {stats.activeStaff}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{stats.activeStaff}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Inactive Staff</CardTitle>
               <CardDescription>Currently inactive</CardDescription>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {stats.inactiveStaff}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{stats.inactiveStaff}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Manager Approvals</CardTitle>
               <CardDescription>Pending</CardDescription>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {stats.pendingManager}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{stats.pendingManager}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>HR Approvals</CardTitle>
               <CardDescription>Pending</CardDescription>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {stats.pendingHr}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{stats.pendingHr}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Approved Leaves</CardTitle>
               <CardDescription>Total</CardDescription>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {stats.approved}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{stats.approved}</CardContent>
           </Card>
         </div>
+
+        {(canManageManagerLeave || canManageHrLeave) ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{approvalTitle}</CardTitle>
+              <CardDescription>{approvalDescription}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CustomTable
+                columns={pendingColumns}
+                data={pendingLeaveApprovals}
+                actions={[
+                  {
+                    icon: "CheckCircle",
+                    label: "Approve request",
+                    onClick: (row) =>
+                      openAction(row, canManageHrLeave ? "hr_approve" : "manager_approve"),
+                  },
+                  {
+                    icon: "XCircle",
+                    label: "Reject request",
+                    variant: "danger",
+                    onClick: (row) =>
+                      openAction(row, canManageHrLeave ? "hr_reject" : "manager_reject"),
+                  },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader>
               <CardTitle>Total Annual Available</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {leaveSummary.totals.annual_available}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{leaveSummary.totals.annual_available}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Total Annual Taken</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {leaveSummary.totals.annual_taken}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{leaveSummary.totals.annual_taken}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Total Sick Available</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {leaveSummary.totals.sick_available}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{leaveSummary.totals.sick_available}</CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>Total Sick Taken</CardTitle>
             </CardHeader>
-            <CardContent className="text-2xl font-semibold">
-              {leaveSummary.totals.sick_taken}
-            </CardContent>
+            <CardContent className="text-2xl font-semibold">{leaveSummary.totals.sick_taken}</CardContent>
           </Card>
         </div>
 
@@ -312,23 +402,19 @@ export default function HumanResourcesDashboard({
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      asChild
-                      className="bg-red-600 hover:bg-red-700"
-                    >
+                    <Button asChild className="bg-red-600 hover:bg-red-700">
                       <Link href={staff.create.url({ query: { department_id: department.id } })}>
                         <UserPlus className="mr-2 h-4 w-4" />
                         Add Staff
                       </Link>
                     </Button>
-
                     <Button
                       variant="outline"
                       onClick={() =>
                         router.get("/human-resources", { department_id: department.id }, { preserveScroll: true })
                       }
                     >
-                      View Department Staff
+                      View Staff
                     </Button>
                   </div>
                 </CardContent>
@@ -337,6 +423,33 @@ export default function HumanResourcesDashboard({
           </div>
         </div>
       </div>
+
+      <Dialog open={actionOpen} onOpenChange={setActionOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Leave Decision</DialogTitle>
+            <DialogDescription>
+              {selectedLeave?.staff_member_name ?? "Employee"} {" • "}
+              {selectedLeave?.start_date ?? "-"} to {selectedLeave?.end_date ?? "-"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitAction} className="grid gap-3">
+            <textarea
+              rows={3}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Comment (optional)"
+              className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
+            />
+            <button
+              type="submit"
+              className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+            >
+              Confirm
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

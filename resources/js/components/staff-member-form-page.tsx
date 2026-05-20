@@ -55,6 +55,7 @@ type StaffOption = {
   name: string;
   department_id?: number | null;
   is_manager?: boolean;
+  is_ceo?: boolean;
 };
 
 type DepartmentOption = {
@@ -189,30 +190,52 @@ export function StaffMemberFormPage({
     (department) => department.id === departmentId
   );
   const isIntern = data["staff.is_intern"] === "1";
+  const isManager = data["staff.is_manager"] === "1";
+  const isCeo = data["staff.is_ceo"] === "1";
 
   const managerOptions = useMemo(() => {
-    if (!departmentId) {
-      return managers;
+    const filtered = managers.filter((manager) => manager.id !== currentStaffId);
+
+    if (isCeo) {
+      return [];
     }
 
-    return managers.filter((manager) => {
+    if (isManager) {
+      return filtered.filter((manager) => manager.is_ceo);
+    }
+
+    if (!departmentId) {
+      return filtered.filter((manager) => manager.is_manager || manager.is_ceo);
+    }
+
+    return filtered.filter((manager) => {
+      if (manager.is_ceo) {
+        return true;
+      }
+
+      if (!manager.is_manager) {
+        return false;
+      }
+
       if (manager.department_id === undefined || manager.department_id === null) {
         return true;
       }
 
       return manager.department_id === departmentId;
     });
-  }, [departmentId, managers]);
+  }, [currentStaffId, departmentId, isCeo, isManager, managers]);
 
   const departmentManager = useMemo(
     () =>
-      managerOptions.find(
+      !isManager && !isCeo
+        ? managerOptions.find(
         (manager) =>
           manager.is_manager &&
           manager.department_id === departmentId &&
           manager.id !== currentStaffId
-      ) ?? null,
-    [currentStaffId, departmentId, managerOptions]
+      ) ?? null
+        : null,
+    [currentStaffId, departmentId, isCeo, isManager, managerOptions]
   );
 
   const internshipDurationLabel = useMemo(() => {
@@ -242,12 +265,27 @@ export function StaffMemberFormPage({
   }, [data]);
 
   useEffect(() => {
+    if (isCeo) {
+      if (data["staff.manager_id"]) {
+        updateField("staff.manager_id", "");
+      }
+      if (data["staff.is_manager"] !== "1") {
+        updateField("staff.is_manager", "1");
+      }
+      return;
+    }
+
     const currentManagerId = data["staff.manager_id"];
     const exists = currentManagerId
       ? managerOptions.some((manager) => String(manager.id) === String(currentManagerId))
       : false;
 
     if (!currentManagerId) {
+      if (isManager && managerOptions.length > 0) {
+        updateField("staff.manager_id", String(managerOptions[0].id));
+        return;
+      }
+
       if (departmentManager) {
         updateField("staff.manager_id", String(departmentManager.id));
       }
@@ -265,13 +303,13 @@ export function StaffMemberFormPage({
 
     if (
       departmentManager &&
-      data["staff.is_manager"] !== "1" &&
+      !isManager &&
       currentManager &&
       !currentManager.is_manager
     ) {
       updateField("staff.manager_id", String(departmentManager.id));
     }
-  }, [data, departmentManager, managerOptions]);
+  }, [data, departmentManager, isCeo, isManager, managerOptions]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -369,7 +407,7 @@ export function StaffMemberFormPage({
                 <Field label="Manager" error={errors["staff.manager_id"]}>
                   <Select value={data["staff.manager_id"] || undefined} onValueChange={(value) => updateField("staff.manager_id", value)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select manager" />
+                      <SelectValue placeholder={isCeo ? "CEO does not require a manager" : "Select manager"} />
                     </SelectTrigger>
                     <SelectContent>
                       {managerOptions.map((manager) => (
@@ -433,6 +471,12 @@ export function StaffMemberFormPage({
                   </Select>
                 </Field>
               </div>
+
+              {isManager && !isCeo ? (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Managers can only report directly to the CEO.
+                </p>
+              ) : null}
             </Section>
 
             <Section

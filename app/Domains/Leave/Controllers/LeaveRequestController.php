@@ -20,11 +20,9 @@ class LeaveRequestController extends Controller
     {
         $user = Auth::user();
         $staff = $user?->staffMember?->load(['department', 'manager']);
-        $isHrUser = $user && (
+        $canViewHrQueue = $user && (
             $user->can('domain.human-resources.view')
             || $user->can('domain.human-resources.manage')
-            || $user->can('domain.leave.view')
-            || $user->can('domain.leave.manage')
         );
 
         $myRequests = $staff
@@ -42,7 +40,7 @@ class LeaveRequestController extends Controller
                 ->get()
             : collect();
 
-        $hrQueue = $isHrUser
+        $hrQueue = $canViewHrQueue
             ? LeaveRequest::with(['staffMember.department', 'manager'])
                 ->where('status', 'manager_approved')
                 ->orderByDesc('created_at')
@@ -53,7 +51,7 @@ class LeaveRequestController extends Controller
             ->where('status', 'hr_approved')
             ->orderByDesc('start_date');
 
-        if (! $isHrUser) {
+        if (! $canViewHrQueue) {
             if ($staff && $staff->department_id) {
                 $leaveRegisterQuery->whereHas('staffMember', function ($query) use ($staff) {
                     $query->where('department_id', $staff->department_id);
@@ -146,6 +144,8 @@ class LeaveRequestController extends Controller
 
     public function hrApprove(Request $request, int $leave_request)
     {
+        abort_unless($request->user()?->can('domain.human-resources.manage'), 403);
+
         $data = $request->validate([
             'hr_comment' => 'nullable|string|max:2000',
         ]);
@@ -160,6 +160,8 @@ class LeaveRequestController extends Controller
 
     public function hrReject(Request $request, int $leave_request)
     {
+        abort_unless($request->user()?->can('domain.human-resources.manage'), 403);
+
         $data = $request->validate([
             'hr_comment' => 'nullable|string|max:2000',
         ]);
@@ -170,5 +172,24 @@ class LeaveRequestController extends Controller
         );
 
         return redirect()->back()->with('success', 'Leave request rejected by HR');
+    }
+
+    public function revoke(Request $request, int $leave_request)
+    {
+        $staff = $request->user()?->staffMember;
+        if (! $staff) {
+            return redirect()->back()->withErrors(['staff' => 'No staff profile found.']);
+        }
+
+        try {
+            $this->leaveManagementService->revokeRequest(
+                $staff,
+                LeaveRequest::query()->findOrFail($leave_request)
+            );
+        } catch (AuthorizationException $exception) {
+            return redirect()->back()->withErrors(['authorization' => $exception->getMessage()]);
+        }
+
+        return redirect()->back()->with('success', 'Leave request revoked');
     }
 }
