@@ -1,4 +1,4 @@
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import { Users, UserPlus } from "lucide-react";
 
 import AppLayout from "@/layouts/app-layout";
@@ -24,6 +24,8 @@ export default function HumanResourcesDashboard({
   stats,
   departments,
   leaveSummary,
+  staffDirectory,
+  selectedDepartmentId,
 }: {
   stats: {
     totalStaff: number;
@@ -57,6 +59,17 @@ export default function HumanResourcesDashboard({
       };
     }[];
   };
+  staffDirectory: {
+    id: number;
+    name: string;
+    email: string;
+    employee_number: string;
+    status: string;
+    department_id: number | null;
+    department_name: string | null;
+    manager_name: string | null;
+  }[];
+  selectedDepartmentId: number | null;
 }) {
   const leaveColumns = [
     { label: "Employee", key: "staff_name", className: "px-4 py-2 text-left" },
@@ -76,6 +89,21 @@ export default function HumanResourcesDashboard({
     sick_available: item.leave_account.sick.available,
     sick_taken: item.leave_account.sick.taken,
     pending_count: item.leave_account.pending.count,
+  }));
+
+  const staffColumns = [
+    { label: "Employee", key: "name", className: "px-4 py-2 text-left" },
+    { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
+    { label: "Employee #", key: "employee_number", className: "px-4 py-2 text-left" },
+    { label: "Email", key: "email", className: "px-4 py-2 text-left" },
+    { label: "Manager", key: "manager_name", className: "px-4 py-2 text-left" },
+    { label: "Status", key: "status", className: "px-4 py-2 text-left" },
+  ];
+
+  const staffRows = staffDirectory.map((item) => ({
+    ...item,
+    department_name: item.department_name ?? "-",
+    manager_name: item.manager_name ?? "-",
   }));
 
   return (
@@ -182,6 +210,63 @@ export default function HumanResourcesDashboard({
 
         <Card>
           <CardHeader>
+            <CardTitle>Department Staff Directory</CardTitle>
+            <CardDescription>Filter staff by department and open their records for updates.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={selectedDepartmentId ? String(selectedDepartmentId) : ""}
+                onChange={(e) =>
+                  router.get(
+                    "/human-resources",
+                    e.currentTarget.value ? { department_id: e.currentTarget.value } : {},
+                    { preserveScroll: true, preserveState: true }
+                  )
+                }
+                className="w-full max-w-sm rounded-md border bg-card px-3 py-2 text-sm text-foreground"
+              >
+                <option value="">All departments</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+
+              <Button
+                variant="outline"
+                onClick={() => router.get("/human-resources", {}, { preserveScroll: true, preserveState: true })}
+              >
+                Reset Filter
+              </Button>
+            </div>
+
+            <CustomTable
+              columns={staffColumns}
+              data={staffRows}
+              actions={[
+                {
+                  icon: "Eye",
+                  label: "View staff member",
+                  onClick: (row) => {
+                    window.location.href = `/staff/${row.id}/profile`;
+                  },
+                },
+                {
+                  icon: "PencilIcon",
+                  label: "Edit staff member",
+                  onClick: (row) => {
+                    window.location.href = `/staff/${row.id}/edit`;
+                  },
+                },
+              ]}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Staff Leave Accounts</CardTitle>
             <CardDescription>Annual and sick leave balances across the organisation</CardDescription>
           </CardHeader>
@@ -237,9 +322,14 @@ export default function HumanResourcesDashboard({
                       </Link>
                     </Button>
 
-                    <Link href={`/staff?department_id=${department.id}`}>
-                      <Button variant="outline">Open in Staff</Button>
-                    </Link>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        router.get("/human-resources", { department_id: department.id }, { preserveScroll: true })
+                      }
+                    >
+                      View Department Staff
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

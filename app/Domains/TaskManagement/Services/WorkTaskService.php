@@ -4,6 +4,7 @@ namespace App\Domains\TaskManagement\Services;
 
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
+use App\Domains\TaskManagement\Notifications\TaskActivityNotification;
 use App\Domains\TaskManagement\Models\WorkTask;
 use App\Domains\TaskManagement\Models\WorkTaskHistory;
 use App\Domains\TaskManagement\Notifications\TaskAssignedNotification;
@@ -114,11 +115,26 @@ class WorkTaskService
             ]);
 
             if ($originalStatus !== $status) {
+                $statusSummary = sprintf(
+                    'Status changed from %s to %s.',
+                    str_replace('_', ' ', $originalStatus),
+                    str_replace('_', ' ', $status)
+                );
+
                 $this->recordHistory(
                     $task,
                     $actor,
                     'status_updated',
-                    sprintf('Status changed from %s to %s.', str_replace('_', ' ', $originalStatus), str_replace('_', ' ', $status))
+                    $statusSummary
+                );
+
+                $this->notifyUsers(
+                    $this->interactionRecipients($task, $actor),
+                    new TaskActivityNotification(
+                        $task,
+                        'Task status updated',
+                        sprintf('%s updated task "%s". %s', $actor?->name ?? 'A user', $task->title, $statusSummary)
+                    )
                 );
             }
 
@@ -144,6 +160,15 @@ class WorkTaskService
             ]);
 
             $this->recordHistory($task, $actor, 'comment_added', 'Task comment added.');
+
+            $this->notifyUsers(
+                $this->interactionRecipients($task, $actor),
+                new TaskActivityNotification(
+                    $task,
+                    'New task comment',
+                    sprintf('%s commented on task "%s".', $actor->name, $task->title)
+                )
+            );
 
             return $task->fresh([
                 'creator:id,name,email',
@@ -509,5 +534,21 @@ class WorkTaskService
         }
 
         return $recipients->unique('id')->values();
+    }
+
+    protected function interactionRecipients(WorkTask $task, ?User $exclude = null): Collection
+    {
+        $recipients = collect([$task->creator, $task->assignee])->filter()
+            ->concat($this->assignmentRecipients($task));
+
+        return $recipients
+            ->filter(fn (User $user) => $exclude === null || (int) $user->id !== (int) $exclude->id)
+            ->unique('id')
+            ->values();
+    }
+
+    protected function notifyUsers(Collection $users, object $notification): void
+    {
+        $users->unique('id')->each(fn (User $user) => $user->notify($notification));
     }
 }

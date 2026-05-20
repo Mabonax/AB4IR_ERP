@@ -33,6 +33,7 @@ use App\Domains\TaskManagement\Controllers\SupportTicketController;
 use App\Domains\TaskManagement\Controllers\WorkTaskController;
 use App\Http\Controllers\AccessControl\AccessControlController;
 use App\Http\Controllers\BusinessDevelopment\AdjudicationAssessmentController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -47,6 +48,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+
+    Route::get('notifications', [NotificationController::class, 'index'])
+        ->name('notifications.index');
+    Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.mark-all-read');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])
+        ->name('notifications.read');
 
     Route::resource('beneficiaries', BeneficiaryController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('beneficiaries'))
@@ -551,6 +559,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware($managePermission('staff'))
         ->whereNumber('staff')
         ->name('staff.promote-manager');
+    Route::post('staff/{staff}/reset-password', [StaffController::class, 'resetPassword'])
+        ->middleware($managePermission('staff'))
+        ->whereNumber('staff')
+        ->name('staff.reset-password');
     Route::get('staff/dashboard', [StaffController::class, 'dashboard'])
         ->middleware($viewPermission('staff'))
         ->name('staff.dashboard');

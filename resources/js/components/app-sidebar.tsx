@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, LayoutGrid, LifeBuoy, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
+import { Bell, BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, LayoutGrid, LifeBuoy, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -97,6 +97,11 @@ const mainNavItems: NavItem[] = [
         requiredPermissions: ['domain.finance.view', 'domain.finance.manage', 'travel-claims.submit'],
     },
     {
+        title: 'Notifications',
+        href: '/notifications',
+        icon: Bell,
+    },
+    {
         title: 'Facilitator Activities',
         href: '/project-locations/dashboard',
         icon: ClipboardCheck,
@@ -123,7 +128,7 @@ export function AppSidebar() {
 
     const itemsWithBadges = mainNavItems.map((item) => ({
         ...item,
-        badgeCount: item.href === '/task-management' ? (notifications?.unread_count ?? 0) : undefined,
+        badgeCount: item.href === '/notifications' ? (notifications?.unread_count ?? 0) : undefined,
     }));
 
     const visibleMainNavItems = itemsWithBadges.filter(

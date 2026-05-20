@@ -137,3 +137,49 @@ test('staff onboarding provisions a linked user with the configured default pass
     expect($linkedUser->staff_id)->toBe($staff->id);
     expect(Hash::check('TempPass123!', $linkedUser->password))->toBeTrue();
 });
+
+test('human resources dashboard filters the staff directory by department', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'human-resources');
+    grantDomainAccess($user, 'staff');
+
+    $technical = StaffDepartment::query()->create([
+        'name' => 'Technical',
+        'description' => 'Technical team',
+    ]);
+
+    $marketing = StaffDepartment::query()->create([
+        'name' => 'Marketing',
+        'description' => 'Marketing team',
+    ]);
+
+    StaffMember::query()->create([
+        'department_id' => $technical->id,
+        'first_name' => 'Tina',
+        'last_name' => 'Tech',
+        'email' => 'tina.tech@example.test',
+        'employee_number' => 'TECH-101',
+        'start_date' => now()->toDateString(),
+        'status' => 'active',
+    ]);
+
+    StaffMember::query()->create([
+        'department_id' => $marketing->id,
+        'first_name' => 'Mark',
+        'last_name' => 'Eter',
+        'email' => 'mark.eter@example.test',
+        'employee_number' => 'MKT-101',
+        'start_date' => now()->toDateString(),
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($user)
+        ->get('/human-resources?department_id='.$technical->id)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('HumanResources/Dashboard')
+            ->where('selectedDepartmentId', $technical->id)
+            ->has('staffDirectory', 1)
+            ->where('staffDirectory.0.department_name', 'Technical')
+        );
+});

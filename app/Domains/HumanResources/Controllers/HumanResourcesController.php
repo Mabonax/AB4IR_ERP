@@ -7,6 +7,7 @@ use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class HumanResourcesController extends Controller
@@ -15,8 +16,10 @@ class HumanResourcesController extends Controller
         protected LeaveManagementService $leaveManagementService
     ) {}
 
-    public function dashboard()
+    public function dashboard(Request $request)
     {
+        $selectedDepartmentId = $request->integer('department_id') ?: null;
+
         $departments = StaffDepartment::query()
             ->withCount('staffMembers')
             ->orderBy('name')
@@ -40,6 +43,25 @@ class HumanResourcesController extends Controller
             ]);
 
         $organizationLeave = $this->leaveManagementService->organizationSummary();
+        $staffDirectory = StaffMember::query()
+            ->with(['department', 'manager'])
+            ->when($selectedDepartmentId, fn ($query) => $query->where('department_id', $selectedDepartmentId))
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get()
+            ->map(fn (StaffMember $staff) => [
+                'id' => $staff->id,
+                'name' => trim($staff->first_name.' '.$staff->last_name),
+                'email' => $staff->email,
+                'employee_number' => $staff->employee_number,
+                'status' => $staff->status,
+                'department_id' => $staff->department_id,
+                'department_name' => $staff->department?->name,
+                'manager_name' => $staff->manager
+                    ? trim($staff->manager->first_name.' '.$staff->manager->last_name)
+                    : null,
+            ])
+            ->values();
 
         return Inertia::render('HumanResources/Dashboard', [
             'stats' => [
@@ -53,6 +75,8 @@ class HumanResourcesController extends Controller
             'departments' => $departments,
             'managers' => $managerOptions,
             'leaveSummary' => $organizationLeave,
+            'staffDirectory' => $staffDirectory,
+            'selectedDepartmentId' => $selectedDepartmentId,
         ]);
     }
 }

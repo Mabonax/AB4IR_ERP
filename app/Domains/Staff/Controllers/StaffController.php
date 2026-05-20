@@ -4,6 +4,7 @@ namespace App\Domains\Staff\Controllers;
 
 use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\Staff\Requests\ResetStaffPasswordRequest;
 use App\Domains\Staff\Requests\StoreStaffRequest;
 use App\Domains\Staff\Requests\UpdateStaffRequest;
 use App\Domains\Staff\Resources\StaffMemberResource;
@@ -96,6 +97,7 @@ class StaffController extends Controller
             ),
             'isSelf' => false,
             'canManageStaff' => $this->canManageStaff(),
+            'canResetPassword' => $this->canManageStaff(),
             'canPromoteManager' => $this->canPromoteManagers() && ! $model->is_manager && ! $model->is_ceo,
         ]);
     }
@@ -148,6 +150,15 @@ class StaffController extends Controller
         $this->service->promoteToManager($staff->id);
 
         return redirect()->back()->with('success', 'Staff member promoted to manager');
+    }
+
+    public function resetPassword(ResetStaffPasswordRequest $request, StaffMember $staff)
+    {
+        abort_unless($this->canManageStaff(), 403);
+
+        $this->service->resetStaffPassword($staff, $request->validated()['password']);
+
+        return redirect()->back()->with('success', 'Staff member password reset successfully.');
     }
 
     protected function canPromoteManagers(): bool

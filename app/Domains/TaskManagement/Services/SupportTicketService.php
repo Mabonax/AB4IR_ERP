@@ -4,6 +4,7 @@ namespace App\Domains\TaskManagement\Services;
 
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\TaskManagement\Models\SupportTicket;
+use App\Domains\TaskManagement\Notifications\SupportTicketActivityNotification;
 use App\Domains\TaskManagement\Notifications\SupportTicketAssignedNotification;
 use App\Domains\TaskManagement\Notifications\SupportTicketOverdueNotification;
 use App\Domains\TaskManagement\Notifications\SupportTicketResolvedNotification;
@@ -135,6 +136,15 @@ class SupportTicketService
                     'first_responded_at' => $ticket->first_responded_at ?: now(),
                 ]);
             }
+
+            $this->notifyUsers(
+                $this->interactionRecipients($ticket, $actor),
+                new SupportTicketActivityNotification(
+                    $ticket,
+                    'Support ticket updated',
+                    sprintf('%s posted a reply on ticket "%s".', $actor->name, $ticket->title)
+                )
+            );
         });
 
         return $ticket->fresh([
@@ -240,6 +250,15 @@ class SupportTicketService
                 'closed_at' => null,
                 'closed_by_user_id' => null,
             ]);
+
+            $this->notifyUsers(
+                $this->interactionRecipients($ticket, $actor),
+                new SupportTicketActivityNotification(
+                    $ticket,
+                    'Support ticket reopened',
+                    sprintf('%s reopened ticket "%s". Reason: %s', $actor->name, $ticket->title, $reason)
+                )
+            );
         });
 
         return $ticket->fresh([
@@ -544,5 +563,22 @@ class SupportTicketService
     protected function notifyUsers(Collection $users, object $notification): void
     {
         $users->unique('id')->each(fn (User $user) => $user->notify($notification));
+    }
+
+    protected function interactionRecipients(SupportTicket $ticket, ?User $exclude = null): Collection
+    {
+        $recipients = collect([$ticket->requester, $ticket->assignee])->filter();
+
+        if ($ticket->assigned_department_id) {
+            $departmentUsers = User::query()
+                ->whereHas('staffMember', fn (Builder $query) => $query->where('department_id', $ticket->assigned_department_id))
+                ->get();
+            $recipients = $recipients->concat($departmentUsers);
+        }
+
+        return $recipients
+            ->filter(fn (User $user) => $exclude === null || (int) $user->id !== (int) $exclude->id)
+            ->unique('id')
+            ->values();
     }
 }

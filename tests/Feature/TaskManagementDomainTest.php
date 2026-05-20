@@ -8,8 +8,10 @@ use App\Domains\TaskManagement\Jobs\SendTaskManagementReminderNotificationsJob;
 use App\Domains\TaskManagement\Models\SupportTicket;
 use App\Domains\TaskManagement\Models\WorkTask;
 use App\Domains\TaskManagement\Notifications\SupportTicketAssignedNotification;
+use App\Domains\TaskManagement\Notifications\SupportTicketActivityNotification;
 use App\Domains\TaskManagement\Notifications\SupportTicketOverdueNotification;
 use App\Domains\TaskManagement\Notifications\SupportTicketResolvedNotification;
+use App\Domains\TaskManagement\Notifications\TaskActivityNotification;
 use App\Domains\TaskManagement\Notifications\TaskAssignedNotification;
 use App\Domains\TaskManagement\Notifications\TaskOverdueReminderNotification;
 use App\Models\User;
@@ -120,6 +122,8 @@ test('manager cannot assign general task to another department without a managed
 });
 
 test('project manager can assign project task across departments', function () {
+    Notification::fake();
+
     $marketing = makeDepartment('Marketing');
     $technical = makeDepartment('Technical');
     [$manager, $managerStaff] = makeStaffUser($marketing, 'project.manager@example.test', asManager: true);
@@ -158,6 +162,8 @@ test('project manager can assign project task across departments', function () {
         'project_id' => $project->id,
         'assigned_to_user_id' => $technicalUser->id,
     ]);
+
+    Notification::assertSentTo($technicalUser, TaskAssignedNotification::class);
 });
 
 test('requester can log ticket and technical responder can assign and resolve it', function () {
@@ -210,6 +216,9 @@ test('requester can log ticket and technical responder can assign and resolve it
     ]);
 
     Notification::assertSentTo($technicalUser, SupportTicketAssignedNotification::class);
+    Notification::assertSentTo($technicalUser, SupportTicketAssignedNotification::class, function ($notification, $channels) use ($ticket) {
+        return $notification->toArray($ticket)['ticket_id'] === $ticket->id;
+    });
     Notification::assertSentTo($requester, SupportTicketResolvedNotification::class);
 });
 
@@ -265,6 +274,8 @@ test('requester can close a resolved ticket and reopen it when the issue returns
 });
 
 test('manager can reassign task and record workflow history and comments', function () {
+    Notification::fake();
+
     $department = makeDepartment('Operations');
     [$manager, $managerStaff] = makeStaffUser($department, 'ops.manager@example.test', asManager: true);
     [$reportA] = makeStaffUser($department, 'ops.report.a@example.test', manager: $managerStaff);
@@ -314,6 +325,37 @@ test('manager can reassign task and record workflow history and comments', funct
         'work_task_id' => $task->id,
         'action' => 'reassigned',
     ]);
+
+    Notification::assertSentTo($manager, TaskActivityNotification::class);
+});
+
+test('ticket replies notify the other participants in the workflow', function () {
+    Notification::fake();
+
+    $marketing = makeDepartment('Marketing');
+    $technical = makeDepartment('Technical');
+    [$requester] = makeStaffUser($marketing, 'notify.requester@example.test');
+    [$technicalUser] = makeStaffUser($technical, 'notify.tech@example.test');
+    $technicalUser->givePermissionTo(['technical-tickets.respond']);
+
+    $ticket = SupportTicket::query()->create([
+        'title' => 'VPN issue',
+        'description' => 'VPN drops unexpectedly.',
+        'status' => 'assigned',
+        'priority' => 'medium',
+        'requester_user_id' => $requester->id,
+        'requester_department_id' => $marketing->id,
+        'assigned_to_user_id' => $technicalUser->id,
+        'assigned_department_id' => $technical->id,
+    ]);
+
+    $this->actingAs($technicalUser)
+        ->post(route('task-management.tickets.reply', $ticket), [
+            'message' => 'Investigating the VPN profile now.',
+        ])
+        ->assertRedirect(route('task-management.tickets.index'));
+
+    Notification::assertSentTo($requester, SupportTicketActivityNotification::class);
 });
 
 test('ticket index exposes overdue filters and task index exposes history payloads', function () {

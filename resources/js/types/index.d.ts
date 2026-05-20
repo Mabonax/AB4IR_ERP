@@ -67,6 +67,15 @@ export interface SharedData {
     notifications?: {
         unread_count: number;
     };
+    flash?: {
+        success?: string | null;
+        error?: string | null;
+        warning?: string | null;
+        info?: string | null;
+        message?: string | null;
+        status?: string | null;
+        import_errors?: string[];
+    };
     sidebarOpen: boolean;
     [key: string]: unknown;
 }

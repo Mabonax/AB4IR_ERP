@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class StaffService
@@ -117,6 +118,31 @@ class StaffService
             ]);
 
             return $this->repository->find($staff->id) ?? $staff->refresh();
+        });
+    }
+
+    public function resetStaffPassword(StaffMember $staff, string $password): User
+    {
+        return DB::transaction(function () use ($staff, $password) {
+            $user = $this->ensureLinkedUser([
+                'first_name' => $staff->first_name,
+                'last_name' => $staff->last_name,
+                'email' => $staff->email,
+            ], $staff);
+
+            if ((int) ($staff->user_id ?? 0) !== (int) $user->id) {
+                $staff->forceFill(['user_id' => $user->id])->save();
+            }
+
+            if ((int) ($user->staff_id ?? 0) !== (int) $staff->id) {
+                $user->forceFill(['staff_id' => $staff->id])->save();
+            }
+
+            $user->forceFill([
+                'password' => Hash::make($password),
+            ])->save();
+
+            return $user->refresh();
         });
     }
 

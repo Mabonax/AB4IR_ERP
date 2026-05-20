@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from "@inertiajs/react";
+import { Head, Link, router, useForm, usePage } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
@@ -16,16 +16,22 @@ export default function StaffProfile({
   staff,
   isSelf,
   canManageStaff,
+  canResetPassword,
   canPromoteManager,
 }: {
   staff: any;
   isSelf: boolean;
   canManageStaff: boolean;
+  canResetPassword: boolean;
   canPromoteManager: boolean;
 }) {
   const data = staff?.data ?? staff;
   const { props } = usePage<{ flash?: Record<string, unknown> }>();
   const flash = props.flash ?? {};
+  const passwordResetForm = useForm({
+    password: "",
+    password_confirmation: "",
+  });
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Staff", href: "/staff" },
     { title: isSelf ? "My Profile" : "Staff Profile", href: "#" },
@@ -259,6 +265,58 @@ export default function StaffProfile({
             </div>
           </CardContent>
         </Card>
+
+        {canResetPassword ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Reset Password</CardTitle>
+              <CardDescription>Assign a new password if this staff member is locked out.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form
+                className="grid gap-4 md:grid-cols-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  passwordResetForm.post(`/staff/${data.id}/reset-password`, {
+                    preserveScroll: true,
+                    onSuccess: () => passwordResetForm.reset(),
+                  });
+                }}
+              >
+                <div>
+                  <label className="text-sm font-medium">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordResetForm.data.password}
+                    onChange={(e) => passwordResetForm.setData("password", e.currentTarget.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  {passwordResetForm.errors.password ? (
+                    <p className="mt-1 text-sm text-red-600">{passwordResetForm.errors.password}</p>
+                  ) : null}
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={passwordResetForm.data.password_confirmation}
+                    onChange={(e) => passwordResetForm.setData("password_confirmation", e.currentTarget.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <button
+                    type="submit"
+                    disabled={passwordResetForm.processing}
+                    className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {passwordResetForm.processing ? "Resetting..." : "Reset Password"}
+                  </button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </AppLayout>
   );
