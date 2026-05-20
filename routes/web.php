@@ -55,6 +55,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('notifications.mark-all-read');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])
         ->name('notifications.read');
+    Route::get('notifications/{notification}/open', [NotificationController::class, 'open'])
+        ->name('notifications.open');
 
     Route::resource('beneficiaries', BeneficiaryController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('beneficiaries'))

@@ -46,6 +46,26 @@ class NotificationController extends Controller
         return redirect()->back()->with('success', 'Notification marked as read.');
     }
 
+    public function open(Request $request, string $notification): RedirectResponse
+    {
+        $record = $request->user()
+            ->notifications()
+            ->whereKey($notification)
+            ->firstOrFail();
+
+        if ($record->read_at === null) {
+            $record->markAsRead();
+        }
+
+        $url = data_get($record->data, 'url');
+
+        if (is_string($url) && $url !== '') {
+            return redirect()->to($url);
+        }
+
+        return redirect()->route('notifications.index');
+    }
+
     public function markAllRead(Request $request): RedirectResponse
     {
         $request->user()

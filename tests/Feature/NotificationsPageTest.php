@@ -37,3 +37,51 @@ test('authenticated user can view and mark notifications as read', function () {
 
     expect($user->fresh()->unreadNotifications()->count())->toBe(0);
 });
+
+test('opening a notification marks it as read and redirects to the target page', function () {
+    $user = User::factory()->create();
+
+    $user->notifications()->create([
+        'id' => (string) str()->uuid(),
+        'type' => 'App\\Domains\\Leave\\Notifications\\LeaveRequestNotification',
+        'data' => [
+            'title' => 'Leave request decision',
+            'message' => 'Your leave request has been reviewed.',
+            'url' => '/leave/requests',
+        ],
+    ]);
+
+    $notificationId = $user->notifications()->firstOrFail()->id;
+
+    $this->actingAs($user)
+        ->get(route('notifications.open', $notificationId))
+        ->assertRedirect('/leave/requests');
+
+    $notification = $user->fresh()->notifications()->whereKey($notificationId)->firstOrFail();
+
+    expect($notification->read_at)->not->toBeNull();
+    expect($user->fresh()->unreadNotifications()->count())->toBe(0);
+});
+
+test('opening a notification without a target page redirects to the notifications index', function () {
+    $user = User::factory()->create();
+
+    $user->notifications()->create([
+        'id' => (string) str()->uuid(),
+        'type' => 'App\\Domains\\Leave\\Notifications\\LeaveRequestNotification',
+        'data' => [
+            'title' => 'Leave request decision',
+            'message' => 'Your leave request has been reviewed.',
+        ],
+    ]);
+
+    $notificationId = $user->notifications()->firstOrFail()->id;
+
+    $this->actingAs($user)
+        ->get(route('notifications.open', $notificationId))
+        ->assertRedirect(route('notifications.index'));
+
+    $notification = $user->fresh()->notifications()->whereKey($notificationId)->firstOrFail();
+
+    expect($notification->read_at)->not->toBeNull();
+});

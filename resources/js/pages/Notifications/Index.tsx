@@ -76,7 +76,7 @@ export default function NotificationsIndex({
                     <div className="flex flex-wrap gap-2">
                       {notification.url ? (
                         <Button asChild variant="outline">
-                          <Link href={notification.url}>Open</Link>
+                          <Link href={`/notifications/${notification.id}/open`}>Open</Link>
                         </Button>
                       ) : null}
                       {!notification.read_at ? (
