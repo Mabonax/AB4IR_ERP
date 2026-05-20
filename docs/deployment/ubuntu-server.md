@@ -73,6 +73,34 @@ The `app` container runs migrations automatically on boot when `RUN_MIGRATIONS=t
 
 Public registration is disabled by default. Staff access should be provisioned through the staff-management flow, which creates linked user accounts with the configured `STAFF_USER_DEFAULT_PASSWORD`.
 
+## Permanent bootstrap super-admin
+
+The application seeds one permanent bootstrap super-admin user from the environment:
+
+- `SUPER_ADMIN_NAME`
+- `SUPER_ADMIN_EMAIL`
+- `SUPER_ADMIN_PASSWORD`
+- `SUPER_ADMIN_SYNC_PASSWORD=false`
+
+Behavior:
+
+- the account is created automatically when `php artisan db:seed` runs
+- the `super-admin` role is always re-synced to that user
+- the password is only overwritten when `SUPER_ADMIN_SYNC_PASSWORD=true`
+
+Recommended first deploy flow:
+
+```bash
+docker compose exec -T app php artisan db:seed --class=SuperAdminUserSeeder --force
+```
+
+If you need to rotate the bootstrap password later:
+
+1. set a new `SUPER_ADMIN_PASSWORD`
+2. set `SUPER_ADMIN_SYNC_PASSWORD=true`
+3. run the seeder again
+4. set `SUPER_ADMIN_SYNC_PASSWORD=false` afterwards
+
 ## GitHub Actions secrets
 
 Configure these repository secrets for automated deployment:

@@ -21,6 +21,8 @@ return [
 
     'super_admin_password' => env('SUPER_ADMIN_PASSWORD', 'password'),
 
+    'super_admin_sync_password' => env('SUPER_ADMIN_SYNC_PASSWORD', false),
+
     'bot_member_name' => env('BOT_MEMBER_NAME', 'Bot Member'),
 
     'bot_member_email' => env('BOT_MEMBER_EMAIL', 'bot.member@ab4irerp.local'),

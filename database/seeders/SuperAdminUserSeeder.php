@@ -15,23 +15,24 @@ class SuperAdminUserSeeder extends Seeder
         $name = (string) config('app.super_admin_name', 'Super Admin');
         $email = (string) config('app.super_admin_email', 'admin@ab4irerp.local');
         $password = (string) config('app.super_admin_password', 'password');
+        $syncPassword = (bool) config('app.super_admin_sync_password', false);
 
-        $user = User::query()->firstOrCreate(
-            ['email' => $email],
-            [
-                'name' => $name,
-                'password' => Hash::make($password),
-                'email_verified_at' => now(),
-            ]
-        );
+        $user = User::query()->firstOrNew(['email' => $email]);
 
-        if (! $user->hasRole('super-admin')) {
-            Role::firstOrCreate([
-                'name' => 'super-admin',
-                'guard_name' => $guard,
-            ]);
+        $user->name = $name;
+        $user->email_verified_at = $user->email_verified_at ?? now();
 
-            $user->assignRole('super-admin');
+        if (! $user->exists || $syncPassword) {
+            $user->password = Hash::make($password);
         }
+
+        $user->save();
+
+        Role::firstOrCreate([
+            'name' => 'super-admin',
+            'guard_name' => $guard,
+        ]);
+
+        $user->syncRoles(['super-admin']);
     }
 }
