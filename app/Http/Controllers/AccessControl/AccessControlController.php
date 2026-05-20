@@ -79,6 +79,7 @@ class AccessControlController extends Controller
             'super-admin',
             'super admin',
             'admin',
+            'bot-member',
             'viewer-cross-domain',
         ];
     }

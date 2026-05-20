@@ -32,6 +32,8 @@ export default function ProjectShow({
   closureEvidence,
   history,
   reports,
+  canManageProjects,
+  canManageGovernance,
 }: {
   project: any;
   milestones: any[];
@@ -41,6 +43,8 @@ export default function ProjectShow({
   closureEvidence: any[];
   history: any[];
   reports: any[];
+  canManageProjects: boolean;
+  canManageGovernance: boolean;
 }) {
   const projectData = project?.data ?? project;
   const statusSummary = projectData.status_summary;
@@ -490,7 +494,7 @@ export default function ProjectShow({
                     </div>
                   ) : null}
                 </div>
-              ) : (
+              ) : canManageGovernance ? (
                 <form onSubmit={handleConcludeProject} className="space-y-3">
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -569,6 +573,10 @@ export default function ProjectShow({
                     Conclude project
                   </button>
                 </form>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Project conclusion is only available to project managers and project administrators.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -579,87 +587,89 @@ export default function ProjectShow({
               <CardDescription>Generate progress and final reporting outputs</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
-              <form onSubmit={handleCreateReport} className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Report type
-                    </label>
-                    <select
-                      value={reportForm.report_type}
-                      onChange={(e) => setReportForm((current) => ({ ...current, report_type: e.target.value }))}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    >
-                      <option value="progress">Progress</option>
-                      <option value="final" disabled={projectData.status !== "completed"}>
-                        Final
-                      </option>
-                    </select>
+              {canManageGovernance ? (
+                <form onSubmit={handleCreateReport} className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Report type
+                      </label>
+                      <select
+                        value={reportForm.report_type}
+                        onChange={(e) => setReportForm((current) => ({ ...current, report_type: e.target.value }))}
+                        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      >
+                        <option value="progress">Progress</option>
+                        <option value="final" disabled={projectData.status !== "completed"}>
+                          Final
+                        </option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Report date
+                      </label>
+                      <input
+                        type="date"
+                        value={reportForm.report_date}
+                        onChange={(e) => setReportForm((current) => ({ ...current, report_date: e.target.value }))}
+                        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Report date
+                      Title
                     </label>
                     <input
-                      type="date"
-                      value={reportForm.report_date}
-                      onChange={(e) => setReportForm((current) => ({ ...current, report_date: e.target.value }))}
+                      type="text"
+                      value={reportForm.title}
+                      onChange={(e) => setReportForm((current) => ({ ...current, title: e.target.value }))}
                       className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={reportForm.title}
-                    onChange={(e) => setReportForm((current) => ({ ...current, title: e.target.value }))}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    placeholder={`${projectData.name} Progress Report`}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Executive summary
-                  </label>
-                  <textarea
-                    value={reportForm.executive_summary}
-                    onChange={(e) => setReportForm((current) => ({ ...current, executive_summary: e.target.value }))}
-                    className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    placeholder="Summarize the current delivery state and decision context."
-                  />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Key findings
-                    </label>
-                    <textarea
-                      value={reportForm.key_findings}
-                      onChange={(e) => setReportForm((current) => ({ ...current, key_findings: e.target.value }))}
-                      className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      placeholder={`${projectData.name} Progress Report`}
                     />
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Recommendations
+                      Executive summary
                     </label>
                     <textarea
-                      value={reportForm.recommendations}
-                      onChange={(e) => setReportForm((current) => ({ ...current, recommendations: e.target.value }))}
+                      value={reportForm.executive_summary}
+                      onChange={(e) => setReportForm((current) => ({ ...current, executive_summary: e.target.value }))}
                       className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      placeholder="Summarize the current delivery state and decision context."
                     />
                   </div>
-                </div>
-                <button
-                  type="submit"
-                  className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
-                >
-                  Generate report
-                </button>
-              </form>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Key findings
+                      </label>
+                      <textarea
+                        value={reportForm.key_findings}
+                        onChange={(e) => setReportForm((current) => ({ ...current, key_findings: e.target.value }))}
+                        className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Recommendations
+                      </label>
+                      <textarea
+                        value={reportForm.recommendations}
+                        onChange={(e) => setReportForm((current) => ({ ...current, recommendations: e.target.value }))}
+                        className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+                  >
+                    Generate report
+                  </button>
+                </form>
+              ) : null}
 
               {reports.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -703,49 +713,51 @@ export default function ProjectShow({
               <CardDescription>Supporting documents for project sign-off and audit</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
-              <form onSubmit={handleUploadEvidence} className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Evidence title
-                    </label>
-                    <input
-                      type="text"
-                      value={evidenceForm.title}
-                      onChange={(e) => setEvidenceForm((current) => ({ ...current, title: e.target.value }))}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                      placeholder="Final attendance export"
-                    />
+              {canManageGovernance ? (
+                <form onSubmit={handleUploadEvidence} className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Evidence title
+                      </label>
+                      <input
+                        type="text"
+                        value={evidenceForm.title}
+                        onChange={(e) => setEvidenceForm((current) => ({ ...current, title: e.target.value }))}
+                        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                        placeholder="Final attendance export"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        File
+                      </label>
+                      <input
+                        type="file"
+                        onChange={(e) => setEvidenceForm((current) => ({ ...current, file: e.target.files?.[0] ?? null }))}
+                        className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      File
+                      Notes
                     </label>
-                    <input
-                      type="file"
-                      onChange={(e) => setEvidenceForm((current) => ({ ...current, file: e.target.files?.[0] ?? null }))}
-                      className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    <textarea
+                      value={evidenceForm.notes}
+                      onChange={(e) => setEvidenceForm((current) => ({ ...current, notes: e.target.value }))}
+                      className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      placeholder="Explain what this document proves or supports."
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Notes
-                  </label>
-                  <textarea
-                    value={evidenceForm.notes}
-                    onChange={(e) => setEvidenceForm((current) => ({ ...current, notes: e.target.value }))}
-                    className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                    placeholder="Explain what this document proves or supports."
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Upload evidence
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Upload evidence
+                  </button>
+                </form>
+              ) : null}
 
               {closureEvidence.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -773,13 +785,15 @@ export default function ProjectShow({
                           >
                             Download
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => router.delete(`/projects/${projectData.id}/closure-evidence/${item.id}`)}
-                            className="rounded-md border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
-                          >
-                            Remove
-                          </button>
+                          {canManageGovernance ? (
+                            <button
+                              type="button"
+                              onClick={() => router.delete(`/projects/${projectData.id}/closure-evidence/${item.id}`)}
+                              className="rounded-md border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                            >
+                              Remove
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -795,14 +809,16 @@ export default function ProjectShow({
               <CardDescription>Attached to project</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSyncMilestones} className="mb-4">
-                <button
-                  type="submit"
-                  className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
-                >
-                  Attach program milestones
-                </button>
-              </form>
+              {canManageProjects ? (
+                <form onSubmit={handleSyncMilestones} className="mb-4">
+                  <button
+                    type="submit"
+                    className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+                  >
+                    Attach program milestones
+                  </button>
+                </form>
+              ) : null}
 
               {milestones.length === 0 ? (
                 <p className="text-sm text-muted-foreground">

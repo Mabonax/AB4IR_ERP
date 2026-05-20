@@ -106,6 +106,14 @@ class AccessControlSeeder extends Seeder
             'domain.leave.view',
         ])));
 
+        $botMember = Role::firstOrCreate([
+            'name' => 'bot-member',
+            'guard_name' => $guard,
+        ]);
+        $botMember->syncPermissions([
+            'domain.projects.view',
+        ]);
+
         $facilitatorRole = Role::firstOrCreate([
             'name' => 'facilitator',
             'guard_name' => $guard,

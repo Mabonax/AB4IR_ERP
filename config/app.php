@@ -21,6 +21,12 @@ return [
 
     'super_admin_password' => env('SUPER_ADMIN_PASSWORD', 'password'),
 
+    'bot_member_name' => env('BOT_MEMBER_NAME', 'Bot Member'),
+
+    'bot_member_email' => env('BOT_MEMBER_EMAIL', 'bot.member@ab4irerp.local'),
+
+    'bot_member_password' => env('BOT_MEMBER_PASSWORD', 'password'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

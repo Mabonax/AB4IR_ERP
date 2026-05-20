@@ -121,12 +121,14 @@ export default function ProjectIndex({
   stakeholders,
   partnerStakeholders,
   staffMembers,
+  canManageProjects,
 }: {
   projects: { data: any[] };
   programs: { id: number; title: string }[];
   stakeholders: { id: number; name: string }[];
   partnerStakeholders: { id: number; name: string }[];
   staffMembers: { id: number; name: string }[];
+  canManageProjects: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"create" | "edit" | "view">("create");
@@ -232,14 +234,16 @@ export default function ProjectIndex({
             </Button>
           </div>
 
-          <CustomModelForm
-            addButton={ProjectModelFormConfig.addButton}
-            title="Add Project"
-            description={ProjectModelFormConfig.description}
-            fields={ProjectModelFormConfig.fields}
-            submitRoute={projects.store}
-            options={{ programs, stakeholders, partnerStakeholders, staffMembers }}
-          />
+          {canManageProjects ? (
+            <CustomModelForm
+              addButton={ProjectModelFormConfig.addButton}
+              title="Add Project"
+              description={ProjectModelFormConfig.description}
+              fields={ProjectModelFormConfig.fields}
+              submitRoute={projects.store}
+              options={{ programs, stakeholders, partnerStakeholders, staffMembers }}
+            />
+          ) : null}
         </div>
 
         <CustomTable
@@ -252,22 +256,26 @@ export default function ProjectIndex({
                 router.visit(`/projects/${row.id}`);
               },
             },
-            {
-              icon: "PencilIcon",
-              onClick: (row) => {
-                setSelectedProject(row);
-                setMode("edit");
-                setOpen(true);
-              },
-            },
-            {
-              icon: "Trash2",
-              variant: "danger",
-              onClick: (row) => {
-                setProjectToDelete(row);
-                setDeleteOpen(true);
-              },
-            },
+            ...(canManageProjects
+              ? [
+                  {
+                    icon: "PencilIcon",
+                    onClick: (row: any) => {
+                      setSelectedProject(row);
+                      setMode("edit");
+                      setOpen(true);
+                    },
+                  },
+                  {
+                    icon: "Trash2",
+                    variant: "danger" as const,
+                    onClick: (row: any) => {
+                      setProjectToDelete(row);
+                      setDeleteOpen(true);
+                    },
+                  },
+                ]
+              : []),
           ]}
         />
 

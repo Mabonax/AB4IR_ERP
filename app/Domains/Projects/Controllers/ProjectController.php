@@ -33,7 +33,7 @@ class ProjectController extends Controller
         protected ProjectGovernanceService $governanceService
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
         $this->authorize('viewAny', Project::class);
 
@@ -60,6 +60,7 @@ class ProjectController extends Controller
             'stakeholders' => $stakeholders,
             'partnerStakeholders' => $stakeholders,
             'staffMembers' => $staffMembers,
+            'canManageProjects' => (bool) $request->user()?->can('create', Project::class),
         ]);
     }
 
@@ -101,7 +102,7 @@ class ProjectController extends Controller
         return redirect()->back()->with('success', 'Project created');
     }
 
-    public function show(int $project)
+    public function show(Request $request, int $project)
     {
         $model = Project::with([
             'program',
@@ -138,6 +139,8 @@ class ProjectController extends Controller
             'closureEvidence' => $model->closureEvidence->map(fn (ProjectClosureEvidence $evidence) => $this->governanceService->mapEvidence($evidence))->values(),
             'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
             'reports' => $model->reports->map(fn (ProjectReport $report) => $this->governanceService->mapReport($report))->values(),
+            'canManageProjects' => (bool) $request->user()?->can('update', $model),
+            'canManageGovernance' => (bool) $request->user()?->can('createReport', $model),
         ]);
     }
 

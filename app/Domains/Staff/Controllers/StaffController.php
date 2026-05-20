@@ -138,7 +138,7 @@ class StaffController extends Controller
     {
         $this->service->deleteStaff($staff->id);
 
-        return redirect()->back()->with('success', 'Staff member deleted');
+        return redirect()->route('staff.list')->with('success', 'Staff member deleted');
     }
 
     public function promote(StaffMember $staff)

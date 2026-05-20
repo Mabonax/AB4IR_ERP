@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             AccessControlSeeder::class,
             AdjudicationSectionsSeeder::class,
             SuperAdminUserSeeder::class,
+            BotMemberSeeder::class,
             OrganizationEventsSeeder::class,
         ]);
     }
