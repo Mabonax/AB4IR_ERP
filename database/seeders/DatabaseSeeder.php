@@ -29,5 +29,11 @@ class DatabaseSeeder extends Seeder
             BotMemberSeeder::class,
             OrganizationEventsSeeder::class,
         ]);
+
+        if (app()->environment('local')) {
+            $this->call([
+                LocalDevelopmentUsersSeeder::class,
+            ]);
+        }
     }
 }
