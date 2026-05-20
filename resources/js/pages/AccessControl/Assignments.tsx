@@ -112,7 +112,7 @@ export default function AccessControlAssignments({
                   className="space-y-3 rounded-lg border p-4"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    userRolesForm.put(`/access-control/users/${selectedUser.id}/roles`, {
+                    userRolesForm.post(`/access-control/users/${selectedUser.id}/roles`, {
                       preserveScroll: true,
                     });
                   }}
@@ -141,7 +141,7 @@ export default function AccessControlAssignments({
                   className="space-y-3 rounded-lg border p-4"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    userPermissionsForm.put(`/access-control/users/${selectedUser.id}/permissions`, {
+                    userPermissionsForm.post(`/access-control/users/${selectedUser.id}/permissions`, {
                       preserveScroll: true,
                     });
                   }}
