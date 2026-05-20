@@ -1,5 +1,9 @@
 name: CI
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: mabonax/ab4irerp
+
 on:
   push:
     branches:
@@ -102,5 +106,5 @@ jobs:
 
       - name: Build runtime images
         run: |
-          docker build --target app -t ab4irerp-app:test .
-          docker build --target web -t ab4irerp-web:test .
+          docker build --target app -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:test .
+          docker build --target web -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:test .
