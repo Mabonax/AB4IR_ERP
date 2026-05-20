@@ -51,6 +51,8 @@ Minimum values to change before first boot:
 - `CACHE_STORE=redis`
 - `QUEUE_CONNECTION=redis`
 - `SESSION_DRIVER=database`
+- `PUBLIC_REGISTRATION_ENABLED=false`
+- `STAFF_USER_DEFAULT_PASSWORD`
 - `MAIL_*`
 - `SUPER_ADMIN_*`
 
@@ -68,6 +70,8 @@ docker compose logs -f app
 ```
 
 The `app` container runs migrations automatically on boot when `RUN_MIGRATIONS=true`.
+
+Public registration is disabled by default. Staff access should be provisioned through the staff-management flow, which creates linked user accounts with the configured `STAFF_USER_DEFAULT_PASSWORD`.
 
 ## GitHub Actions secrets
 
@@ -95,6 +99,18 @@ On each push to `main`, the workflow:
 5. Recreates the containers.
 6. Runs `php artisan migrate --force`.
 7. Rebuilds Laravel caches with `php artisan optimize`.
+
+## Backups
+
+Database backups are scheduled daily at `02:00` by Laravel Scheduler when `BACKUP_ENABLED=true`.
+
+Manual backup:
+
+```bash
+docker compose exec -T app php artisan system:backup-database --prune
+```
+
+Backups are written to the configured filesystem disk, which defaults to `storage/app/private/backups/database`.
 
 ## Manual update flow on the server
 

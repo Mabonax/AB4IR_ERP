@@ -2,20 +2,28 @@
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-test('registration screen can be rendered', function () {
-    $response = $this->get(route('register'));
+test('public registration screen is unavailable', function () {
+    config()->set('fortify.features', array_values(array_filter(
+        config('fortify.features'),
+        fn ($feature) => ! str_contains((string) $feature, 'registration')
+    )));
 
-    $response->assertOk();
+    $this->get('/register')->assertNotFound();
 });
 
-test('new users can register', function () {
-    $response = $this->post(route('register.store'), [
+test('public registration submission is blocked', function () {
+    config()->set('fortify.features', array_values(array_filter(
+        config('fortify.features'),
+        fn ($feature) => ! str_contains((string) $feature, 'registration')
+    )));
+
+    $response = $this->post('/register', [
         'name' => 'Test User',
         'email' => 'test@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 
-    $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $this->assertGuest();
+    $response->assertNotFound();
 });

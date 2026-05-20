@@ -52,3 +52,7 @@ Artisan::command('task-management:send-reminders {--now : Run reminders immediat
 })->purpose('Send or queue overdue task and support-ticket reminder notifications.');
 
 Schedule::command('task-management:send-reminders')->hourly();
+
+if (config('backup.enabled', true)) {
+    Schedule::command('system:backup-database --prune')->dailyAt('02:00');
+}

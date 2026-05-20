@@ -2,7 +2,7 @@
 
 namespace App\Domains\BusinessDevelopment\Models;
 
-use App\Models\provinces;
+use App\Models\Provinces;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -54,7 +54,7 @@ class BdsIncubatee extends Model
 
     public function province(): BelongsTo
     {
-        return $this->belongsTo(provinces::class, 'province_id');
+        return $this->belongsTo(Provinces::class, 'province_id');
     }
 
     public function intakeApprover(): BelongsTo

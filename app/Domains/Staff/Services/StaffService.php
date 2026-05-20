@@ -181,7 +181,7 @@ class StaffService
             $user = User::query()->create([
                 'name' => $name,
                 'email' => $email,
-                'password' => env('STAFF_USER_DEFAULT_PASSWORD', 'password'),
+                'password' => config('staff.default_password', 'password'),
             ]);
         } else {
             $user->update([

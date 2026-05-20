@@ -3,6 +3,11 @@ set -eu
 
 cd /var/www/html
 
+if [ -z "${APP_KEY:-}" ]; then
+    echo "APP_KEY is not set. Generate one before starting the production stack." >&2
+    exit 1
+fi
+
 mkdir -p \
     bootstrap/cache \
     storage/app/public \

@@ -12,9 +12,9 @@ class SuperAdminUserSeeder extends Seeder
     public function run(): void
     {
         $guard = config('access_control.guard', 'web');
-        $name = env('SUPER_ADMIN_NAME', 'Super Admin');
-        $email = env('SUPER_ADMIN_EMAIL', 'admin@ab4irerp.local');
-        $password = env('SUPER_ADMIN_PASSWORD', 'password');
+        $name = (string) config('app.super_admin_name', 'Super Admin');
+        $email = (string) config('app.super_admin_email', 'admin@ab4irerp.local');
+        $password = (string) config('app.super_admin_password', 'password');
 
         $user = User::query()->firstOrCreate(
             ['email' => $email],

@@ -4,7 +4,7 @@ namespace App\Domains\BusinessDevelopment\Models;
 
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
 use App\Domains\Staff\Models\StaffMember;
-use App\Models\provinces;
+use App\Models\Provinces;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -57,7 +57,7 @@ class BdsApplication extends Model
 
     public function province()
     {
-        return $this->belongsTo(provinces::class, 'province_id');
+        return $this->belongsTo(Provinces::class, 'province_id');
     }
 
     public function assessor()

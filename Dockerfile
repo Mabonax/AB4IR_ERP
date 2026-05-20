@@ -35,6 +35,7 @@ RUN apk add --no-cache \
         fcgi \
         $PHPIZE_DEPS \
         icu-dev \
+        mariadb-client \
         libpng-dev \
         libzip-dev \
         oniguruma-dev \

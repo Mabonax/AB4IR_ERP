@@ -4,6 +4,7 @@ use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -99,4 +100,40 @@ test('staff resource exposes internship details and derived duration', function 
         ->assertJsonPath('internship_start_date', '2026-05-01')
         ->assertJsonPath('internship_end_date', '2026-08-31')
         ->assertJsonPath('internship_duration.days', 123);
+});
+
+test('staff onboarding provisions a linked user with the configured default password', function () {
+    config()->set('staff.default_password', 'TempPass123!');
+
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'staff');
+
+    $department = StaffDepartment::query()->create([
+        'name' => 'Operations',
+        'description' => 'Operations team',
+    ]);
+
+    $this->actingAs($user)
+        ->post('/staff', [
+            'staff.first_name' => 'Alicia',
+            'staff.last_name' => 'Mokoena',
+            'staff.email' => 'alicia.mokoena@example.test',
+            'staff.phone' => '0710000000',
+            'staff.employee_number' => 'OPS-900',
+            'staff.start_date' => '2026-05-20',
+            'staff.status' => 'active',
+            'staff.department_id' => $department->id,
+            'next_of_kin.full_name' => 'Neo Mokoena',
+            'next_of_kin.relationship' => 'Sibling',
+            'next_of_kin.phone' => '0720000000',
+            'next_of_kin.email' => 'neo.mokoena@example.test',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $staff = StaffMember::query()->where('email', 'alicia.mokoena@example.test')->firstOrFail();
+    $linkedUser = User::query()->where('email', 'alicia.mokoena@example.test')->firstOrFail();
+
+    expect($staff->user_id)->toBe($linkedUser->id);
+    expect($linkedUser->staff_id)->toBe($staff->id);
+    expect(Hash::check('TempPass123!', $linkedUser->password))->toBeTrue();
 });
