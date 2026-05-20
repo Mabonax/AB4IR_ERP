@@ -9,7 +9,17 @@ RUN npm run build
 
 FROM composer:2 AS composer-builder
 WORKDIR /app
+
 COPY composer.json composer.lock ./
+COPY artisan ./artisan
+COPY app ./app
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY public ./public
+COPY resources ./resources
+COPY routes ./routes
+
 RUN composer install \
     --no-dev \
     --prefer-dist \
