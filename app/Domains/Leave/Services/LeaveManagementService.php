@@ -75,6 +75,8 @@ class LeaveManagementService
             ]);
         }
 
+        $this->assertNoOverlappingLeaveRequest($staff, $start, $end);
+
         $balance = $this->summarizeStaff($staff);
         $available = $leaveType === 'sick'
             ? $balance['sick']['available']
@@ -547,6 +549,22 @@ class LeaveManagementService
     {
         if ((int) $leave->manager_id !== (int) $actor->id) {
             throw new AuthorizationException('You are not allowed to action this leave request.');
+        }
+    }
+
+    protected function assertNoOverlappingLeaveRequest(StaffMember $staff, Carbon $start, Carbon $end): void
+    {
+        $hasOverlap = LeaveRequest::query()
+            ->where('staff_member_id', $staff->id)
+            ->whereIn('status', ['submitted', 'manager_approved', 'hr_approved'])
+            ->whereDate('start_date', '<=', $end->format('Y-m-d'))
+            ->whereDate('end_date', '>=', $start->format('Y-m-d'))
+            ->exists();
+
+        if ($hasOverlap) {
+            throw ValidationException::withMessages([
+                'start_date' => 'A leave request already exists for part or all of the selected period.',
+            ]);
         }
     }
 

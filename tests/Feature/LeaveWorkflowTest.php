@@ -153,6 +153,84 @@ test('sick leave is blocked when sick available balance is insufficient', functi
     expect(LeaveRequest::query()->count())->toBe(0);
 });
 
+test('duplicate leave request for the exact same period is blocked', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.duplicate@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser($department, 'staff.duplicate@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
+
+    $payload = [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-20',
+        'reason' => 'Family leave',
+    ];
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', $payload)
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', $payload)
+        ->assertSessionHasErrors(['start_date']);
+
+    expect(LeaveRequest::query()->count())->toBe(1);
+});
+
+test('overlapping leave request period is blocked', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.overlap@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser($department, 'staff.overlap@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', [
+            'leave_type' => 'sick',
+            'start_date' => '2026-05-19',
+            'end_date' => '2026-05-21',
+            'reason' => 'Primary leave window',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', [
+            'leave_type' => 'sick',
+            'start_date' => '2026-05-21',
+            'end_date' => '2026-05-22',
+            'reason' => 'Overlapping request',
+        ])
+        ->assertSessionHasErrors(['start_date']);
+
+    expect(LeaveRequest::query()->count())->toBe(1);
+});
+
+test('revoked or rejected leave periods can be resubmitted', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.resubmit@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser($department, 'staff.resubmit@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
+
+    $payload = [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-20',
+        'reason' => 'Initial request',
+    ];
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', $payload)
+        ->assertSessionHasNoErrors();
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($managerUser)
+        ->post("/leave-requests/{$leave->id}/manager-reject", ['manager_comment' => 'Try again later'])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', $payload)
+        ->assertSessionHasNoErrors();
+
+    expect(LeaveRequest::query()->count())->toBe(2);
+});
+
 test('assigned manager can approve leave and balances change only after hr approval', function () {
     $department = makeLeaveDepartment();
     [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.approve@example.test', permissions: ['domain.leave.manage']);
