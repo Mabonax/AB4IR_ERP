@@ -8,7 +8,12 @@ import { initializeTheme } from './hooks/use-appearance';
 import { createPageResolver } from './lib/inertia-page-resolver';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
-const pages = import.meta.glob('./pages/**/*.tsx');
+const pages = {
+    ...import.meta.glob('./pages/**/*.tsx'),
+    './pages/Finance/TravelClaims/Index.tsx': () => import('./pages/Finance/TravelClaims/Index'),
+    './pages/Finance/TravelClaims/Create.tsx': () => import('./pages/Finance/TravelClaims/Create'),
+    './pages/Finance/TravelClaims/Show.tsx': () => import('./pages/Finance/TravelClaims/Show'),
+};
 const resolvePage = createPageResolver(pages);
 
 createInertiaApp({
