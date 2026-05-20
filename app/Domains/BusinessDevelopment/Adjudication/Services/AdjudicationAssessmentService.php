@@ -63,7 +63,7 @@ class AdjudicationAssessmentService
             $pitchSession = $this->resolvePitchSession($data['pitch_session_id'] ?? null);
             $this->assertPitchSessionEligibility($pitchSession, (int) $data['smme_id'], $actor);
 
-            $assessment = $this->repository->create([
+            $assessmentPayload = [
                 'smme_id' => (int) $data['smme_id'],
                 'pitch_session_id' => $pitchSession?->id,
                 'judge_id' => (int) $actor->id,
@@ -73,7 +73,21 @@ class AdjudicationAssessmentService
                 'additional_notes' => $data['additional_notes'] ?? null,
                 'status' => 'draft',
                 'total_score' => $total,
-            ]);
+            ];
+
+            $existingPitchAssessment = $pitchSession
+                ? $this->findPitchSessionAssessment($pitchSession->id, (int) $data['smme_id'], (int) $actor->id)
+                : null;
+
+            if ($existingPitchAssessment?->status === 'submitted') {
+                throw ValidationException::withMessages([
+                    'pitch_session_id' => ['You have already submitted a scorecard for this prospect in this pitch session.'],
+                ]);
+            }
+
+            $assessment = $existingPitchAssessment
+                ? $this->repository->update($existingPitchAssessment, $assessmentPayload)
+                : $this->repository->create($assessmentPayload);
 
             $this->upsertScores($assessment, $scores);
 
@@ -323,6 +337,16 @@ class AdjudicationAssessmentService
         return BdsPitchSession::query()
             ->with(['panelists', 'prospects'])
             ->findOrFail($pitchSessionId);
+    }
+
+    protected function findPitchSessionAssessment(int $pitchSessionId, int $smmeId, int $judgeId): ?AdjudicationAssessment
+    {
+        return AdjudicationAssessment::query()
+            ->where('pitch_session_id', $pitchSessionId)
+            ->where('smme_id', $smmeId)
+            ->where('judge_id', $judgeId)
+            ->latest('id')
+            ->first();
     }
 
     protected function assertPitchSessionEligibility(?BdsPitchSession $session, int $smmeId, User $actor): void

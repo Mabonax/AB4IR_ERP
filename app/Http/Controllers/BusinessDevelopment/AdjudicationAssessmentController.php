@@ -43,15 +43,39 @@ class AdjudicationAssessmentController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
         $this->authorize('create', AdjudicationAssessment::class);
+
+        $initialSmmeId = $request->integer('smme_id') ?: null;
+        $initialPitchSessionId = $request->integer('pitch_session_id') ?: null;
+
+        if ($initialSmmeId && $initialPitchSessionId) {
+            $existingAssessment = AdjudicationAssessment::query()
+                ->where('smme_id', $initialSmmeId)
+                ->where('pitch_session_id', $initialPitchSessionId)
+                ->where('judge_id', (int) $request->user()->id)
+                ->latest('id')
+                ->first();
+
+            if ($existingAssessment) {
+                if ($existingAssessment->status === 'draft') {
+                    return redirect()
+                        ->route('business-development.adjudications.edit', $existingAssessment)
+                        ->with('info', 'Resumed your existing draft scorecard for this prospect.');
+                }
+
+                return redirect()
+                    ->route('business-development.adjudications.show', $existingAssessment)
+                    ->with('warning', 'Your scorecard for this prospect has already been submitted.');
+            }
+        }
 
         return Inertia::render('BusinessDevelopment/Adjudications/Create', [
             'sections' => $this->sections(),
             'smmes' => $this->smmes(),
-            'initial_smme_id' => $request->integer('smme_id') ?: null,
-            'initial_pitch_session_id' => $request->integer('pitch_session_id') ?: null,
+            'initial_smme_id' => $initialSmmeId,
+            'initial_pitch_session_id' => $initialPitchSessionId,
             'pitch_sessions' => BdsPitchSession::query()
                 ->whereIn('status', ['scheduled', 'in_progress', 'consolidated'])
                 ->orderBy('scheduled_for')

@@ -24,8 +24,13 @@ function createBusinessDevelopmentManager(): User
 
     Permission::firstOrCreate(['name' => 'domain.business-development.view', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'domain.business-development.manage', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'business-development.adjudications.score', 'guard_name' => 'web']);
     $role = Role::firstOrCreate(['name' => 'department-manager-business-development', 'guard_name' => 'web']);
-    $role->givePermissionTo(['domain.business-development.view', 'domain.business-development.manage']);
+    $role->givePermissionTo([
+        'domain.business-development.view',
+        'domain.business-development.manage',
+        'business-development.adjudications.score',
+    ]);
 
     $user->assignRole($role);
 
@@ -38,7 +43,12 @@ function createBusinessDevelopmentPanelist(): User
 
     Permission::firstOrCreate(['name' => 'domain.business-development.view', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'domain.business-development.manage', 'guard_name' => 'web']);
-    $user->givePermissionTo(['domain.business-development.view', 'domain.business-development.manage']);
+    Permission::firstOrCreate(['name' => 'business-development.adjudications.score', 'guard_name' => 'web']);
+    $user->givePermissionTo([
+        'domain.business-development.view',
+        'domain.business-development.manage',
+        'business-development.adjudications.score',
+    ]);
 
     return $user;
 }
@@ -173,4 +183,65 @@ test('pitch session consolidation aggregates submitted panel scorecards and mana
         'bds_application_id' => $prospectId,
         'status' => 'active',
     ]);
+});
+
+test('pitch session scorecards upsert per panelist and redirect to submitted records instead of duplicating', function () {
+    $manager = createBusinessDevelopmentManager();
+    $panelist = createBusinessDevelopmentPanelist();
+    $prospectId = createAcceptedProspect('Upsert Prospect');
+
+    $session = app(BdsPitchSessionService::class)->createSession([
+        'title' => 'Upsert Panel Day',
+        'scheduled_for' => now()->addDays(2)->toDateTimeString(),
+        'venue' => 'Innovation Hub',
+        'notes' => 'Duplicate protection day',
+        'panelists' => [$manager->id, $panelist->id],
+        'prospects' => [$prospectId],
+    ], $manager);
+
+    app(BdsPitchSessionService::class)->startSession($session, $manager);
+
+    $payload = [
+        'smme_id' => $prospectId,
+        'pitch_session_id' => $session->id,
+        'platform_name' => 'Initial Panel Draft',
+        'adjudication_date' => now()->toDateString(),
+        'development_stage' => 'prototype',
+        'additional_notes' => 'First draft',
+        'scores' => sessionScorePayload(),
+    ];
+
+    $this->actingAs($panelist)
+        ->post(route('business-development.adjudications.store'), $payload)
+        ->assertRedirect();
+
+    $assessment = AdjudicationAssessment::query()->where('judge_id', $panelist->id)->sole();
+    expect($assessment->platform_name)->toBe('Initial Panel Draft');
+
+    $this->actingAs($panelist)
+        ->post(route('business-development.adjudications.store'), [
+            ...$payload,
+            'platform_name' => 'Updated Panel Draft',
+            'additional_notes' => 'Second draft pass',
+        ])
+        ->assertRedirect(route('business-development.adjudications.show', $assessment));
+
+    expect(AdjudicationAssessment::query()->where('judge_id', $panelist->id)->count())->toBe(1);
+    expect($assessment->fresh()->platform_name)->toBe('Updated Panel Draft');
+
+    $this->actingAs($panelist)
+        ->post(route('business-development.adjudications.submit', $assessment), [
+            'result' => 'rejected',
+        ])
+        ->assertRedirect(route('business-development.adjudications.show', $assessment));
+
+    $this->actingAs($panelist)
+        ->get(route('business-development.adjudications.create', [
+            'pitch_session_id' => $session->id,
+            'smme_id' => $prospectId,
+        ]))
+        ->assertRedirect(route('business-development.adjudications.show', $assessment))
+        ->assertSessionHas('warning', 'Your scorecard for this prospect has already been submitted.');
+
+    expect(AdjudicationAssessment::query()->where('judge_id', $panelist->id)->count())->toBe(1);
 });

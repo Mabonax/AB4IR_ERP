@@ -67,7 +67,9 @@ export default function BdsApplicationsIndex({
   const importForm = useForm<{ file: File | null }>({
     file: null,
   });
-  const assessForm = useForm({
+  const assessForm = useForm<{
+    assessment_status: "accepted" | "rejected";
+  }>({
     assessment_status: "accepted",
   });
   const pitchForm = useForm({

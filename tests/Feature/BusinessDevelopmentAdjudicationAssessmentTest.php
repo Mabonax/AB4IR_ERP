@@ -35,6 +35,17 @@ function createUserWithBusinessDevelopmentPermission(bool $asAdmin = false): Use
     return $user;
 }
 
+function createScoreOnlyJudge(): User
+{
+    $user = User::factory()->create();
+
+    Permission::firstOrCreate(['name' => 'business-development.adjudications.score', 'guard_name' => 'web']);
+
+    $user->givePermissionTo(['business-development.adjudications.score']);
+
+    return $user;
+}
+
 function createSmmeApplication(): int
 {
     $provinceId = DB::table('provinces')->insertGetId([
@@ -127,6 +138,57 @@ test('judge can use adjudication resource routes', function () {
     $this->actingAs($judge)
         ->delete(route('business-development.adjudications.destroy', $assessment))
         ->assertRedirect(route('business-development.adjudications.index'));
+});
+
+test('score-only panelist can use adjudication routes for owned assessments', function () {
+    $judge = createScoreOnlyJudge();
+    $smmeId = createSmmeApplication();
+
+    $this->actingAs($judge)
+        ->get(route('business-development.adjudications.index'))
+        ->assertOk();
+
+    $this->actingAs($judge)
+        ->get(route('business-development.adjudications.create'))
+        ->assertOk();
+
+    $this->actingAs($judge)
+        ->post(route('business-development.adjudications.store'), [
+            'smme_id' => $smmeId,
+            'platform_name' => 'Panel Platform',
+            'adjudication_date' => now()->toDateString(),
+            'development_stage' => 'prototype',
+            'additional_notes' => 'Panel draft',
+            'scores' => scorePayload(),
+        ])
+        ->assertRedirect();
+
+    $assessment = AdjudicationAssessment::query()->firstOrFail();
+
+    $this->actingAs($judge)
+        ->get(route('business-development.adjudications.show', $assessment))
+        ->assertOk();
+
+    $this->actingAs($judge)
+        ->get(route('business-development.adjudications.edit', $assessment))
+        ->assertOk();
+
+    $this->actingAs($judge)
+        ->put(route('business-development.adjudications.update', $assessment), [
+            'smme_id' => $smmeId,
+            'platform_name' => 'Panel Platform Updated',
+            'adjudication_date' => now()->toDateString(),
+            'development_stage' => 'complete_product',
+            'additional_notes' => 'Panel update',
+            'scores' => scorePayload(),
+        ])
+        ->assertRedirect(route('business-development.adjudications.edit', $assessment));
+
+    $this->actingAs($judge)
+        ->post(route('business-development.adjudications.submit', $assessment), [
+            'result' => 'rejected',
+        ])
+        ->assertRedirect(route('business-development.adjudications.show', $assessment));
 });
 
 test('assessment cannot be updated after submit', function () {

@@ -24,8 +24,13 @@ function createPitchSessionManager(): User
 
     Permission::firstOrCreate(['name' => 'domain.business-development.view', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'domain.business-development.manage', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'business-development.adjudications.score', 'guard_name' => 'web']);
     $role = Role::firstOrCreate(['name' => 'department-manager-business-development', 'guard_name' => 'web']);
-    $role->givePermissionTo(['domain.business-development.view', 'domain.business-development.manage']);
+    $role->givePermissionTo([
+        'domain.business-development.view',
+        'domain.business-development.manage',
+        'business-development.adjudications.score',
+    ]);
 
     $user->assignRole($role);
 
@@ -37,6 +42,7 @@ function createPitchPanelist(): User
     $user = User::factory()->create();
 
     grantDomainAccess($user, 'business-development');
+    grantPermissions($user, ['business-development.adjudications.score']);
 
     return $user;
 }

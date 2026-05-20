@@ -78,7 +78,7 @@ export default function PitchSessionShow({
 
   const submitDecision = (prospectId: number, decision: "incubated" | "rejected") => {
     router.post(
-      businessDevelopment.pitchSessions.approve([sessionData.id, prospectId]).url,
+      businessDevelopment.pitchSessions.prospects.approve([sessionData.id, prospectId]).url,
       {
         manager_decision: decision,
         manager_notes: "",
@@ -214,7 +214,7 @@ export default function PitchSessionShow({
                         type="button"
                         onClick={() =>
                           router.post(
-                            businessDevelopment.pitchSessions.consolidate([sessionData.id, prospect.id]).url,
+                            businessDevelopment.pitchSessions.prospects.consolidate([sessionData.id, prospect.id]).url,
                             {},
                             { preserveScroll: true }
                           )
