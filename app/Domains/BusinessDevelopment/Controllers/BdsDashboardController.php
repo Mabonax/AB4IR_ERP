@@ -122,4 +122,3 @@ class BdsDashboardController extends Controller
         ]);
     }
 }
-

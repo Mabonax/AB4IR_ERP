@@ -36,6 +36,7 @@ class StaffRepository implements StaffRepositoryInterface
     public function update(StaffMember $staff, array $data): StaffMember
     {
         $staff->update($data);
+
         return $staff;
     }
 
@@ -53,6 +54,7 @@ class StaffRepository implements StaffRepositoryInterface
     {
         if ($staff->nextOfKin) {
             $staff->nextOfKin->update($data);
+
             return $staff->nextOfKin;
         }
 

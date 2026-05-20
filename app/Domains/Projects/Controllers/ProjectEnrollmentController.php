@@ -19,10 +19,10 @@ class ProjectEnrollmentController extends Controller
     public function index()
     {
         $projects = Project::with([
-                'locations.enrollments.beneficiary',
-                'locations.facilitator',
-                'locations.province',
-            ])
+            'locations.enrollments.beneficiary',
+            'locations.facilitator',
+            'locations.province',
+        ])
             ->orderBy('name')
             ->get()
             ->map(function ($project) {

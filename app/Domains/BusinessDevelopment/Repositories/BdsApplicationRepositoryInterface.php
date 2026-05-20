@@ -15,4 +15,3 @@ interface BdsApplicationRepositoryInterface
 
     public function update(BdsApplication $application, array $data): BdsApplication;
 }
-

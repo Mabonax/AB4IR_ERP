@@ -1,11 +1,11 @@
 <?php
 
-use Database\Seeders\AccessControlSeeder;
-use Database\Seeders\StaffDepartmentsSeeder;
-use Database\Seeders\SuperAdminUserSeeder;
 use App\Domains\TaskManagement\Jobs\SendTaskManagementReminderNotificationsJob;
 use App\Domains\TaskManagement\Services\SupportTicketService;
 use App\Domains\TaskManagement\Services\WorkTaskService;
+use Database\Seeders\AccessControlSeeder;
+use Database\Seeders\StaffDepartmentsSeeder;
+use Database\Seeders\SuperAdminUserSeeder;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;

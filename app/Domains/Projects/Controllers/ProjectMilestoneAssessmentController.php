@@ -2,12 +2,12 @@
 
 namespace App\Domains\Projects\Controllers;
 
+use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Models\ProjectMilestoneAssessment;
-use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Projects\Services\ProjectMilestoneAssessmentService;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 
 class ProjectMilestoneAssessmentController extends Controller
 {

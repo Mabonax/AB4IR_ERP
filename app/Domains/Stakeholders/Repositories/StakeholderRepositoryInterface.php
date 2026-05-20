@@ -23,7 +23,7 @@ interface StakeholderRepositoryInterface
     public function updateContact(Stakeholder $stakeholder, array $data): StakeholderContact;
 
     /**
-     * @param array<int, array<string, mixed>> $contacts
+     * @param  array<int, array<string, mixed>>  $contacts
      */
     public function createContacts(Stakeholder $stakeholder, array $contacts): void;
 

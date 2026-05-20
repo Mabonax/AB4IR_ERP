@@ -2,7 +2,6 @@
 
 namespace App\Domains\Organization\Controllers;
 
-use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Organization\Services\OrganizationProfileService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;

@@ -2,17 +2,17 @@
 
 namespace App\Domains\TaskManagement\Controllers;
 
+use App\Domains\Assets\Models\Asset;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
-use App\Domains\Assets\Models\Asset;
 use App\Domains\TaskManagement\Models\SupportTicket;
 use App\Domains\TaskManagement\Resources\SupportTicketResource;
 use App\Domains\TaskManagement\Services\SupportTicketService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TaskManagement\AssignSupportTicketRequest;
 use App\Http\Requests\TaskManagement\CloseSupportTicketRequest;
-use App\Http\Requests\TaskManagement\ReplySupportTicketRequest;
 use App\Http\Requests\TaskManagement\ReopenSupportTicketRequest;
+use App\Http\Requests\TaskManagement\ReplySupportTicketRequest;
 use App\Http\Requests\TaskManagement\ResolveSupportTicketRequest;
 use App\Http\Requests\TaskManagement\StoreSupportTicketRequest;
 use Illuminate\Http\RedirectResponse;
@@ -49,6 +49,7 @@ class SupportTicketController extends Controller
                 $staff = $request->user()?->staffMember;
                 if (! $staff) {
                     $query->whereRaw('1 = 0');
+
                     return;
                 }
 

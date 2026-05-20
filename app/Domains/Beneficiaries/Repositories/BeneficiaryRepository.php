@@ -49,6 +49,7 @@ class BeneficiaryRepository implements BeneficiaryRepositoryInterface
     public function update(Beneficiary $beneficiary, array $data): Beneficiary
     {
         $beneficiary->update($data);
+
         return $beneficiary;
     }
 

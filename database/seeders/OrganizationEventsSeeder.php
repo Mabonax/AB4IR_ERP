@@ -4,10 +4,10 @@ namespace Database\Seeders;
 
 use App\Domains\Events\Models\Event;
 use App\Domains\Events\Services\EventService;
+use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Stakeholders\Models\Stakeholder;
-use App\Domains\Organization\Models\OrganizationProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 

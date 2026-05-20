@@ -24,4 +24,3 @@ class UpdateAssetBatchRequest extends FormRequest
         ];
     }
 }
-

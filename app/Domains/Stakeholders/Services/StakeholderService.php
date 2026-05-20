@@ -114,6 +114,7 @@ class StakeholderService
     {
         return DB::transaction(function () use ($id) {
             $stakeholder = $this->getStakeholderById($id);
+
             return $this->repository->delete($stakeholder);
         });
     }

@@ -70,6 +70,7 @@ class AssetRepository implements AssetRepositoryInterface
     public function update(Asset $asset, array $data): Asset
     {
         $asset->update($data);
+
         return $asset;
     }
 

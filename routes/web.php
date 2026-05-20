@@ -1,4 +1,5 @@
 <?php
+
 /*
 | Copyright (c) 2026 John Mabona. All rights reserved.
 | Proprietary and confidential. System Architecture by John Mabona.
@@ -605,6 +606,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:assignments.manage')
         ->whereNumber('user')
         ->name('access-control.users.permissions.sync');
-  });
+});
 
 require __DIR__.'/settings.php';

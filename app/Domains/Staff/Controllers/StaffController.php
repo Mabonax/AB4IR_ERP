@@ -2,12 +2,12 @@
 
 namespace App\Domains\Staff\Controllers;
 
+use App\Domains\Leave\Services\LeaveManagementService;
+use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Staff\Requests\StoreStaffRequest;
 use App\Domains\Staff\Requests\UpdateStaffRequest;
 use App\Domains\Staff\Resources\StaffMemberResource;
-use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Services\StaffService;
-use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

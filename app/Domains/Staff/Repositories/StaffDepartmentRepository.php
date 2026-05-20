@@ -25,6 +25,7 @@ class StaffDepartmentRepository implements StaffDepartmentRepositoryInterface
     public function update(StaffDepartment $department, array $data): StaffDepartment
     {
         $department->update($data);
+
         return $department;
     }
 

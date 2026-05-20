@@ -31,6 +31,7 @@ class FacilitatorRepository implements FacilitatorRepositoryInterface
     public function update(Facilitator $facilitator, array $data): Facilitator
     {
         $facilitator->update($data);
+
         return $facilitator;
     }
 

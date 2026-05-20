@@ -1,16 +1,16 @@
 <?php
 
+use App\Domains\Facilitators\Models\Facilitator;
 use App\Domains\Programs\Models\Program;
+use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectEnrollment;
 use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Models\ProjectMilestoneAssessment;
-use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Services\ProjectService;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
-use App\Domains\Facilitators\Models\Facilitator;
 use App\Models\NextOfKin;
 use App\Models\Provinces;
 use Illuminate\Foundation\Testing\RefreshDatabase;

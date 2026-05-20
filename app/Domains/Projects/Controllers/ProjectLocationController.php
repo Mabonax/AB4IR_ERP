@@ -4,6 +4,8 @@ namespace App\Domains\Projects\Controllers;
 
 use App\Domains\Facilitators\Models\Facilitator;
 use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Models\ProjectLocation;
+use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Requests\StoreProjectLocationRequest;
 use App\Domains\Projects\Requests\UpdateProjectLocationRequest;
 use App\Domains\Projects\Resources\ProjectLocationResource;
@@ -12,8 +14,6 @@ use App\Domains\Projects\Services\ProjectLocationService;
 use App\Http\Controllers\Controller;
 use App\Models\Provinces;
 use Inertia\Inertia;
-use App\Domains\Projects\Models\ProjectMilestone;
-use App\Domains\Projects\Models\ProjectLocation;
 
 class ProjectLocationController extends Controller
 {
@@ -46,12 +46,12 @@ class ProjectLocationController extends Controller
     public function dashboard()
     {
         $query = ProjectLocation::with([
-                'project',
-                'facilitator',
-                'province',
-                'enrollments',
-                'milestoneAssessments',
-            ])
+            'project',
+            'facilitator',
+            'province',
+            'enrollments',
+            'milestoneAssessments',
+        ])
             ->orderBy('id');
 
         if (! $this->access->hasFullProjectAccess()) {
@@ -129,12 +129,12 @@ class ProjectLocationController extends Controller
     public function progress(int $project_location)
     {
         $location = \App\Domains\Projects\Models\ProjectLocation::with([
-                'project',
-                'facilitator',
-                'province',
-                'enrollments.beneficiary',
-                'milestoneAssessments',
-            ])
+            'project',
+            'facilitator',
+            'province',
+            'enrollments.beneficiary',
+            'milestoneAssessments',
+        ])
             ->findOrFail($project_location);
 
         $this->access->assertAssignedLocationAccess($location, 'You can only access progress for your assigned locations.');

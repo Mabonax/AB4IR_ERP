@@ -103,6 +103,7 @@ class AssetService
     {
         return DB::transaction(function () use ($id) {
             $asset = $this->getAssetById($id);
+
             return $this->repository->delete($asset);
         });
     }

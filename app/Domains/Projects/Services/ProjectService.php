@@ -2,8 +2,8 @@
 
 namespace App\Domains\Projects\Services;
 
-use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
+use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectEnrollment;
 use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Projects\Repositories\ProjectRepositoryInterface;

@@ -41,6 +41,7 @@ class StaffDepartmentService
     {
         return DB::transaction(function () use ($id, $data) {
             $department = $this->getDepartmentById($id);
+
             return $this->repository->update($department, $data);
         });
     }
@@ -49,6 +50,7 @@ class StaffDepartmentService
     {
         return DB::transaction(function () use ($id) {
             $department = $this->getDepartmentById($id);
+
             return $this->repository->delete($department);
         });
     }

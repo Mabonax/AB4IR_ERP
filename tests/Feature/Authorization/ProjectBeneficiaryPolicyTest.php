@@ -8,8 +8,8 @@ use App\Domains\Staff\Models\StaffMember;
 use App\Models\NextOfKin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 

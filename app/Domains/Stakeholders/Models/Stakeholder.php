@@ -2,9 +2,8 @@
 
 namespace App\Domains\Stakeholders\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Domains\Stakeholders\Models\StakeholderContact;
+use Illuminate\Database\Eloquent\Model;
 
 class Stakeholder extends Model
 {

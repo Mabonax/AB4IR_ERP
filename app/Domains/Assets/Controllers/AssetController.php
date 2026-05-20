@@ -2,6 +2,7 @@
 
 namespace App\Domains\Assets\Controllers;
 
+use App\Domains\Assets\Models\Asset;
 use App\Domains\Assets\Models\AssetBatch;
 use App\Domains\Assets\Models\AssetCategory;
 use App\Domains\Assets\Requests\AssignAssetRequest;
@@ -16,7 +17,6 @@ use App\Domains\Assets\Requests\UpdateAssetBatchRequest;
 use App\Domains\Assets\Requests\UpdateAssetRequest;
 use App\Domains\Assets\Resources\AssetResource;
 use App\Domains\Assets\Services\AssetService;
-use App\Domains\Assets\Models\Asset;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
@@ -156,6 +156,7 @@ class AssetController extends Controller
             ->where(function ($query) use ($modelName) {
                 if ($modelName === 'Unspecified') {
                     $query->whereNull('model_name')->orWhereRaw("TRIM(model_name) = ''");
+
                     return;
                 }
 

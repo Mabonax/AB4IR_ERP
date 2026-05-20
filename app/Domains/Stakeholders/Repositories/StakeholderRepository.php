@@ -26,6 +26,7 @@ class StakeholderRepository implements StakeholderRepositoryInterface
     public function update(Stakeholder $stakeholder, array $data): Stakeholder
     {
         $stakeholder->update($data);
+
         return $stakeholder;
     }
 
@@ -45,12 +46,14 @@ class StakeholderRepository implements StakeholderRepositoryInterface
             $contact = $stakeholder->contacts()->whereKey((int) $data['id'])->first();
             if ($contact) {
                 $contact->update($data);
+
                 return $contact;
             }
         }
 
         if ($stakeholder->contact) {
             $stakeholder->contact->update($data);
+
             return $stakeholder->contact;
         }
 

@@ -2,12 +2,12 @@
 
 namespace App\Domains\Stakeholders\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Domains\Stakeholders\Services\StakeholderService;
 use App\Domains\Stakeholders\Requests\StoreStakeholderRequest;
 use App\Domains\Stakeholders\Requests\UpdateStakeholderRequest;
-use Illuminate\Http\Request;
 use App\Domains\Stakeholders\Resources\StakeholderResource;
+use App\Domains\Stakeholders\Services\StakeholderService;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class StakeholderController extends Controller

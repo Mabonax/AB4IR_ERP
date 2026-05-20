@@ -83,4 +83,3 @@ return new class extends Migration
         // Backfill is intentionally non-reversible.
     }
 };
-

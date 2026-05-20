@@ -2,11 +2,11 @@
 
 namespace App\Domains\Facilitators\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Domains\Facilitators\Services\FacilitatorService;
 use App\Domains\Facilitators\Requests\StoreFacilitatorRequest;
 use App\Domains\Facilitators\Requests\UpdateFacilitatorRequest;
 use App\Domains\Facilitators\Resources\FacilitatorResource;
+use App\Domains\Facilitators\Services\FacilitatorService;
+use App\Http\Controllers\Controller;
 use App\Models\Provinces;
 use Inertia\Inertia;
 

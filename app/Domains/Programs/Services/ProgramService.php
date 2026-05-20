@@ -56,6 +56,7 @@ class ProgramService
     {
         return DB::transaction(function () use ($id) {
             $program = $this->getById($id);
+
             return $this->repository->delete($program);
         });
     }

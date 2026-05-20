@@ -2,10 +2,10 @@
 
 namespace App\Domains\BusinessDevelopment\Controllers;
 
+use App\Domains\BusinessDevelopment\Models\BdsApplication;
 use App\Domains\BusinessDevelopment\Requests\AssessBdsApplicationRequest;
 use App\Domains\BusinessDevelopment\Requests\ImportBdsApplicationRequest;
 use App\Domains\BusinessDevelopment\Requests\ScheduleBdsPitchRequest;
-use App\Domains\BusinessDevelopment\Models\BdsApplication;
 use App\Domains\BusinessDevelopment\Resources\BdsApplicationResource;
 use App\Domains\BusinessDevelopment\Services\BdsApplicationService;
 use App\Http\Controllers\Controller;

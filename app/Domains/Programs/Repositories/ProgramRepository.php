@@ -31,6 +31,7 @@ class ProgramRepository implements ProgramRepositoryInterface
     public function update(Program $program, array $data): Program
     {
         $program->update($data);
+
         return $program;
     }
 

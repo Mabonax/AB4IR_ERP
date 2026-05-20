@@ -41,6 +41,7 @@ class ProjectLocationService
     {
         return DB::transaction(function () use ($id, $data) {
             $location = $this->getLocationById($id);
+
             return $this->repository->update($location, $data);
         });
     }
@@ -49,6 +50,7 @@ class ProjectLocationService
     {
         return DB::transaction(function () use ($id) {
             $location = $this->getLocationById($id);
+
             return $this->repository->delete($location);
         });
     }

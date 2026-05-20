@@ -446,7 +446,7 @@ test('event managers can import participants from spreadsheet export and downloa
         'owner_staff_member_id' => $graph['staff']->id,
     ]);
 
-    $csv = <<<CSV
+    $csv = <<<'CSV'
 Submission Time,PERSONAL DETAILS - Name - Prefix,PERSONAL DETAILS - Name - First Name,PERSONAL DETAILS - Name - Last Name,PERSONAL DETAILS - Email Address,PERSONAL DETAILS - Phone,PERSONAL DETAILS - How will you be attending the event?,PERSONAL DETAILS - Additional comments?
 "May 14, 2026 @ 4:50 AM",Mr,Import,Speaker,speaker@example.com,0710001000,In-person (Physical Attendance),Imported from website
 "May 14, 2026 @ 4:55 AM",Ms,Import,Guest,guest@example.com,0710001001,Virtual attendance,Pre-registered

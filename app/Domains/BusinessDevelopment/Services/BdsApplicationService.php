@@ -131,6 +131,7 @@ class BdsApplicationService
 
                 if ($this->isDuplicate($payload['id_number'], $payload['company_registration_number'])) {
                     $summary['duplicates']++;
+
                     continue;
                 }
 
@@ -390,7 +391,7 @@ class BdsApplicationService
 
     protected function parseXlsxFile(UploadedFile $file): array
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($file->getRealPath()) !== true) {
             throw ValidationException::withMessages([
                 'file' => ['Could not open XLSX file.'],
@@ -416,6 +417,7 @@ class BdsApplicationService
                 foreach ($sharedXml->si as $item) {
                     if (isset($item->t)) {
                         $sharedStrings[] = (string) $item->t;
+
                         continue;
                     }
 

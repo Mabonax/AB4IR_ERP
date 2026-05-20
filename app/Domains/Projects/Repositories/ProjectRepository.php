@@ -35,6 +35,7 @@ class ProjectRepository implements ProjectRepositoryInterface
     public function update(Project $project, array $data): Project
     {
         $project->update($data);
+
         return $project;
     }
 

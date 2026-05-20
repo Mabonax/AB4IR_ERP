@@ -3,8 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Provinces;
-
-
 use Illuminate\Database\Seeder;
 
 class ProvincesSeeder extends Seeder
@@ -16,7 +14,7 @@ class ProvincesSeeder extends Seeder
     {
         $locations = [
             'Eastern Cape', 'Free State', 'Gauteng', 'KwaZulu-Natal',
-            'Limpopo', 'Mpumalanga', 'North West', 'Northern Cape', 'Western Cape'
+            'Limpopo', 'Mpumalanga', 'North West', 'Northern Cape', 'Western Cape',
         ];
 
         foreach ($locations as $province) {

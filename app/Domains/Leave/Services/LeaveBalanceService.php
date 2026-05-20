@@ -2,9 +2,7 @@
 
 namespace App\Domains\Leave\Services;
 
-use App\Domains\Leave\Models\LeaveRequest;
 use App\Domains\Staff\Models\StaffMember;
-use Carbon\Carbon;
 
 class LeaveBalanceService
 {

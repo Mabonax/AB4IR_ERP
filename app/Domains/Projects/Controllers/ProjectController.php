@@ -4,22 +4,21 @@ namespace App\Domains\Projects\Controllers;
 
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
-use App\Domains\Projects\Models\ProjectClosureEvidence;
-use App\Domains\Projects\Models\ProjectHistory;
-use App\Domains\Projects\Models\ProjectMilestone;
-use App\Domains\Projects\Models\ProjectMilestoneAssessment;
-use App\Domains\Projects\Models\ProjectReport;
 use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Models\ProjectClosureEvidence;
+use App\Domains\Projects\Models\ProjectEnrollment;
+use App\Domains\Projects\Models\ProjectHistory;
+use App\Domains\Projects\Models\ProjectLocation;
+use App\Domains\Projects\Models\ProjectMilestone;
+use App\Domains\Projects\Models\ProjectReport;
 use App\Domains\Projects\Requests\StoreProjectRequest;
 use App\Domains\Projects\Requests\UpdateProjectRequest;
 use App\Domains\Projects\Resources\ProjectResource;
 use App\Domains\Projects\Services\ProjectGovernanceService;
 use App\Domains\Projects\Services\ProjectProgressService;
 use App\Domains\Projects\Services\ProjectService;
-use App\Domains\Projects\Models\ProjectEnrollment;
-use App\Domains\Projects\Models\ProjectLocation;
-use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Http\Controllers\Controller;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -69,14 +68,14 @@ class ProjectController extends Controller
         $this->authorize('viewAny', Project::class);
 
         $projects = Project::with([
-                'projectManager',
-                'locations.facilitator',
-                'locations.province',
-                'locations.enrollments.beneficiary',
-                'locations.milestoneAssessments',
-                'locations.attendanceRegisters.entries',
-                'milestones',
-            ])
+            'projectManager',
+            'locations.facilitator',
+            'locations.province',
+            'locations.enrollments.beneficiary',
+            'locations.milestoneAssessments',
+            'locations.attendanceRegisters.entries',
+            'milestones',
+        ])
             ->orderByDesc('created_at')
             ->get();
         $portfolio = $this->progressService->summarizePortfolio($projects);
@@ -105,21 +104,21 @@ class ProjectController extends Controller
     public function show(int $project)
     {
         $model = Project::with([
-                'program',
-                'sponsor',
-                'partners',
-                'projectManager',
-                'closure.requestedBy',
-                'closure.concludedBy',
-                'closure.evidence.uploadedBy',
-                'closureEvidence.uploadedBy',
-                'history.actor',
-                'reports.createdBy',
-                'locations.facilitator',
-                'locations.province',
-                'locations.enrollments.beneficiary',
-                'milestones',
-            ])
+            'program',
+            'sponsor',
+            'partners',
+            'projectManager',
+            'closure.requestedBy',
+            'closure.concludedBy',
+            'closure.evidence.uploadedBy',
+            'closureEvidence.uploadedBy',
+            'history.actor',
+            'reports.createdBy',
+            'locations.facilitator',
+            'locations.province',
+            'locations.enrollments.beneficiary',
+            'milestones',
+        ])
             ->findOrFail($project);
 
         $this->authorize('view', $model);

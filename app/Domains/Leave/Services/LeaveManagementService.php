@@ -4,11 +4,9 @@ namespace App\Domains\Leave\Services;
 
 use App\Domains\Leave\Models\LeaveRequest;
 use App\Domains\Staff\Models\StaffMember;
-use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class LeaveManagementService

@@ -10,13 +10,13 @@ class ProjectEnrollmentRepository implements ProjectEnrollmentRepositoryInterfac
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
         return ProjectEnrollment::with([
-                'project.locations.enrollments.beneficiary',
-                'project.locations.facilitator',
-                'project.locations.province',
-                'beneficiary',
-                'location.facilitator',
-                'location.province',
-            ])
+            'project.locations.enrollments.beneficiary',
+            'project.locations.facilitator',
+            'project.locations.province',
+            'beneficiary',
+            'location.facilitator',
+            'location.province',
+        ])
             ->latest()
             ->paginate($perPage);
     }
@@ -41,6 +41,7 @@ class ProjectEnrollmentRepository implements ProjectEnrollmentRepositoryInterfac
     public function update(ProjectEnrollment $enrollment, array $data): ProjectEnrollment
     {
         $enrollment->update($data);
+
         return $enrollment;
     }
 

@@ -4,7 +4,6 @@ namespace App\Domains\Leave\Controllers;
 
 use App\Domains\Leave\Models\LeaveRequest;
 use App\Domains\Leave\Services\LeaveManagementService;
-use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;

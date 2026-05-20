@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('next_of_kin', function (Blueprint $table) {
-             $table->id();
+            $table->id();
             $table->string('name');
             $table->string('surname');
             $table->string('relationship');

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Domains\Beneficiaries\Models\Beneficiary;
+use Illuminate\Database\Eloquent\Model;
 
 class NextOfKin extends Model
 {
@@ -14,12 +14,9 @@ class NextOfKin extends Model
         'phone',
         'email',
     ];
-    
 
-public function beneficiary()
-{
-    return $this->hasOne(Beneficiary::class);
-}
-
-
+    public function beneficiary()
+    {
+        return $this->hasOne(Beneficiary::class);
+    }
 }

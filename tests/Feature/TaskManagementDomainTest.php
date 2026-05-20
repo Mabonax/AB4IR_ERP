@@ -1,7 +1,7 @@
 <?php
 
-use App\Domains\Projects\Models\Project;
 use App\Domains\Programs\Models\Program;
+use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\TaskManagement\Jobs\SendTaskManagementReminderNotificationsJob;
@@ -14,9 +14,9 @@ use App\Domains\TaskManagement\Notifications\TaskAssignedNotification;
 use App\Domains\TaskManagement\Notifications\TaskOverdueReminderNotification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 

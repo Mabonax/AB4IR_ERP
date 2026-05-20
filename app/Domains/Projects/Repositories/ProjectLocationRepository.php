@@ -27,6 +27,7 @@ class ProjectLocationRepository implements ProjectLocationRepositoryInterface
     public function update(ProjectLocation $location, array $data): ProjectLocation
     {
         $location->update($data);
+
         return $location;
     }
 

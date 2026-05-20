@@ -2,10 +2,10 @@
 
 namespace App\Domains\BusinessDevelopment\Models;
 
-use App\Domains\Staff\Models\StaffMember;
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
-use App\Models\User;
+use App\Domains\Staff\Models\StaffMember;
 use App\Models\provinces;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;

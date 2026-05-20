@@ -25,6 +25,7 @@ class AssetCategoryRepository implements AssetCategoryRepositoryInterface
     public function update(AssetCategory $category, array $data): AssetCategory
     {
         $category->update($data);
+
         return $category;
     }
 

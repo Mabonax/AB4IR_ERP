@@ -219,15 +219,18 @@ class AccessControlSeeder extends Seeder
 
                 if ($isFacilitatorUser) {
                     $user->syncRoles(['facilitator']);
+
                     continue;
                 }
 
                 $user->syncRoles(['viewer-cross-domain']);
+
                 continue;
             }
 
             if ((bool) $staff->is_ceo) {
                 $user->syncRoles(['super-admin']);
+
                 continue;
             }
 

@@ -3,14 +3,14 @@
 namespace App\Domains\Events\Services;
 
 use App\Domains\Events\Models\Event;
-use App\Domains\Events\Models\EventParticipant;
 use App\Domains\Events\Models\EventOutcomeReport;
+use App\Domains\Events\Models\EventParticipant;
 use App\Domains\Events\Models\EventTask;
 use App\Domains\Events\Models\EventWorkstream;
-use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Events\Repositories\EventRepositoryInterface;
-use Illuminate\Http\UploadedFile;
+use App\Domains\Staff\Models\StaffMember;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -258,6 +258,7 @@ class EventService
 
                 if ($this->participantExists($event, $payload)) {
                     $summary['duplicates']++;
+
                     continue;
                 }
 
@@ -464,6 +465,7 @@ class EventService
             ],
             'years' => $history->map(function (Event $item) {
                 $summary = $this->participantSummary($item);
+
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
@@ -878,7 +880,7 @@ class EventService
 
     protected function parseParticipantXlsxFile(UploadedFile $file): array
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($file->getRealPath()) !== true) {
             throw ValidationException::withMessages([
                 'file' => ['Could not open XLSX file.'],
@@ -904,6 +906,7 @@ class EventService
                 foreach ($sharedXml->si as $item) {
                     if (isset($item->t)) {
                         $sharedStrings[] = (string) $item->t;
+
                         continue;
                     }
 

@@ -14,8 +14,11 @@ use Illuminate\Validation\ValidationException;
 class TravelClaimService
 {
     public const DEFAULT_TARIFF_PER_KM = 4.84;
+
     public const APPROVAL_PENDING = 'pending';
+
     public const APPROVAL_APPROVED = 'approved';
+
     public const APPROVAL_REJECTED = 'rejected';
 
     public function create(User $actor, array $data): TravelClaim

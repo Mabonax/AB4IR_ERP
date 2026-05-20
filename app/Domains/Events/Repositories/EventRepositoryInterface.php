@@ -3,8 +3,8 @@
 namespace App\Domains\Events\Repositories;
 
 use App\Domains\Events\Models\Event;
-use Illuminate\Support\Collection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface EventRepositoryInterface
 {

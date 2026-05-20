@@ -19,4 +19,3 @@ class ScheduleBdsPitchRequest extends FormRequest
         ];
     }
 }
-

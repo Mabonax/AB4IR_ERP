@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domains\Leave\Models\LeaveRequest;
+use App\Domains\Leave\Services\LeaveManagementService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
-use App\Domains\Leave\Models\LeaveRequest;
-use App\Domains\Leave\Services\LeaveManagementService;
-use App\Domains\Staff\Models\StaffMember;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

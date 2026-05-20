@@ -387,9 +387,9 @@ test('pitch scheduling must use a future date and time', function () {
     $this->actingAs($judge);
 
     expect(fn () => app(BdsApplicationService::class)->schedulePitch($smmeId, [
-            'pitch_scheduled_at' => now()->subDay()->toDateTimeString(),
-            'pitch_notes' => 'Too late',
-        ]))->toThrow(ValidationException::class);
+        'pitch_scheduled_at' => now()->subDay()->toDateTimeString(),
+        'pitch_notes' => 'Too late',
+    ]))->toThrow(ValidationException::class);
 });
 
 test('application resource exposes workflow blockers before pitching and adjudication', function () {

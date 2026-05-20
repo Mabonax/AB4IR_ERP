@@ -41,6 +41,7 @@ class AssetCategoryService
     {
         return DB::transaction(function () use ($id, $data) {
             $category = $this->getCategoryById($id);
+
             return $this->repository->update($category, $data);
         });
     }
@@ -49,6 +50,7 @@ class AssetCategoryService
     {
         return DB::transaction(function () use ($id) {
             $category = $this->getCategoryById($id);
+
             return $this->repository->delete($category);
         });
     }

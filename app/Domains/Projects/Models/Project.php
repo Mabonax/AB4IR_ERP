@@ -3,8 +3,8 @@
 namespace App\Domains\Projects\Models;
 
 use App\Domains\Programs\Models\Program;
-use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\Stakeholders\Models\Stakeholder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

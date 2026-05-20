@@ -2,16 +2,16 @@
 
 namespace App\Domains\Beneficiaries\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Domains\Beneficiaries\Models\Beneficiary;
-use App\Domains\Beneficiaries\Services\BeneficiaryService;
 use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
-use App\Domains\Programs\Models\Program;
-use App\Models\Provinces;
-use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Beneficiaries\Resources\BeneficiaryResource;
+use App\Domains\Beneficiaries\Services\BeneficiaryService;
+use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Models\ProjectLocation;
+use App\Http\Controllers\Controller;
+use App\Models\Provinces;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 

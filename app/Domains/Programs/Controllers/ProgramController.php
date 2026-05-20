@@ -2,11 +2,11 @@
 
 namespace App\Domains\Programs\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Domains\Programs\Services\ProgramService;
 use App\Domains\Programs\Requests\StoreProgramRequest;
 use App\Domains\Programs\Requests\UpdateProgramRequest;
 use App\Domains\Programs\Resources\ProgramResource;
+use App\Domains\Programs\Services\ProgramService;
+use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
