@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Prepare application environment
+        run: |
+          cp .env.example .env
+          mkdir -p database
+          touch database/database.sqlite
+          {
+            echo "APP_ENV=testing"
+            echo "APP_DEBUG=true"
+            echo "DB_CONNECTION=sqlite"
+            echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite"
+            echo "CACHE_STORE=array"
+            echo "QUEUE_CONNECTION=sync"
+            echo "SESSION_DRIVER=array"
+            echo "RUN_MIGRATIONS=false"
+          } >> .env
+          php artisan key:generate
+
+      - name: Run backend checks
+        run: composer test
+
+      - name: Run frontend checks
+        run: |
+          npm run format:check
+          npm run lint
+          npm run types
+          npm run build
+
+  containers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Copy deploy environment
+        run: cp .env.example .env
+
+      - name: Validate compose configuration
+        run: docker compose config
+
+      - name: Build runtime images
+        run: |
+          docker build --target app -t ab4irerp-app:test .
+          docker build --target web -t ab4irerp-web:test .

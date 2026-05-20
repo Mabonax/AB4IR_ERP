@@ -1,0 +1,159 @@
+name: ${COMPOSE_PROJECT_NAME:-ab4irerp}
+
+services:
+  app:
+    image: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-app:latest}
+    build:
+      context: .
+      target: app
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app-storage:/var/www/html/storage
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-ab4irerp}
+      DB_USERNAME: ${DB_USERNAME:-ab4irerp}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      CACHE_STORE: ${CACHE_STORE:-redis}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_ACCESS_CONTROL_RESYNC: ${RUN_ACCESS_CONTROL_RESYNC:-false}
+
+  web:
+    image: ${WEB_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-web:latest}
+    build:
+      context: .
+      target: web
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - app-storage:/var/www/html/storage:ro
+
+  worker:
+    image: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-app:latest}
+    build:
+      context: .
+      target: app
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app-storage:/var/www/html/storage
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-ab4irerp}
+      DB_USERNAME: ${DB_USERNAME:-ab4irerp}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      CACHE_STORE: ${CACHE_STORE:-redis}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+      RUN_MIGRATIONS: "false"
+      RUN_ACCESS_CONTROL_RESYNC: "false"
+    command: ["start-worker"]
+
+  scheduler:
+    image: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-app:latest}
+    build:
+      context: .
+      target: app
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app-storage:/var/www/html/storage
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-ab4irerp}
+      DB_USERNAME: ${DB_USERNAME:-ab4irerp}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      CACHE_STORE: ${CACHE_STORE:-redis}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+      RUN_MIGRATIONS: "false"
+      RUN_ACCESS_CONTROL_RESYNC: "false"
+    command: ["start-scheduler"]
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-ab4irerp}
+      MYSQL_USER: ${DB_USERNAME:-ab4irerp}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-secret}
+    ports:
+      - "${FORWARD_DB_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  app-storage:
+  mysql-data:
+  redis-data:
