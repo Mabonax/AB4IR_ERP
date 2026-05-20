@@ -15,19 +15,33 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function LeaveSettings({
-    balance,
+    leaveAccount,
     myRequests,
+    leaveTypes,
 }: {
-    balance: {
-        accrued: number;
-        used: number;
-        available: number;
+    leaveAccount: {
         period_start: string | null;
         period_end: string | null;
+        annual: {
+            accrued: number;
+            taken: number;
+            available: number;
+        };
+        sick: {
+            entitlement: number;
+            taken: number;
+            available: number;
+        };
+        pending: {
+            count: number;
+            days: number;
+        };
     };
     myRequests: any[];
+    leaveTypes: { value: string; label: string }[];
 }) {
     const { data, setData, post, processing, errors, reset } = useForm({
+        leave_type: 'annual',
         start_date: '',
         end_date: '',
         reason: '',
@@ -53,26 +67,49 @@ export default function LeaveSettings({
                         <Heading
                             variant="small"
                             title="Leave balance"
-                            description="Current financial year"
+                            description="Current leave period"
                         />
+
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
+                                <div className="text-sm text-muted-foreground">Annual Accrued</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.annual.accrued}</div>
+                            </div>
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
+                                <div className="text-sm text-muted-foreground">Annual Taken</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.annual.taken}</div>
+                            </div>
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
+                                <div className="text-sm text-muted-foreground">Annual Available</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.annual.available}</div>
+                            </div>
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
+                                <div className="text-sm text-muted-foreground">Sick Available</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.sick.available}</div>
+                            </div>
+                            <div className="rounded-lg border bg-card p-4 shadow-sm">
+                                <div className="text-sm text-muted-foreground">Pending Days</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.pending.days}</div>
+                            </div>
+                        </div>
 
                         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="rounded-lg border bg-card p-4 shadow-sm">
-                                <div className="text-sm text-muted-foreground">Accrued</div>
-                                <div className="text-2xl font-semibold">{balance.accrued}</div>
+                                <div className="text-sm text-muted-foreground">Sick Entitlement</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.sick.entitlement}</div>
                             </div>
                             <div className="rounded-lg border bg-card p-4 shadow-sm">
-                                <div className="text-sm text-muted-foreground">Used</div>
-                                <div className="text-2xl font-semibold">{balance.used}</div>
+                                <div className="text-sm text-muted-foreground">Sick Taken</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.sick.taken}</div>
                             </div>
                             <div className="rounded-lg border bg-card p-4 shadow-sm">
-                                <div className="text-sm text-muted-foreground">Available</div>
-                                <div className="text-2xl font-semibold">{balance.available}</div>
+                                <div className="text-sm text-muted-foreground">Pending Requests</div>
+                                <div className="text-2xl font-semibold">{leaveAccount.pending.count}</div>
                             </div>
                             <div className="rounded-lg border bg-card p-4 shadow-sm">
                                 <div className="text-sm text-muted-foreground">Period</div>
                                 <div className="text-sm">
-                                    {balance.period_start ?? '-'} to {balance.period_end ?? '-'}
+                                    {leaveAccount.period_start ?? '-'} to {leaveAccount.period_end ?? '-'}
                                 </div>
                             </div>
                         </div>
@@ -95,6 +132,20 @@ export default function LeaveSettings({
                             }}
                             className="mt-4 grid gap-3 sm:grid-cols-2"
                         >
+                            <div className="sm:col-span-2">
+                                <select
+                                    value={data.leave_type}
+                                    onChange={(e) => setData('leave_type', e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                    {leaveTypes.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError className="mt-1" message={errors.leave_type} />
+                            </div>
                             <div>
                                 <Input
                                     type="date"
@@ -121,7 +172,6 @@ export default function LeaveSettings({
                                     placeholder="Reason (optional)"
                                 />
                                 <InputError className="mt-1" message={errors.reason} />
-                                <InputError className="mt-1" message={errors.staff} />
                             </div>
                             <Button type="submit" className="sm:col-span-2" disabled={processing}>
                                 Submit Request
@@ -141,6 +191,7 @@ export default function LeaveSettings({
                                 columns={[
                                     { label: 'Start', key: 'start_date', className: 'px-4 py-2 text-left' },
                                     { label: 'End', key: 'end_date', className: 'px-4 py-2 text-left' },
+                                    { label: 'Type', key: 'leave_type_label', className: 'px-4 py-2 text-left' },
                                     { label: 'Days', key: 'total_days', className: 'px-4 py-2 text-left' },
                                     { label: 'Status', key: 'status', className: 'px-4 py-2 text-left' },
                                     { label: 'Manager', key: 'manager_name', className: 'px-4 py-2 text-left' },

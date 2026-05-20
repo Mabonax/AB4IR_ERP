@@ -1,14 +1,10 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
-import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { DomainNav } from "@/components/domain-nav";
 import { staffNavItems } from "@/config/domain-nav/staff";
 
-import { StaffModelFormConfig } from "@/config/forms/staff-model-form";
 import { StaffTableConfig } from "@/config/tables/staff-table";
 
 import staff from "@/routes/staff";
@@ -29,48 +25,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function StaffIndex({
   staffMembers,
-  departments,
-  managers,
+  selectedDepartmentId,
 }: {
   staffMembers: { data: any[] };
-  departments: { id: number; name: string }[];
-  managers: { id: number; name: string }[];
+  selectedDepartmentId: number | null;
 }) {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"create" | "edit" | "view">("create");
-  const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
-
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [staffToDelete, setStaffToDelete] = useState<any | null>(null);
-
-  const mappedStaffData = selectedStaff
-    ? {
-        "staff.first_name": selectedStaff.first_name ?? "",
-        "staff.last_name": selectedStaff.last_name ?? "",
-        "staff.email": selectedStaff.email ?? "",
-        "staff.phone": selectedStaff.phone ?? "",
-        "staff.employee_number": selectedStaff.employee_number ?? "",
-        "staff.start_date": selectedStaff.start_date ?? "",
-        "staff.manager_id":
-          selectedStaff.manager_id !== null &&
-          selectedStaff.manager_id !== undefined
-            ? String(selectedStaff.manager_id)
-            : "",
-        "staff.is_ceo": selectedStaff.is_ceo ? "1" : "0",
-        "staff.is_board_member": selectedStaff.is_board_member ? "1" : "0",
-        "staff.department_id":
-          selectedStaff.department_id !== null &&
-          selectedStaff.department_id !== undefined
-            ? String(selectedStaff.department_id)
-            : "",
-        "staff.status": selectedStaff.status ?? "active",
-        "next_of_kin.full_name": selectedStaff.next_of_kin?.full_name ?? "",
-        "next_of_kin.relationship": selectedStaff.next_of_kin?.relationship ?? "",
-        "next_of_kin.phone": selectedStaff.next_of_kin?.phone ?? "",
-        "next_of_kin.email": selectedStaff.next_of_kin?.email ?? "",
-      }
-    : {};
-
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Staff" />
@@ -79,16 +38,17 @@ export default function StaffIndex({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Staff</h1>
           <DomainNav items={staffNavItems} />
-        
 
-          <CustomModelForm
-            addButton={StaffModelFormConfig.addButton}
-            title="Add Staff Member"
-            description={StaffModelFormConfig.description}
-            fields={StaffModelFormConfig.fields}
-            submitRoute={staff.store}
-            options={{ departments, managers }}
-          />
+          <a
+            href={staff.create.url(
+              selectedDepartmentId
+                ? { query: { department_id: selectedDepartmentId } }
+                : undefined
+            )}
+            className="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          >
+            Add Staff Member
+          </a>
         </div>
 
         <CustomTable
@@ -96,62 +56,14 @@ export default function StaffIndex({
           data={staffMembers.data}
           actions={[
             {
-              icon: "UserCircle",
+              icon: "Eye",
+              label: "View staff member",
               onClick: (row) => {
                 window.location.href = `/staff/${row.id}/profile`;
               },
             },
-            {
-              icon: "Eye",
-              onClick: (row) => {
-                setSelectedStaff(row);
-                setMode("view");
-                setOpen(true);
-              },
-            },
-            {
-              icon: "PencilIcon",
-              onClick: (row) => {
-                setSelectedStaff(row);
-                setMode("edit");
-                setOpen(true);
-              },
-            },
-            {
-              icon: "Trash2",
-              variant: "danger",
-              onClick: (row) => {
-                setStaffToDelete(row);
-                setDeleteOpen(true);
-              },
-            },
           ]}
         />
-
-        {selectedStaff && (
-          <CustomModelForm
-            hideTrigger
-            open={open}
-            onOpenChange={setOpen}
-            title={mode === "view" ? "Staff Details" : "Edit Staff Member"}
-            fields={StaffModelFormConfig.fields}
-            mode={mode}
-            initialData={mappedStaffData}
-            submitRoute={staff.update}
-            routeParams={selectedStaff.id}
-            options={{ departments, managers }}
-          />
-        )}
-
-        {staffToDelete && (
-          <ConfirmDeleteModal
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            title="Delete Staff Member"
-            submitRoute={staff.destroy}
-            routeParams={staffToDelete.id}
-          />
-        )}
       </div>
     </AppLayout>
   );

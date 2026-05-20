@@ -18,6 +18,11 @@ class StaffMember extends Model
         'manager_id',
         'is_ceo',
         'is_board_member',
+        'is_manager',
+        'is_intern',
+        'intern_sponsor_name',
+        'internship_start_date',
+        'internship_end_date',
         'first_name',
         'last_name',
         'email',
@@ -29,8 +34,12 @@ class StaffMember extends Model
 
     protected $casts = [
         'start_date' => 'date',
+        'internship_start_date' => 'date',
+        'internship_end_date' => 'date',
         'is_ceo' => 'boolean',
         'is_board_member' => 'boolean',
+        'is_manager' => 'boolean',
+        'is_intern' => 'boolean',
     ];
 
     public function user()

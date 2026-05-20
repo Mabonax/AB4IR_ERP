@@ -1,0 +1,292 @@
+<?php
+
+use App\Domains\Leave\Models\LeaveRequest;
+use App\Domains\Leave\Services\LeaveManagementService;
+use App\Domains\Staff\Models\StaffDepartment;
+use App\Domains\Staff\Models\StaffMember;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+
+uses(RefreshDatabase::class);
+
+function makeLeaveDepartment(string $name = 'Operations'): StaffDepartment
+{
+    return StaffDepartment::query()->create([
+        'name' => $name,
+        'description' => $name.' department',
+    ]);
+}
+
+function makeLeaveStaffUser(
+    StaffDepartment $department,
+    string $email,
+    ?StaffMember $manager = null,
+    array $staffOverrides = [],
+    array $permissions = []
+): array {
+    $user = User::factory()->create([
+        'email' => $email,
+        'name' => strtok($email, '@'),
+    ]);
+
+    $staff = StaffMember::query()->create(array_merge([
+        'user_id' => $user->id,
+        'department_id' => $department->id,
+        'manager_id' => $manager?->id,
+        'first_name' => ucfirst(strtok($email, '.')),
+        'last_name' => 'Staff',
+        'email' => $email,
+        'phone' => '0711111111',
+        'employee_number' => strtoupper(substr(md5($email), 0, 8)),
+        'start_date' => '2026-03-01',
+        'status' => 'active',
+        'is_manager' => false,
+    ], $staffOverrides));
+
+    if ($permissions !== []) {
+        grantPermissions($user, $permissions);
+    }
+
+    return [$user, $staff];
+}
+
+test('staff can submit annual leave and working days are calculated correctly', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser(
+        $department,
+        'manager.leave@example.test',
+        permissions: ['domain.leave.manage']
+    );
+
+    [$staffUser, $staff] = makeLeaveStaffUser(
+        $department,
+        'staff.leave@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', [
+            'leave_type' => 'annual',
+            'start_date' => '2026-05-15',
+            'end_date' => '2026-05-18',
+            'reason' => 'Family matter',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $leave = LeaveRequest::query()->first();
+
+    expect($leave)->not->toBeNull()
+        ->and($leave->leave_type)->toBe('annual')
+        ->and((float) $leave->total_days)->toBe(2.0);
+});
+
+test('staff can submit sick leave', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser(
+        $department,
+        'manager.sick@example.test',
+        permissions: ['domain.leave.manage']
+    );
+
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.sick@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', [
+            'leave_type' => 'sick',
+            'start_date' => '2026-05-19',
+            'end_date' => '2026-05-20',
+            'reason' => 'Medical rest',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('leave_requests', [
+        'leave_type' => 'sick',
+        'status' => 'submitted',
+    ]);
+});
+
+test('annual leave is blocked when annual available balance is insufficient', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.balance@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser($department, 'staff.balance@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', [
+            'leave_type' => 'annual',
+            'start_date' => '2026-05-18',
+            'end_date' => '2026-05-22',
+            'reason' => 'Extended annual leave',
+        ])
+        ->assertSessionHasErrors(['end_date']);
+
+    expect(LeaveRequest::query()->count())->toBe(0);
+});
+
+test('sick leave is blocked when sick available balance is insufficient', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.sick-limit@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser($department, 'staff.sick-limit@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
+
+    $this->actingAs($staffUser)
+        ->post('/leave-requests', [
+            'leave_type' => 'sick',
+            'start_date' => '2026-05-18',
+            'end_date' => '2026-06-01',
+            'reason' => 'Long recovery',
+        ])
+        ->assertSessionHasErrors(['end_date']);
+
+    expect(LeaveRequest::query()->count())->toBe(0);
+});
+
+test('assigned manager can approve leave and balances change only after hr approval', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.approve@example.test', permissions: ['domain.leave.manage']);
+    [$hrUser] = makeLeaveStaffUser($department, 'hr.approve@example.test', permissions: ['domain.leave.manage', 'domain.human-resources.manage']);
+    [$staffUser, $staff] = makeLeaveStaffUser($department, 'staff.approve@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-20',
+        'reason' => 'Family leave',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+    $service = app(LeaveManagementService::class);
+
+    $before = $service->summarizeStaff($staff);
+    expect($before['annual']['taken'])->toBe(0.0);
+
+    $this->actingAs($managerUser)
+        ->post("/leave-requests/{$leave->id}/manager-approve", ['manager_comment' => 'Approved'])
+        ->assertSessionHasNoErrors();
+
+    $middle = $service->summarizeStaff($staff);
+    expect($middle['annual']['taken'])->toBe(0.0)
+        ->and($leave->fresh()->status)->toBe('manager_approved');
+
+    $this->actingAs($hrUser)
+        ->post("/leave-requests/{$leave->id}/hr-approve", ['hr_comment' => 'Confirmed'])
+        ->assertSessionHasNoErrors();
+
+    $after = $service->summarizeStaff($staff);
+    expect($after['annual']['taken'])->toBe(2.0)
+        ->and($after['annual']['available'])->toBeLessThan($before['annual']['available']);
+});
+
+test('wrong manager cannot approve another managers leave request', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.owner@example.test', permissions: ['domain.leave.manage']);
+    [$wrongManagerUser] = makeLeaveStaffUser($department, 'manager.wrong@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser($department, 'staff.owner@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-19',
+        'reason' => 'Personal day',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($wrongManagerUser)
+        ->post("/leave-requests/{$leave->id}/manager-approve", ['manager_comment' => 'No'])
+        ->assertSessionHasErrors(['authorization']);
+
+    expect($leave->fresh()->status)->toBe('submitted');
+});
+
+test('settings leave page receives annual and sick summaries', function () {
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.settings@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.settings@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    $this->actingAs($staffUser)
+        ->get('/settings/leave')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('settings/leave')
+            ->where('leaveAccount.annual.accrued', 2.5)
+            ->where('leaveAccount.sick.entitlement', 10)
+            ->has('leaveTypes', 2)
+        );
+});
+
+test('staff profile exposes leave account data', function () {
+    $department = makeLeaveDepartment();
+    [$viewer] = makeLeaveStaffUser($department, 'viewer.profile@example.test', permissions: ['domain.staff.view']);
+    $staff = StaffMember::query()->create([
+        'department_id' => $department->id,
+        'first_name' => 'Mpho',
+        'last_name' => 'Profile',
+        'email' => 'mpho.profile@example.test',
+        'phone' => '0711112222',
+        'employee_number' => 'PROF-001',
+        'start_date' => '2026-03-01',
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($viewer)
+        ->get("/staff/{$staff->id}/profile")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Staff/Profile')
+            ->where('staff.leave_account.sick.entitlement', 10)
+            ->where('staff.leave_account.annual.available', 2.5)
+        );
+});
+
+test('hr dashboard receives leave summary register', function () {
+    $department = makeLeaveDepartment();
+    [$hrUser] = makeLeaveStaffUser($department, 'hr.dashboard@example.test', permissions: ['domain.human-resources.manage', 'domain.staff.manage']);
+    StaffMember::query()->create([
+        'department_id' => $department->id,
+        'first_name' => 'Lindi',
+        'last_name' => 'Employee',
+        'email' => 'lindi.employee@example.test',
+        'phone' => '0713334444',
+        'employee_number' => 'HRD-001',
+        'start_date' => '2026-03-01',
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($hrUser)
+        ->get('/human-resources')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('HumanResources/Dashboard')
+            ->has('leaveSummary.staff', 2)
+            ->where('leaveSummary.totals.sick_available', 20)
+        );
+});
+
+test('manager facing data includes only direct reports', function () {
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.dashboard@example.test', permissions: ['domain.staff.view']);
+    makeLeaveStaffUser($department, 'report.one@example.test', manager: $managerStaff);
+    makeLeaveStaffUser($department, 'report.two@example.test', manager: $managerStaff);
+    makeLeaveStaffUser($department, 'outsider@example.test');
+
+    $this->actingAs($managerUser)
+        ->get('/staff/dashboard')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Staff/Dashboard')
+            ->where('managerLeave.team_members', 2)
+            ->has('managerLeave.team', 2)
+        );
+});

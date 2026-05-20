@@ -35,7 +35,7 @@ class StaffService
     public function createStaffWithNextOfKin(array $data): StaffMember
     {
         return DB::transaction(function () use ($data) {
-            $staffData = $data['staff'];
+            $staffData = $this->normalizeStaffData($data['staff']);
             $user = $this->ensureLinkedUser($staffData);
             $staffData['user_id'] = $user->id;
 
@@ -52,7 +52,7 @@ class StaffService
     {
         return DB::transaction(function () use ($id, $data) {
             $staff = $this->getStaffById($id);
-            $staffData = $data['staff'];
+            $staffData = $this->normalizeStaffData($data['staff']);
             $previousUserId = $staff->user_id;
 
             $user = $this->ensureLinkedUser($staffData, $staff);
@@ -86,6 +86,37 @@ class StaffService
             }
 
             return $this->repository->delete($staff);
+        });
+    }
+
+    public function promoteToManager(int $id): StaffMember
+    {
+        return DB::transaction(function () use ($id) {
+            $staff = $this->getStaffById($id);
+
+            if ((bool) $staff->is_manager) {
+                throw ValidationException::withMessages([
+                    'staff' => 'This staff member is already a manager.',
+                ]);
+            }
+
+            if ((bool) $staff->is_ceo) {
+                throw ValidationException::withMessages([
+                    'staff' => 'The CEO does not need a separate manager promotion.',
+                ]);
+            }
+
+            if ($staff->status !== 'active') {
+                throw ValidationException::withMessages([
+                    'staff' => 'Only active staff members can be promoted to manager.',
+                ]);
+            }
+
+            $this->repository->update($staff, [
+                'is_manager' => true,
+            ]);
+
+            return $this->repository->find($staff->id) ?? $staff->refresh();
         });
     }
 
@@ -161,5 +192,18 @@ class StaffService
         $this->guardUserIsNotLinkedToAnotherStaff($user->id, $staffId);
 
         return $user;
+    }
+
+    protected function normalizeStaffData(array $staffData): array
+    {
+        $isIntern = filter_var($staffData['is_intern'] ?? false, FILTER_VALIDATE_BOOL);
+
+        if (! $isIntern) {
+            $staffData['intern_sponsor_name'] = null;
+            $staffData['internship_start_date'] = null;
+            $staffData['internship_end_date'] = null;
+        }
+
+        return $staffData;
     }
 }

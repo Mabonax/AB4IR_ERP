@@ -43,6 +43,11 @@ class UpdateStaffRequest extends FormRequest
             'staff.manager_id' => 'nullable|exists:staff_members,id',
             'staff.is_ceo' => 'nullable|boolean',
             'staff.is_board_member' => 'nullable|boolean',
+            'staff.is_manager' => 'nullable|boolean',
+            'staff.is_intern' => 'nullable|boolean',
+            'staff.intern_sponsor_name' => 'nullable|required_if:staff.is_intern,1|string|max:255',
+            'staff.internship_start_date' => 'nullable|required_if:staff.is_intern,1|date',
+            'staff.internship_end_date' => 'nullable|required_if:staff.is_intern,1|date|after_or_equal:staff.internship_start_date',
             'staff.user_id' => 'nullable|exists:users,id',
 
             'next_of_kin.full_name' => 'required|string|max:255',

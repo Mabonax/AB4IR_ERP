@@ -3,10 +3,10 @@
 namespace App\Domains\Leave\Controllers;
 
 use App\Domains\Leave\Models\LeaveRequest;
-use App\Domains\Leave\Services\LeaveBalanceService;
+use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
-use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -14,7 +14,7 @@ use Inertia\Inertia;
 class LeaveRequestController extends Controller
 {
     public function __construct(
-        protected LeaveBalanceService $balanceService
+        protected LeaveManagementService $leaveManagementService
     ) {}
 
     public function index()
@@ -68,28 +68,12 @@ class LeaveRequestController extends Controller
 
         $leaveRegister = $leaveRegisterQuery->get();
 
-        $mapLeave = fn ($leave) => [
-            'id' => $leave->id,
-            'staff_member_id' => $leave->staff_member_id,
-            'staff_member_name' => $leave->staffMember
-                ? trim($leave->staffMember->first_name.' '.$leave->staffMember->last_name)
-                : null,
-            'department_name' => $leave->staffMember?->department?->name,
-            'manager_id' => $leave->manager_id,
-            'manager_name' => $leave->manager
-                ? trim($leave->manager->first_name.' '.$leave->manager->last_name)
-                : null,
-            'start_date' => $leave->start_date?->format('Y-m-d'),
-            'end_date' => $leave->end_date?->format('Y-m-d'),
-            'total_days' => $leave->total_days,
-            'status' => $leave->status,
-        ];
-
         return Inertia::render('LeaveRequests/Index', [
-            'myRequests' => $myRequests->map($mapLeave)->values(),
-            'managerQueue' => $managerQueue->map($mapLeave)->values(),
-            'hrQueue' => $hrQueue->map($mapLeave)->values(),
-            'leaveRegister' => $leaveRegister->map($mapLeave)->values(),
+            'myRequests' => $myRequests->map(fn ($leave) => $this->leaveManagementService->mapLeave($leave))->values(),
+            'managerQueue' => $managerQueue->map(fn ($leave) => $this->leaveManagementService->mapLeave($leave))->values(),
+            'hrQueue' => $hrQueue->map(fn ($leave) => $this->leaveManagementService->mapLeave($leave))->values(),
+            'leaveRegister' => $leaveRegister->map(fn ($leave) => $this->leaveManagementService->mapLeave($leave))->values(),
+            'teamLeaveSummary' => $staff ? $this->leaveManagementService->teamSummaryForManager($staff) : [],
         ]);
     }
 
@@ -102,32 +86,13 @@ class LeaveRequestController extends Controller
         }
 
         $data = $request->validate([
+            'leave_type' => 'required|in:annual,sick',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'nullable|string|max:2000',
         ]);
 
-        $start = Carbon::parse($data['start_date']);
-        $end = Carbon::parse($data['end_date']);
-        $totalDays = $start->diffInDays($end) + 1;
-
-        $balance = $this->balanceService->calculate($staff);
-        if ($totalDays > $balance['available']) {
-            return redirect()->back()->withErrors([
-                'end_date' => 'Insufficient leave balance.',
-            ]);
-        }
-
-        LeaveRequest::create([
-            'staff_member_id' => $staff->id,
-            'manager_id' => $staff->manager_id,
-            'start_date' => $start->format('Y-m-d'),
-            'end_date' => $end->format('Y-m-d'),
-            'total_days' => $totalDays,
-            'reason' => $data['reason'] ?? null,
-            'status' => 'submitted',
-            'submitted_at' => now(),
-        ]);
+        $this->leaveManagementService->createRequest($staff, $data);
 
         return redirect()->back()->with('success', 'Leave request submitted');
     }
@@ -138,17 +103,20 @@ class LeaveRequestController extends Controller
             'manager_comment' => 'nullable|string|max:2000',
         ]);
 
-        $leave = LeaveRequest::findOrFail($leave_request);
-        if ($leave->status !== 'submitted') {
-            return redirect()->back()->withErrors([
-                'status' => 'Leave request is not awaiting manager approval.',
-            ]);
+        $staff = $request->user()?->staffMember;
+        if (! $staff) {
+            return redirect()->back()->withErrors(['staff' => 'No staff profile found.']);
         }
-        $leave->update([
-            'status' => 'manager_approved',
-            'manager_comment' => $data['manager_comment'] ?? null,
-            'manager_approved_at' => now(),
-        ]);
+
+        try {
+            $this->leaveManagementService->managerApprove(
+                $staff,
+                LeaveRequest::query()->findOrFail($leave_request),
+                $data['manager_comment'] ?? null
+            );
+        } catch (AuthorizationException $exception) {
+            return redirect()->back()->withErrors(['authorization' => $exception->getMessage()]);
+        }
 
         return redirect()->back()->with('success', 'Leave request approved by manager');
     }
@@ -159,16 +127,20 @@ class LeaveRequestController extends Controller
             'manager_comment' => 'nullable|string|max:2000',
         ]);
 
-        $leave = LeaveRequest::findOrFail($leave_request);
-        if ($leave->status !== 'submitted') {
-            return redirect()->back()->withErrors([
-                'status' => 'Leave request is not awaiting manager approval.',
-            ]);
+        $staff = $request->user()?->staffMember;
+        if (! $staff) {
+            return redirect()->back()->withErrors(['staff' => 'No staff profile found.']);
         }
-        $leave->update([
-            'status' => 'manager_rejected',
-            'manager_comment' => $data['manager_comment'] ?? null,
-        ]);
+
+        try {
+            $this->leaveManagementService->managerReject(
+                $staff,
+                LeaveRequest::query()->findOrFail($leave_request),
+                $data['manager_comment'] ?? null
+            );
+        } catch (AuthorizationException $exception) {
+            return redirect()->back()->withErrors(['authorization' => $exception->getMessage()]);
+        }
 
         return redirect()->back()->with('success', 'Leave request rejected by manager');
     }
@@ -179,17 +151,10 @@ class LeaveRequestController extends Controller
             'hr_comment' => 'nullable|string|max:2000',
         ]);
 
-        $leave = LeaveRequest::findOrFail($leave_request);
-        if ($leave->status !== 'manager_approved') {
-            return redirect()->back()->withErrors([
-                'status' => 'Leave request is not awaiting HR approval.',
-            ]);
-        }
-        $leave->update([
-            'status' => 'hr_approved',
-            'hr_comment' => $data['hr_comment'] ?? null,
-            'hr_approved_at' => now(),
-        ]);
+        $this->leaveManagementService->hrApprove(
+            LeaveRequest::query()->findOrFail($leave_request),
+            $data['hr_comment'] ?? null
+        );
 
         return redirect()->back()->with('success', 'Leave request approved by HR');
     }
@@ -200,18 +165,11 @@ class LeaveRequestController extends Controller
             'hr_comment' => 'nullable|string|max:2000',
         ]);
 
-        $leave = LeaveRequest::findOrFail($leave_request);
-        if ($leave->status !== 'manager_approved') {
-            return redirect()->back()->withErrors([
-                'status' => 'Leave request is not awaiting HR approval.',
-            ]);
-        }
-        $leave->update([
-            'status' => 'hr_rejected',
-            'hr_comment' => $data['hr_comment'] ?? null,
-        ]);
+        $this->leaveManagementService->hrReject(
+            LeaveRequest::query()->findOrFail($leave_request),
+            $data['hr_comment'] ?? null
+        );
 
         return redirect()->back()->with('success', 'Leave request rejected by HR');
     }
-
 }

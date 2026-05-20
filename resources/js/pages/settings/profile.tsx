@@ -1,14 +1,13 @@
 import { Transition } from '@headlessui/react';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 
-import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { edit } from '@/routes/profile';
+import profile from '@/routes/profile';
 import { send } from '@/routes/verification';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { DomainNav } from '@/components/domain-nav';
@@ -17,7 +16,7 @@ import { settingsNavItems } from '@/config/domain-nav/settings';
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Profile settings',
-        href: edit().url,
+        href: profile.edit().url,
     },
 ];
 
@@ -25,6 +24,7 @@ export default function Profile({
     mustVerifyEmail,
     status,
     staff,
+    leaveAccount,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
@@ -37,6 +37,24 @@ export default function Profile({
         is_ceo: boolean;
         is_board_member: boolean;
     } | null;
+    leaveAccount: {
+        period_start: string | null;
+        period_end: string | null;
+        annual: {
+            accrued: number;
+            taken: number;
+            available: number;
+        };
+        sick: {
+            entitlement: number;
+            taken: number;
+            available: number;
+        };
+        pending: {
+            count: number;
+            days: number;
+        };
+    };
 }) {
     const { auth } = usePage<SharedData>().props;
 
@@ -59,12 +77,53 @@ export default function Profile({
                     <div className="rounded-xl border bg-card p-6 shadow-sm">
                         <Heading
                             variant="small"
+                            title="Leave account"
+                            description="Annual and sick leave visibility"
+                        />
+
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-lg border p-4">
+                                <div className="text-sm text-muted-foreground">Annual Available</div>
+                                <div className="mt-1 text-2xl font-semibold">{leaveAccount.annual.available}</div>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="text-sm text-muted-foreground">Annual Taken</div>
+                                <div className="mt-1 text-2xl font-semibold">{leaveAccount.annual.taken}</div>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="text-sm text-muted-foreground">Sick Available</div>
+                                <div className="mt-1 text-2xl font-semibold">{leaveAccount.sick.available}</div>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="text-sm text-muted-foreground">Sick Taken</div>
+                                <div className="mt-1 text-2xl font-semibold">{leaveAccount.sick.taken}</div>
+                            </div>
+                            <div className="rounded-lg border p-4 sm:col-span-2">
+                                <div className="text-sm text-muted-foreground">Current Period</div>
+                                <div className="mt-1 font-medium">
+                                    {leaveAccount.period_start ?? '-'} to {leaveAccount.period_end ?? '-'}
+                                </div>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="text-sm text-muted-foreground">Pending Requests</div>
+                                <div className="mt-1 text-2xl font-semibold">{leaveAccount.pending.count}</div>
+                            </div>
+                            <div className="rounded-lg border p-4">
+                                <div className="text-sm text-muted-foreground">Pending Days</div>
+                                <div className="mt-1 text-2xl font-semibold">{leaveAccount.pending.days}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="rounded-xl border bg-card p-6 shadow-sm">
+                        <Heading
+                            variant="small"
                             title="Profile information"
                             description="Update your name and email address"
                         />
 
                         <Form
-                            {...ProfileController.update.form()}
+                            {...profile.update.form()}
                             options={{
                                 preserveScroll: true,
                             }}

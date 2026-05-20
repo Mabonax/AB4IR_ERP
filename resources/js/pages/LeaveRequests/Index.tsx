@@ -31,11 +31,13 @@ export default function LeaveRequestsIndex({
   managerQueue,
   hrQueue,
   leaveRegister,
+  teamLeaveSummary,
 }: {
   myRequests: any[];
   managerQueue: any[];
   hrQueue: any[];
   leaveRegister: any[];
+  teamLeaveSummary: any[];
 }) {
   const [actionOpen, setActionOpen] = useState(false);
   const [actionType, setActionType] = useState<"manager_approve" | "manager_reject" | "hr_approve" | "hr_reject" | null>(null);
@@ -77,6 +79,7 @@ export default function LeaveRequestsIndex({
   const columns = [
     { label: "Employee", key: "staff_name", className: "px-4 py-2 text-left" },
     { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
+    { label: "Type", key: "leave_type_label", className: "px-4 py-2 text-left" },
     { label: "Start", key: "start_date", className: "px-4 py-2 text-left" },
     { label: "End", key: "end_date", className: "px-4 py-2 text-left" },
     { label: "Days", key: "total_days", className: "px-4 py-2 text-left" },
@@ -91,6 +94,22 @@ export default function LeaveRequestsIndex({
       department_name: item.department_name ?? "-",
       manager_name: item.manager_name ?? "-",
     }));
+
+  const teamColumns = [
+    { label: "Employee", key: "staff_name", className: "px-4 py-2 text-left" },
+    { label: "Department", key: "department_name", className: "px-4 py-2 text-left" },
+    { label: "Annual Available", key: "annual_available", className: "px-4 py-2 text-left" },
+    { label: "Sick Available", key: "sick_available", className: "px-4 py-2 text-left" },
+    { label: "Pending Requests", key: "pending_count", className: "px-4 py-2 text-left" },
+  ];
+
+  const mappedTeam = teamLeaveSummary.map((item) => ({
+    staff_name: item.staff_name,
+    department_name: item.department_name ?? "-",
+    annual_available: item.leave_account?.annual?.available ?? 0,
+    sick_available: item.leave_account?.sick?.available ?? 0,
+    pending_count: item.leave_account?.pending?.count ?? 0,
+  }));
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -121,6 +140,18 @@ export default function LeaveRequestsIndex({
             <CustomTable columns={columns} data={mapRequests(myRequests)} actions={[]} />
           </CardContent>
         </Card>
+
+        {mappedTeam.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Team Leave Accounts</CardTitle>
+              <CardDescription>Direct reports and their current leave balances</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CustomTable columns={teamColumns} data={mappedTeam} actions={[]} />
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader>

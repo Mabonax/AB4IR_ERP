@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Domains\Leave\Models\LeaveRequest;
-use App\Domains\Leave\Services\LeaveBalanceService;
+use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Models\StaffMember;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +18,7 @@ use Inertia\Response;
 class ProfileController extends Controller
 {
     public function __construct(
-        protected LeaveBalanceService $balanceService
+        protected LeaveManagementService $leaveManagementService
     ) {}
 
     /**
@@ -36,28 +36,12 @@ class ProfileController extends Controller
                 ->get()
             : collect();
 
-        $mapLeave = fn ($leave) => [
-            'id' => $leave->id,
-            'staff_member_id' => $leave->staff_member_id,
-            'staff_member_name' => $leave->staffMember
-                ? trim($leave->staffMember->first_name.' '.$leave->staffMember->last_name)
-                : null,
-            'manager_id' => $leave->manager_id,
-            'manager_name' => $leave->manager
-                ? trim($leave->manager->first_name.' '.$leave->manager->last_name)
-                : null,
-            'start_date' => $leave->start_date?->format('Y-m-d'),
-            'end_date' => $leave->end_date?->format('Y-m-d'),
-            'total_days' => $leave->total_days,
-            'status' => $leave->status,
-        ];
-
-        $balance = $staff ? $this->balanceService->calculate($staff) : [
-            'accrued' => 0,
-            'used' => 0,
-            'available' => 0,
+        $leaveAccount = $staff ? $this->leaveManagementService->summarizeStaff($staff) : [
             'period_start' => null,
             'period_end' => null,
+            'annual' => ['accrued' => 0, 'taken' => 0, 'available' => 0],
+            'sick' => ['entitlement' => 0, 'taken' => 0, 'available' => 0],
+            'pending' => ['count' => 0, 'days' => 0],
         ];
 
         return Inertia::render('settings/profile', [
@@ -74,8 +58,8 @@ class ProfileController extends Controller
                 'is_ceo' => (bool) $staff->is_ceo,
                 'is_board_member' => (bool) $staff->is_board_member,
             ] : null,
-            'balance' => $balance,
-            'myRequests' => $myRequests->map($mapLeave)->values(),
+            'leaveAccount' => $leaveAccount,
+            'myRequests' => $myRequests->map(fn ($leave) => $this->leaveManagementService->mapLeave($leave))->values(),
         ]);
     }
 
@@ -91,33 +75,18 @@ class ProfileController extends Controller
                 ->get()
             : collect();
 
-        $mapLeave = fn ($leave) => [
-            'id' => $leave->id,
-            'staff_member_id' => $leave->staff_member_id,
-            'staff_member_name' => $leave->staffMember
-                ? trim($leave->staffMember->first_name.' '.$leave->staffMember->last_name)
-                : null,
-            'manager_id' => $leave->manager_id,
-            'manager_name' => $leave->manager
-                ? trim($leave->manager->first_name.' '.$leave->manager->last_name)
-                : null,
-            'start_date' => $leave->start_date?->format('Y-m-d'),
-            'end_date' => $leave->end_date?->format('Y-m-d'),
-            'total_days' => $leave->total_days,
-            'status' => $leave->status,
-        ];
-
-        $balance = $staff ? $this->balanceService->calculate($staff) : [
-            'accrued' => 0,
-            'used' => 0,
-            'available' => 0,
+        $leaveAccount = $staff ? $this->leaveManagementService->summarizeStaff($staff) : [
             'period_start' => null,
             'period_end' => null,
+            'annual' => ['accrued' => 0, 'taken' => 0, 'available' => 0],
+            'sick' => ['entitlement' => 0, 'taken' => 0, 'available' => 0],
+            'pending' => ['count' => 0, 'days' => 0],
         ];
 
         return Inertia::render('settings/leave', [
-            'balance' => $balance,
-            'myRequests' => $myRequests->map($mapLeave)->values(),
+            'leaveAccount' => $leaveAccount,
+            'myRequests' => $myRequests->map(fn ($leave) => $this->leaveManagementService->mapLeave($leave))->values(),
+            'leaveTypes' => $this->leaveManagementService->leaveTypeOptions(),
         ]);
     }
 
