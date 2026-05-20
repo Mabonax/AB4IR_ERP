@@ -6,6 +6,14 @@ use App\Domains\Beneficiaries\Repositories\BeneficiaryRepository;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Policies\BeneficiaryPolicy;
+use App\Domains\Events\Models\Event;
+use App\Domains\Events\Policies\EventPolicy;
+use App\Domains\Events\Repositories\EventRepository;
+use App\Domains\Events\Repositories\EventRepositoryInterface;
+use App\Domains\Organization\Models\OrganizationProfile;
+use App\Domains\Organization\Policies\OrganizationProfilePolicy;
+use App\Domains\Organization\Repositories\OrganizationProfileRepository;
+use App\Domains\Organization\Repositories\OrganizationProfileRepositoryInterface;
 use App\Domains\Assets\Repositories\AssetCategoryRepository;
 use App\Domains\Assets\Repositories\AssetCategoryRepositoryInterface;
 use App\Domains\Assets\Repositories\AssetRepository;
@@ -36,6 +44,16 @@ use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
 use App\Domains\BusinessDevelopment\Adjudication\Policies\AdjudicationAssessmentPolicy;
 use App\Domains\BusinessDevelopment\Adjudication\Repositories\AdjudicationAssessmentRepositoryInterface;
 use App\Domains\BusinessDevelopment\Adjudication\Repositories\EloquentAdjudicationAssessmentRepository;
+use App\Domains\TaskManagement\Models\SupportTicket;
+use App\Domains\TaskManagement\Models\WorkTask;
+use App\Domains\TaskManagement\Policies\SupportTicketPolicy;
+use App\Domains\TaskManagement\Policies\WorkTaskPolicy;
+use App\Domains\Finance\Models\TravelClaim;
+use App\Domains\Finance\Policies\TravelClaimPolicy;
+use App\Domains\TaskManagement\Repositories\SupportTicketRepository;
+use App\Domains\TaskManagement\Repositories\SupportTicketRepositoryInterface;
+use App\Domains\TaskManagement\Repositories\WorkTaskRepository;
+use App\Domains\TaskManagement\Repositories\WorkTaskRepositoryInterface;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Programs\Repositories\ProgramRepository;
@@ -126,6 +144,26 @@ class AppServiceProvider extends ServiceProvider
             AdjudicationAssessmentRepositoryInterface::class,
             EloquentAdjudicationAssessmentRepository::class
         );
+
+        $this->app->bind(
+            WorkTaskRepositoryInterface::class,
+            WorkTaskRepository::class
+        );
+
+        $this->app->bind(
+            SupportTicketRepositoryInterface::class,
+            SupportTicketRepository::class
+        );
+
+        $this->app->bind(
+            OrganizationProfileRepositoryInterface::class,
+            OrganizationProfileRepository::class
+        );
+
+        $this->app->bind(
+            EventRepositoryInterface::class,
+            EventRepository::class
+        );
     }
 
     public function boot(): void
@@ -133,6 +171,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Gate::policy(Beneficiary::class, BeneficiaryPolicy::class);
+        Gate::policy(OrganizationProfile::class, OrganizationProfilePolicy::class);
+        Gate::policy(Event::class, EventPolicy::class);
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(BdsApplication::class, BdsApplicationPolicy::class);
         Gate::policy(BdsPitchSession::class, BdsPitchSessionPolicy::class);
@@ -140,6 +180,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(AttendanceRegister::class, AttendanceRegisterPolicy::class);
         Gate::policy(ProjectMilestoneAssessment::class, ProjectMilestoneAssessmentPolicy::class);
         Gate::policy(AdjudicationAssessment::class, AdjudicationAssessmentPolicy::class);
+        Gate::policy(WorkTask::class, WorkTaskPolicy::class);
+        Gate::policy(SupportTicket::class, SupportTicketPolicy::class);
+        Gate::policy(TravelClaim::class, TravelClaimPolicy::class);
 
         Gate::before(function ($user, string $ability) {
             return method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['super-admin', 'super admin'])

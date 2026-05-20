@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domains\Organization\Services\OrganizationProfileService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -37,10 +38,19 @@ class HandleInertiaRequests extends Middleware
                         [
                             'roles' => $request->user()->getRoleNames()->values(),
                             'permissions' => $request->user()->getAllPermissions()->pluck('name')->values(),
+                            'unread_notifications_count' => $request->user()->unreadNotifications()->count(),
                         ]
                     )
                     : null,
             ],
+
+            'notifications' => [
+                'unread_count' => fn () => $request->user()?->unreadNotifications()->count() ?? 0,
+            ],
+
+            'organization' => fn () => app(OrganizationProfileService::class)->mapProfile(
+                app(OrganizationProfileService::class)->getProfile()
+            ),
 
             'sidebarOpen' => ! $request->hasCookie('sidebar_state')
                 || $request->cookie('sidebar_state') === 'true',

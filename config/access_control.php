@@ -5,6 +5,7 @@ return [
 
     'domains' => [
         'beneficiaries',
+        'organization',
         'stakeholders',
         'facilitators',
         'human-resources',
@@ -12,16 +13,20 @@ return [
         'programs',
         'projects',
         'business-development',
+        'task-management',
+        'finance',
         'staff',
         'leave',
+        'events',
         'settings',
     ],
 
     'department_domain_map' => [
-        'technical' => ['projects', 'programs', 'assets'],
-        'marketing' => ['beneficiaries', 'stakeholders', 'facilitators', 'programs'],
-        'admin' => ['staff', 'human-resources', 'leave', 'settings'],
-        'business development' => ['beneficiaries', 'stakeholders', 'projects', 'programs', 'business-development'],
-        'default' => ['leave', 'settings'],
+        'technical' => ['organization', 'projects', 'programs', 'assets', 'task-management', 'events'],
+        'marketing' => ['organization', 'beneficiaries', 'stakeholders', 'facilitators', 'programs', 'task-management', 'events'],
+        'admin' => ['organization', 'staff', 'human-resources', 'leave', 'settings', 'task-management', 'finance', 'events'],
+        'finance' => ['organization', 'finance', 'settings', 'task-management', 'events'],
+        'business development' => ['organization', 'beneficiaries', 'stakeholders', 'projects', 'programs', 'business-development', 'task-management', 'events'],
+        'default' => ['organization', 'leave', 'settings', 'task-management'],
     ],
 ];

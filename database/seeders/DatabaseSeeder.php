@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             AccessControlSeeder::class,
             AdjudicationSectionsSeeder::class,
             SuperAdminUserSeeder::class,
+            OrganizationEventsSeeder::class,
         ]);
     }
 }

@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Briefcase, BriefcaseBusiness, Building2, ClipboardCheck, LayoutGrid, Package, ShieldCheck, UserCircle } from 'lucide-react';
+import { BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, LayoutGrid, LifeBuoy, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -35,6 +35,12 @@ const mainNavItems: NavItem[] = [
         href: '/stakeholders',
         icon: UserCircle,
         requiredPermissions: ['domain.stakeholders.view', 'domain.stakeholders.manage'],
+    },
+    {
+        title: 'Organization',
+        href: '/organization',
+        icon: Building2,
+        requiredPermissions: ['domain.organization.view', 'domain.organization.manage'],
     },
     {
         title: 'Facilitators',
@@ -73,6 +79,24 @@ const mainNavItems: NavItem[] = [
         requiredPermissions: ['domain.business-development.view', 'domain.business-development.manage'],
     },
     {
+        title: 'Events',
+        href: '/events',
+        icon: CalendarRange,
+        requiredPermissions: ['domain.events.view', 'domain.events.manage'],
+    },
+    {
+        title: 'Task Management',
+        href: '/task-management',
+        icon: LifeBuoy,
+        requiredPermissions: ['domain.task-management.view', 'domain.task-management.manage'],
+    },
+    {
+        title: 'Finance',
+        href: '/finance/travel-claims',
+        icon: ReceiptText,
+        requiredPermissions: ['domain.finance.view', 'domain.finance.manage', 'travel-claims.submit'],
+    },
+    {
         title: 'Facilitator Activities',
         href: '/project-locations/dashboard',
         icon: ClipboardCheck,
@@ -88,7 +112,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, notifications } = usePage<SharedData>().props;
     const user = auth?.user;
     const isAdminUser = hasAnyRole(user, ['super-admin', 'super admin', 'admin']);
     const isBusinessDevelopmentUser = hasAnyPermission(user, [
@@ -97,7 +121,12 @@ export function AppSidebar() {
     ]);
     const restrictBeneficiariesForBds = isBusinessDevelopmentUser && !isAdminUser;
 
-    const visibleMainNavItems = mainNavItems.filter(
+    const itemsWithBadges = mainNavItems.map((item) => ({
+        ...item,
+        badgeCount: item.href === '/task-management' ? (notifications?.unread_count ?? 0) : undefined,
+    }));
+
+    const visibleMainNavItems = itemsWithBadges.filter(
         (item) =>
             hasAnyRole(user, item.requiredRoles ?? []) &&
             hasAnyPermission(user, item.requiredPermissions ?? []) &&

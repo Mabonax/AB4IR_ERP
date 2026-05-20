@@ -29,6 +29,11 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     <item.icon className="text-red-500" />
                                 )}
                                 <span>{item.title}</span>
+                                {item.badgeCount && item.badgeCount > 0 ? (
+                                    <span className="ml-auto rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                                        {item.badgeCount}
+                                    </span>
+                                ) : null}
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>

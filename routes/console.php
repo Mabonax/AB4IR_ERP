@@ -3,8 +3,12 @@
 use Database\Seeders\AccessControlSeeder;
 use Database\Seeders\StaffDepartmentsSeeder;
 use Database\Seeders\SuperAdminUserSeeder;
+use App\Domains\TaskManagement\Jobs\SendTaskManagementReminderNotificationsJob;
+use App\Domains\TaskManagement\Services\SupportTicketService;
+use App\Domains\TaskManagement\Services\WorkTaskService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -30,3 +34,21 @@ Artisan::command('access-control:resync', function () {
 
     $this->info('Access-control re-sync complete.');
 })->purpose('Safely re-sync departments, roles, permissions, and the seeded super admin user.');
+
+Artisan::command('task-management:send-reminders {--now : Run reminders immediately instead of queueing the job}', function () {
+    if ($this->option('now')) {
+        $taskCount = app(WorkTaskService::class)->sendOverdueReminders();
+        $ticketCount = app(SupportTicketService::class)->sendOverdueReminders();
+
+        $this->info("Task reminders sent: {$taskCount}");
+        $this->info("Ticket reminders sent: {$ticketCount}");
+
+        return;
+    }
+
+    SendTaskManagementReminderNotificationsJob::dispatch();
+
+    $this->info('Task management reminder job dispatched to the queue.');
+})->purpose('Send or queue overdue task and support-ticket reminder notifications.');
+
+Schedule::command('task-management:send-reminders')->hourly();

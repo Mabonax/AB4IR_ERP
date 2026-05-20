@@ -11,9 +11,9 @@ This pack establishes the current project baseline before domain-by-domain optim
 
 ## Health Check
 
-- `php artisan test`: passing. `49` tests passed.
-- `npm run types`: failing with widespread TypeScript drift in shared form/table abstractions and page-level field definitions.
-- `npm run build`: passes, but the built `custom-table` chunk exceeds the Vite warning threshold.
+- `php artisan test`: passing. `134` tests passed.
+- `npm run types`: passing.
+- `npm run build`: passing, but the built `custom-table` chunk exceeds the Vite warning threshold.
 
 ## What This Means
 
@@ -21,7 +21,7 @@ The project has progressed beyond an experimental starter. It already contains m
 
 - route-level permission checks are broad,
 - model policies are narrow,
-- frontend typing has drifted,
+- frontend typing is now stable enough to act as a regression gate, but some shared frontend abstractions remain heavy,
 - tests no longer represent the current permission model in several areas,
 - documentation and deployment artifacts are thin.
 

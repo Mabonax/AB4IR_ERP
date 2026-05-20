@@ -132,9 +132,15 @@ Goal: make supporting CRUD domains consistent with the hardened architecture.
 
 - stakeholders,
 - facilitators,
-- programs.
+- programs,
+- organization,
+- events.
 
 These should be normalized after the operational domains establish the final pattern.
+
+Status:
+
+- Started. `Organization` is now a centralized institutional-profile domain with shared organization data available to Inertia views, and `Events` is now a standalone annual-event workflow with speakers, attendees, attendance-state management, annual-series rollups, and printable event reporting separate from `Projects`.
 
 ## Working Method For Each Domain
 
@@ -173,3 +179,12 @@ Progress update:
 - Project list and detail surfaces now expose domain-backed status readiness, allowed transitions, and blocker messages so workflow constraints are visible before a mutation is attempted.
 - Attendance registers and milestone assessments now have explicit project-activity policies, with controller authorization tied to role plus project-state rules instead of relying only on route middleware and ad hoc access checks.
 - Attendance capture is now limited to active projects and a one-day correction window, future attendance dates are blocked, and milestone scores can only be created or corrected while the project remains active.
+- Projects now support one sponsor plus multiple implementation partners as a first-class commercial structure.
+- `ProjectProgressService` now computes project and per-location delivery rollups for milestones, beneficiary completion, attendance health, blocked sites, and project-manager portfolio tracking.
+- The project detail page now acts as a real project-manager control surface, and the projects dashboard now exposes a portfolio table plus intervention-focused rollup metrics.
+- Project conclusion is now an explicit governance workflow with a dedicated closure record, sign-off notes, automatic final-report generation, and PDF report output.
+- Projects can now generate first-class progress and final reports with delivery snapshots instead of relying only on live dashboard state.
+- Projects now capture commercial/reporting metadata such as contract reference, funding amount, reporting cadence, and reporting obligations.
+- Project closure now supports evidence uploads and a project-level audit timeline, so governance activity is traceable beyond the live UI state.
+- `Organization` now provides a single managed source of truth for institutional profile content such as name, mission, vision, values, service offering, and contact details.
+- `Events` now exists as a separate annual institutional-events domain with event ownership, speakers, attendees, attendee status progression, annual-series history, and downloadable event reports independent of beneficiary/project delivery workflows.

@@ -59,12 +59,22 @@ class AccessControlSeeder extends Seeder
             'business-development.adjudications.score',
         ];
 
+        $technicalTicketPermissions = [
+            'technical-tickets.respond',
+        ];
+
+        $travelClaimPermissions = [
+            'travel-claims.submit',
+        ];
+
         $allPermissions = array_values(array_unique([
             ...$allDomainPermissions,
             ...$accessControlPermissions,
             ...$projectActivityPermissions,
             ...$attendancePermissions,
             ...$businessDevelopmentWorkflowPermissions,
+            ...$technicalTicketPermissions,
+            ...$travelClaimPermissions,
         ]));
 
         foreach ($allPermissions as $permissionName) {
@@ -130,10 +140,17 @@ class AccessControlSeeder extends Seeder
                 $departmentManagerPermissions[] = 'business-development.adjudications.score';
             }
 
+            if ($departmentName === 'technical') {
+                $domainAdminPermissions[] = 'technical-tickets.respond';
+                $departmentManagerPermissions[] = 'technical-tickets.respond';
+                $departmentUserPermissions[] = 'technical-tickets.respond';
+            }
+
             $departmentManagerPermissions[] = 'domain.leave.view';
             $departmentManagerPermissions[] = 'domain.leave.manage';
             $departmentManagerPermissions[] = 'domain.settings.view';
             $departmentManagerPermissions[] = 'domain.staff.view';
+            $departmentManagerPermissions[] = 'travel-claims.submit';
 
             $departmentUserPermissions[] = 'domain.leave.view';
             $departmentUserPermissions[] = 'domain.leave.manage';
