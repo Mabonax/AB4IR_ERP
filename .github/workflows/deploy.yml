@@ -81,23 +81,30 @@ jobs:
   deploy-production:
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_PRIVATE_KEY != '' && secrets.DEPLOY_PATH != '' && secrets.GHCR_TOKEN != '' }}
     environment:
       name: production
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      APP_RUNTIME_IMAGE: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:sha-${{ github.sha }}
+      WEB_RUNTIME_IMAGE: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}:sha-${{ github.sha }}
 
     steps:
+      - name: Skip deploy when secrets are missing
+        if: ${{ env.SSH_HOST == '' || env.SSH_USER == '' || env.SSH_PRIVATE_KEY == '' || env.DEPLOY_PATH == '' || env.GHCR_TOKEN == '' }}
+        run: echo "Deployment secrets are incomplete. Skipping Ubuntu rollout."
+
       - name: Deploy over SSH
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.actor }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
-          APP_RUNTIME_IMAGE: ${{ env.REGISTRY }}/${{ env.APP_IMAGE_NAME }}:sha-${{ github.sha }}
-          WEB_RUNTIME_IMAGE: ${{ env.REGISTRY }}/${{ env.WEB_IMAGE_NAME }}:sha-${{ github.sha }}
+        if: ${{ env.SSH_HOST != '' && env.SSH_USER != '' && env.SSH_PRIVATE_KEY != '' && env.DEPLOY_PATH != '' && env.GHCR_TOKEN != '' }}
         run: |
+          if [ -z "$GHCR_USERNAME" ]; then
+            GHCR_USERNAME="${GITHUB_ACTOR}"
+          fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
