@@ -2,6 +2,7 @@
 
 namespace App\Domains\Beneficiaries\Requests;
 
+use App\Domains\Beneficiaries\Models\Beneficiary;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -35,7 +36,7 @@ class UpdateBeneficiaryRequest extends FormRequest
             'email' => [
                 'nullable',
                 'email',
-                Rule::unique('beneficiaries', 'email')->ignore($beneficiaryId),
+                'max:255',
             ],
 
             'phone' => 'nullable|string|max:20',
@@ -66,6 +67,8 @@ class UpdateBeneficiaryRequest extends FormRequest
     {
         $validator->after(function (Validator $validator) {
             if (! $this->hasAnyNextOfKinInput()) {
+                $this->guardAgainstDuplicateBeneficiary($validator);
+
                 return;
             }
 
@@ -80,7 +83,20 @@ class UpdateBeneficiaryRequest extends FormRequest
 
                 $validator->errors()->add($field, $message);
             }
+
+            $this->guardAgainstDuplicateBeneficiary($validator);
         });
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'name' => $this->normalizeInputString($this->input('name')),
+            'surname' => $this->normalizeInputString($this->input('surname')),
+            'id_number' => $this->normalizeInputString($this->input('id_number')),
+            'email' => $this->normalizeEmailInput($this->input('email')),
+            'phone' => $this->normalizeInputString($this->input('phone')),
+        ]);
     }
 
     protected function hasAnyNextOfKinInput(): bool
@@ -94,5 +110,84 @@ class UpdateBeneficiaryRequest extends FormRequest
         }
 
         return false;
+    }
+
+    protected function guardAgainstDuplicateBeneficiary(Validator $validator): void
+    {
+        $candidate = $this->findDuplicateBeneficiary();
+
+        if (! $candidate) {
+            return;
+        }
+
+        $message = $candidate->trashed()
+            ? 'An archived beneficiary record already matches this person. Restore or update the existing record instead of creating a duplicate.'
+            : 'A matching beneficiary already exists. Update the existing record instead of creating a duplicate.';
+
+        if ($this->filled('id_number') && $candidate->id_number === $this->input('id_number')) {
+            $validator->errors()->add('id_number', $message);
+
+            return;
+        }
+
+        $validator->errors()->add('name', $message);
+    }
+
+    protected function findDuplicateBeneficiary(): ?Beneficiary
+    {
+        $ignoreId = (int) $this->route('beneficiary');
+        $query = Beneficiary::withTrashed()->whereKeyNot($ignoreId);
+
+        if ($idNumber = $this->input('id_number')) {
+            return (clone $query)
+                ->where('id_number', $idNumber)
+                ->first();
+        }
+
+        $name = $this->input('name');
+        $surname = $this->input('surname');
+        $dob = $this->input('dob');
+
+        if ($name && $surname && $dob) {
+            $matchingPerson = (clone $query)
+                ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+                ->whereRaw('LOWER(surname) = ?', [strtolower($surname)])
+                ->whereDate('dob', $dob)
+                ->first();
+
+            if ($matchingPerson) {
+                return $matchingPerson;
+            }
+        }
+
+        $email = $this->input('email');
+
+        if ($email && $name && $surname) {
+            return (clone $query)
+                ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+                ->whereRaw('LOWER(surname) = ?', [strtolower($surname)])
+                ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+                ->first();
+        }
+
+        return null;
+    }
+
+    protected function normalizeInputString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    protected function normalizeEmailInput(mixed $value): ?string
+    {
+        $normalized = $this->normalizeInputString($value);
+
+        return $normalized === null ? null : strtolower($normalized);
     }
 }

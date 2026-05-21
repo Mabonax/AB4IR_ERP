@@ -233,3 +233,90 @@ test('partial next of kin input is rejected when required identifying fields are
             'nok_relationship',
         ]);
 });
+
+test('beneficiary creation rejects a duplicate id number even when other fields differ', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+
+    $graph = makeBeneficiaryCompatibilityGraph('Identity Project', 'Free State');
+
+    $this->actingAs($user)
+        ->post('/beneficiaries', beneficiaryPayload($graph, [
+            'id_number' => '9901010001088',
+            'email' => 'first.identity@example.test',
+            'name' => 'Ava',
+            'surname' => 'Founder',
+        ]))
+        ->assertRedirect();
+
+    $this->actingAs($user)
+        ->from('/beneficiaries/create')
+        ->post('/beneficiaries', beneficiaryPayload($graph, [
+            'id_number' => '9901010001088',
+            'email' => 'second.identity@example.test',
+            'name' => 'Different',
+            'surname' => 'Person',
+        ]))
+        ->assertRedirect('/beneficiaries/create')
+        ->assertSessionHasErrors('id_number');
+});
+
+test('beneficiary creation rejects a duplicate person match across projects', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+
+    $firstGraph = makeBeneficiaryCompatibilityGraph('Original Placement', 'Gauteng');
+    $secondGraph = makeBeneficiaryCompatibilityGraph('Reassignment Attempt', 'Limpopo');
+
+    $this->actingAs($user)
+        ->post('/beneficiaries', beneficiaryPayload($firstGraph, [
+            'id_number' => null,
+            'email' => null,
+            'name' => 'Ava',
+            'surname' => 'Founder',
+            'dob' => '2002-05-10',
+        ]))
+        ->assertRedirect();
+
+    $this->actingAs($user)
+        ->from('/beneficiaries/create')
+        ->post('/beneficiaries', beneficiaryPayload($secondGraph, [
+            'id_number' => null,
+            'email' => null,
+            'name' => 'Ava',
+            'surname' => 'Founder',
+            'dob' => '2002-05-10',
+        ]))
+        ->assertRedirect('/beneficiaries/create')
+        ->assertSessionHasErrors('name');
+});
+
+test('beneficiary creation allows duplicate email addresses when the identity is otherwise different', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+
+    $firstGraph = makeBeneficiaryCompatibilityGraph('Shared Email Project', 'Northern Cape');
+    $secondGraph = makeBeneficiaryCompatibilityGraph('Shared Email Project Two', 'Eastern Cape');
+
+    $this->actingAs($user)
+        ->post('/beneficiaries', beneficiaryPayload($firstGraph, [
+            'id_number' => '9001010001088',
+            'email' => 'shared.household@example.test',
+            'name' => 'Ava',
+            'surname' => 'Founder',
+            'dob' => '2002-05-10',
+        ]))
+        ->assertRedirect();
+
+    $this->actingAs($user)
+        ->post('/beneficiaries', beneficiaryPayload($secondGraph, [
+            'id_number' => '9101010001088',
+            'email' => 'shared.household@example.test',
+            'name' => 'Neo',
+            'surname' => 'Dlamini',
+            'dob' => '2001-04-18',
+        ]))
+        ->assertRedirect();
+
+    expect(Beneficiary::query()->where('email', 'shared.household@example.test')->count())->toBe(2);
+});
