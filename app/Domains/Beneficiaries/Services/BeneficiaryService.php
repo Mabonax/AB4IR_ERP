@@ -4,19 +4,26 @@ namespace App\Domains\Beneficiaries\Services;
 
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
+use App\Domains\Beneficiaries\Support\BeneficiaryIdentityMatcher;
 use App\Domains\Projects\Services\ProjectEnrollmentConsistencyService;
 use App\Models\NextOfKin;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use ZipArchive;
 
 class BeneficiaryService
 {
     public function __construct(
         protected BeneficiaryRepositoryInterface $repository,
-        protected ProjectEnrollmentConsistencyService $enrollmentConsistency
+        protected ProjectEnrollmentConsistencyService $enrollmentConsistency,
+        protected BeneficiaryIdentityMatcher $identityMatcher
     ) {}
 
     public function list(): Collection
@@ -130,6 +137,75 @@ class BeneficiaryService
         });
     }
 
+    public function importFromFile(UploadedFile $file, int $projectId, int $projectLocationId): array
+    {
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        $rows = match ($extension) {
+            'csv', 'txt' => $this->parseImportCsvFile($file),
+            'xlsx' => $this->parseImportXlsxFile($file),
+            default => throw ValidationException::withMessages([
+                'file' => ['Unsupported file format. Use CSV or XLSX.'],
+            ]),
+        };
+
+        $summary = [
+            'processed' => 0,
+            'created' => 0,
+            'matched_existing' => 0,
+            'rejected_duplicates' => 0,
+            'errors' => [],
+        ];
+
+        foreach ($rows as $index => $row) {
+            $line = $index + 2;
+            $summary['processed']++;
+
+            try {
+                $payload = $this->mapImportRow($row, $projectId, $projectLocationId);
+                $match = $this->identityMatcher->findMatch($payload);
+
+                if ($match) {
+                    if ($match->trashed()) {
+                        $summary['rejected_duplicates']++;
+                        $summary['errors'][] = "Row {$line}: matches archived beneficiary #{$match->id}. Restore or update the existing record instead.";
+
+                        continue;
+                    }
+
+                    if ((int) $match->project_id === $projectId) {
+                        $currentEnrollment = $match->projectEnrollments()
+                            ->where('project_id', $projectId)
+                            ->first();
+
+                        if ($currentEnrollment && (int) $currentEnrollment->project_location_id === $projectLocationId) {
+                            $summary['matched_existing']++;
+
+                            continue;
+                        }
+
+                        $summary['rejected_duplicates']++;
+                        $summary['errors'][] = "Row {$line}: matches beneficiary #{$match->id} on the same project but a different location. Review and update that record manually.";
+
+                        continue;
+                    }
+
+                    $summary['rejected_duplicates']++;
+                    $summary['errors'][] = "Row {$line}: matches beneficiary #{$match->id} already assigned to another project. Use the transfer workflow instead of importing a duplicate.";
+
+                    continue;
+                }
+
+                $this->store($payload);
+                $summary['created']++;
+            } catch (\Throwable $exception) {
+                $summary['errors'][] = "Row {$line}: {$exception->getMessage()}";
+            }
+        }
+
+        return $summary;
+    }
+
     protected function enrollmentStatusFromAttendanceStatus(string $attendanceStatus): string
     {
         return $attendanceStatus === 'dropout' ? 'dropped' : 'enrolled';
@@ -220,5 +296,288 @@ class BeneficiaryService
     protected function requiredString(mixed $value): string
     {
         return trim((string) $value);
+    }
+
+    protected function mapImportRow(array $row, int $projectId, int $projectLocationId): array
+    {
+        $normalized = [];
+        foreach ($row as $header => $value) {
+            $normalized[$this->normalizeImportHeader((string) $header)] = is_string($value) ? trim($value) : $value;
+        }
+
+        foreach (['name', 'surname'] as $requiredHeader) {
+            if (! array_key_exists($requiredHeader, $normalized) || trim((string) $normalized[$requiredHeader]) === '') {
+                throw new RuntimeException("Missing value for '{$requiredHeader}'.");
+            }
+        }
+
+        $provinceId = $this->resolveProvinceId($normalized['province'] ?? $normalized['province_name'] ?? null);
+        $attendanceStatus = $this->normalizeAttendanceStatus($normalized['attendance_status'] ?? null);
+        $dob = $this->nullableString($normalized['dob'] ?? null);
+        $age = $this->nullableString($normalized['age'] ?? null);
+
+        if ($dob === null && $age === null && $this->nullableString($normalized['id_number'] ?? null) === null) {
+            throw new RuntimeException('Provide at least one of dob, age, or id_number so imported records can be identified safely.');
+        }
+
+        return [
+            'name' => $this->requiredString($normalized['name']),
+            'surname' => $this->requiredString($normalized['surname']),
+            'dob' => $dob,
+            'age' => $age,
+            'id_number' => $this->nullableString($normalized['id_number'] ?? null),
+            'email' => $this->normalizeEmail($normalized['email'] ?? null),
+            'phone' => $this->nullableString($normalized['phone'] ?? null),
+            'gender' => $this->normalizeGender($normalized['gender'] ?? null),
+            'project_id' => $projectId,
+            'project_location_id' => $projectLocationId,
+            'street_address' => $this->nullableString($normalized['street_address'] ?? $normalized['address'] ?? null),
+            'address_line_2' => $this->nullableString($normalized['address_line_2'] ?? null),
+            'city' => $this->nullableString($normalized['city'] ?? null),
+            'province_id' => $provinceId,
+            'postal_code' => $this->nullableString($normalized['postal_code'] ?? null),
+            'highest_qualification' => $this->nullableString($normalized['highest_qualification'] ?? $normalized['qualification'] ?? null),
+            'attendance_status' => $attendanceStatus,
+            'nok_name' => $this->nullableString($normalized['nok_name'] ?? $normalized['next_of_kin_name'] ?? null),
+            'nok_surname' => $this->nullableString($normalized['nok_surname'] ?? $normalized['next_of_kin_surname'] ?? null),
+            'nok_relationship' => $this->nullableString($normalized['nok_relationship'] ?? $normalized['next_of_kin_relationship'] ?? null),
+            'nok_phone' => $this->nullableString($normalized['nok_phone'] ?? $normalized['next_of_kin_phone'] ?? null),
+            'nok_email' => $this->normalizeEmail($normalized['nok_email'] ?? $normalized['next_of_kin_email'] ?? null),
+        ];
+    }
+
+    protected function parseImportCsvFile(UploadedFile $file): array
+    {
+        $handle = fopen($file->getRealPath(), 'r');
+
+        if (! $handle) {
+            throw ValidationException::withMessages([
+                'file' => ['Could not read CSV file.'],
+            ]);
+        }
+
+        $headers = fgetcsv($handle);
+        if (! $headers) {
+            fclose($handle);
+            throw ValidationException::withMessages([
+                'file' => ['CSV file is empty.'],
+            ]);
+        }
+
+        $this->assertImportHeaders($headers);
+
+        $rows = [];
+        while (($line = fgetcsv($handle)) !== false) {
+            if ($this->isEmptyImportRow($line)) {
+                continue;
+            }
+
+            $line = array_pad($line, count($headers), null);
+            $rows[] = array_combine($headers, $line);
+        }
+
+        fclose($handle);
+
+        return $rows;
+    }
+
+    protected function parseImportXlsxFile(UploadedFile $file): array
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($file->getRealPath()) !== true) {
+            throw ValidationException::withMessages([
+                'file' => ['Could not open XLSX file.'],
+            ]);
+        }
+
+        $sheetPath = 'xl/worksheets/sheet1.xml';
+        if ($zip->locateName($sheetPath) === false) {
+            $zip->close();
+            throw ValidationException::withMessages([
+                'file' => ['XLSX worksheet not found. Expected sheet1.'],
+            ]);
+        }
+
+        $sheetXml = $zip->getFromName($sheetPath);
+        $sharedStringsXml = $zip->getFromName('xl/sharedStrings.xml');
+        $zip->close();
+
+        $sharedStrings = [];
+        if ($sharedStringsXml !== false) {
+            $sharedXml = simplexml_load_string($sharedStringsXml);
+            if ($sharedXml !== false && isset($sharedXml->si)) {
+                foreach ($sharedXml->si as $item) {
+                    if (isset($item->t)) {
+                        $sharedStrings[] = (string) $item->t;
+
+                        continue;
+                    }
+
+                    $text = '';
+                    if (isset($item->r)) {
+                        foreach ($item->r as $run) {
+                            $text .= (string) ($run->t ?? '');
+                        }
+                    }
+                    $sharedStrings[] = $text;
+                }
+            }
+        }
+
+        $xml = simplexml_load_string((string) $sheetXml);
+        if ($xml === false) {
+            throw ValidationException::withMessages([
+                'file' => ['Could not parse XLSX sheet XML.'],
+            ]);
+        }
+
+        $namespaces = $xml->getNamespaces(true);
+        $sheetData = $xml->children($namespaces[''] ?? null)->sheetData ?? null;
+        if (! $sheetData) {
+            throw ValidationException::withMessages([
+                'file' => ['No worksheet data found in XLSX file.'],
+            ]);
+        }
+
+        $rawRows = [];
+        foreach ($sheetData->row as $row) {
+            $values = [];
+            foreach ($row->c as $cell) {
+                $ref = (string) ($cell['r'] ?? '');
+                $columnIndex = $this->columnIndexFromReference($ref);
+                $type = (string) ($cell['t'] ?? '');
+                $cellValue = '';
+
+                if (isset($cell->v)) {
+                    $raw = (string) $cell->v;
+                    $cellValue = $type === 's'
+                        ? ($sharedStrings[(int) $raw] ?? '')
+                        : $raw;
+                } elseif (isset($cell->is->t)) {
+                    $cellValue = (string) $cell->is->t;
+                }
+
+                $values[$columnIndex] = $cellValue;
+            }
+
+            if (! empty($values)) {
+                ksort($values);
+                $rawRows[] = $values;
+            }
+        }
+
+        if (empty($rawRows)) {
+            throw ValidationException::withMessages([
+                'file' => ['XLSX file is empty.'],
+            ]);
+        }
+
+        $headers = array_values($rawRows[0]);
+        $this->assertImportHeaders($headers);
+
+        $rows = [];
+        foreach (array_slice($rawRows, 1) as $rawRow) {
+            $line = array_values($rawRow);
+            if ($this->isEmptyImportRow($line)) {
+                continue;
+            }
+
+            $line = array_pad($line, count($headers), null);
+            $rows[] = array_combine($headers, $line);
+        }
+
+        return $rows;
+    }
+
+    protected function assertImportHeaders(array $headers): void
+    {
+        $normalizedHeaders = array_map(fn ($header) => $this->normalizeImportHeader((string) $header), $headers);
+        $requiredHeaders = ['name', 'surname'];
+
+        $missing = array_values(array_diff($requiredHeaders, $normalizedHeaders));
+        if ($missing !== []) {
+            throw ValidationException::withMessages([
+                'file' => ['Missing required headers: '.implode(', ', $missing)],
+            ]);
+        }
+    }
+
+    protected function normalizeImportHeader(string $header): string
+    {
+        $header = Str::lower(trim($header));
+        $header = preg_replace('/[^a-z0-9]+/', '_', $header) ?? $header;
+
+        return trim($header, '_');
+    }
+
+    protected function resolveProvinceId(mixed $value): ?int
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $normalized = trim($value);
+
+        if (ctype_digit($normalized)) {
+            return (int) $normalized;
+        }
+
+        $provinceId = DB::table('provinces')
+            ->whereRaw('LOWER(name) = ?', [Str::lower($normalized)])
+            ->value('id');
+
+        if (! $provinceId) {
+            throw new RuntimeException("Province '{$normalized}' was not found in provinces list.");
+        }
+
+        return (int) $provinceId;
+    }
+
+    protected function normalizeAttendanceStatus(mixed $value): string
+    {
+        $normalized = Str::lower((string) $this->nullableString($value));
+
+        return match ($normalized) {
+            'dropout', 'dropped' => 'dropout',
+            default => 'active',
+        };
+    }
+
+    protected function normalizeGender(mixed $value): ?string
+    {
+        $normalized = Str::lower((string) $this->nullableString($value));
+
+        return match ($normalized) {
+            'male', 'm' => 'male',
+            'female', 'f' => 'female',
+            default => null,
+        };
+    }
+
+    protected function columnIndexFromReference(string $reference): int
+    {
+        if (! preg_match('/^[A-Z]+/', strtoupper($reference), $matches)) {
+            return 0;
+        }
+
+        $letters = $matches[0];
+        $index = 0;
+
+        for ($i = 0; $i < strlen($letters); $i++) {
+            $index = ($index * 26) + (ord($letters[$i]) - 64);
+        }
+
+        return max(0, $index - 1);
+    }
+
+    protected function isEmptyImportRow(array $line): bool
+    {
+        foreach ($line as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

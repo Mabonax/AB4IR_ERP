@@ -58,6 +58,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('notifications/{notification}/open', [NotificationController::class, 'open'])
         ->name('notifications.open');
 
+    Route::post('beneficiaries/import', [BeneficiaryController::class, 'import'])
+        ->middleware($managePermission('beneficiaries'))
+        ->name('beneficiaries.import');
     Route::resource('beneficiaries', BeneficiaryController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('beneficiaries'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('beneficiaries'));

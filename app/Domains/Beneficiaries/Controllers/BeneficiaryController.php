@@ -3,6 +3,7 @@
 namespace App\Domains\Beneficiaries\Controllers;
 
 use App\Domains\Beneficiaries\Models\Beneficiary;
+use App\Domains\Beneficiaries\Requests\ImportBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
 use App\Domains\Beneficiaries\Resources\BeneficiaryResource;
@@ -42,6 +43,17 @@ class BeneficiaryController extends Controller
                 'end_date' => $project->end_date?->format('Y-m-d'),
                 'status' => $project->status,
             ]);
+        $selectedProjectLocations = $selectedProjectId
+            ? ProjectLocation::with('province:id,name')
+                ->where('project_id', $selectedProjectId)
+                ->orderBy('province_id')
+                ->get()
+                ->map(fn ($location) => [
+                    'id' => $location->id,
+                    'name' => $location->province?->name ?? "Location {$location->id}",
+                ])
+                ->values()
+            : collect();
 
         return Inertia::render('Beneficiaries/Index', [
             'beneficiary' => BeneficiaryResource::collection(
@@ -58,9 +70,33 @@ class BeneficiaryController extends Controller
             'selectedProgramId' => $selectedProgramId,
             'selectedProjectId' => $selectedProjectId,
             'filterProjects' => $filterProjects,
+            'selectedProjectLocations' => $selectedProjectLocations,
             'selectedProjectSummary' => $selectedProjectId
                 ? $filterProjects->firstWhere('id', $selectedProjectId)
                 : null,
+        ]);
+    }
+
+    public function import(ImportBeneficiaryRequest $request): RedirectResponse
+    {
+        $this->authorize('create', Beneficiary::class);
+
+        $summary = $this->service->importFromFile(
+            $request->file('file'),
+            (int) $request->integer('project_id'),
+            (int) $request->integer('project_location_id')
+        );
+
+        return redirect()->back()->with([
+            'success' => sprintf(
+                'Beneficiary import completed. Processed: %d, Created: %d, Matched existing: %d, Rejected duplicates: %d, Errors: %d.',
+                $summary['processed'],
+                $summary['created'],
+                $summary['matched_existing'],
+                $summary['rejected_duplicates'],
+                count($summary['errors'])
+            ),
+            'import_errors' => $summary['errors'],
         ]);
     }
 

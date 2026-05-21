@@ -1,12 +1,24 @@
-import { useMemo, useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import { useMemo, useRef, useState } from "react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
+import { Upload } from "lucide-react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import beneficiaries from "@/routes/beneficiaries";
-import { type BreadcrumbItem } from "@/types";
+import { type BreadcrumbItem, type SharedData } from "@/types";
 
 /* =========================================================
 | BREADCRUMBS
@@ -26,6 +38,7 @@ export default function BeneficiaryIndex({
   selectedProgramId,
   selectedProjectId,
   filterProjects,
+  selectedProjectLocations,
   selectedProjectSummary,
 }: {
   beneficiary: { data: any[] };
@@ -33,12 +46,18 @@ export default function BeneficiaryIndex({
   selectedProgramId: number | null;
   selectedProjectId: number | null;
   filterProjects: { id: number; name: string; program_id: number; start_date: string | null; end_date: string | null; status: string | null }[];
+  selectedProjectLocations: { id: number; name: string }[];
   selectedProjectSummary: { id: number; name: string; start_date: string | null; end_date: string | null; status: string | null } | null;
 }) {
+  const { flash } = usePage<SharedData>().props;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [beneficiaryToDelete, setBeneficiaryToDelete] = useState<any | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<string>(selectedProgramId ? String(selectedProgramId) : "");
   const [selectedProject, setSelectedProject] = useState<string>(selectedProjectId ? String(selectedProjectId) : "");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importLocationId, setImportLocationId] = useState<string>(selectedProjectLocations[0] ? String(selectedProjectLocations[0].id) : "");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const importErrors = Array.isArray(flash?.import_errors) ? (flash.import_errors as string[]) : [];
 
   const columns = useMemo(
     () => [
@@ -76,12 +95,46 @@ export default function BeneficiaryIndex({
     });
   };
 
+  const submitImport = () => {
+    const file = fileInputRef.current?.files?.[0];
+
+    if (!selectedProject || !importLocationId || !file) {
+      return;
+    }
+
+    router.post("/beneficiaries/import", {
+      file,
+      project_id: selectedProject,
+      project_location_id: importLocationId,
+    }, {
+      forceFormData: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setImportDialogOpen(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      },
+    });
+  };
+
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Beneficiaries" />
 
       <div className="p-4 space-y-4">
+        {importErrors.length > 0 ? (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="font-semibold">Import errors</div>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {importErrors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">Beneficiaries</h1>
@@ -172,13 +225,26 @@ export default function BeneficiaryIndex({
           </div>
         )}
 
-        <div className="flex justify-between">
+        <div className="flex flex-wrap justify-between gap-3">
           <Link
             href={beneficiaries.create().url}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
             Add Beneficiary
           </Link>
+
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!selectedProject || selectedProjectLocations.length === 0}
+            onClick={() => {
+              setImportLocationId(selectedProjectLocations[0] ? String(selectedProjectLocations[0].id) : "");
+              setImportDialogOpen(true);
+            }}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Import Beneficiaries
+          </Button>
         </div>
 
         <CustomTable
@@ -216,6 +282,59 @@ export default function BeneficiaryIndex({
             routeParams={beneficiaryToDelete.id}
           />
         )}
+
+        <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Import Beneficiaries</DialogTitle>
+              <DialogDescription>
+                Import into the selected project iteration. Required spreadsheet headers: <code>name</code> and <code>surname</code>.
+                Use optional identity fields like <code>dob</code>, <code>id_number</code>, and <code>email</code> to improve matching.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <div className="font-medium">Target project</div>
+                <div className="text-muted-foreground">{selectedProjectSummary?.name ?? "No project selected"}</div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="beneficiary-import-location">Project location</Label>
+                <select
+                  id="beneficiary-import-location"
+                  className="w-full rounded-md border bg-card px-3 py-2 text-sm"
+                  value={importLocationId}
+                  onChange={(e) => setImportLocationId(e.target.value)}
+                >
+                  {selectedProjectLocations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="beneficiary-import-file">Spreadsheet file</Label>
+                <Input id="beneficiary-import-file" ref={fileInputRef} type="file" accept=".csv,.txt,.xlsx" />
+                <p className="text-xs text-muted-foreground">
+                  Optional headers supported: dob, age, id_number, email, phone, gender, street_address, address_line_2, city, province,
+                  postal_code, highest_qualification, attendance_status, nok_name, nok_surname, nok_relationship, nok_phone, nok_email.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setImportDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={submitImport} disabled={!selectedProject || !importLocationId}>
+                Import Spreadsheet
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

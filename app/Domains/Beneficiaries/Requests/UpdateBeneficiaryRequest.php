@@ -3,6 +3,7 @@
 namespace App\Domains\Beneficiaries\Requests;
 
 use App\Domains\Beneficiaries\Models\Beneficiary;
+use App\Domains\Beneficiaries\Support\BeneficiaryIdentityMatcher;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -135,42 +136,7 @@ class UpdateBeneficiaryRequest extends FormRequest
 
     protected function findDuplicateBeneficiary(): ?Beneficiary
     {
-        $ignoreId = (int) $this->route('beneficiary');
-        $query = Beneficiary::withTrashed()->whereKeyNot($ignoreId);
-
-        if ($idNumber = $this->input('id_number')) {
-            return (clone $query)
-                ->where('id_number', $idNumber)
-                ->first();
-        }
-
-        $name = $this->input('name');
-        $surname = $this->input('surname');
-        $dob = $this->input('dob');
-
-        if ($name && $surname && $dob) {
-            $matchingPerson = (clone $query)
-                ->whereRaw('LOWER(name) = ?', [strtolower($name)])
-                ->whereRaw('LOWER(surname) = ?', [strtolower($surname)])
-                ->whereDate('dob', $dob)
-                ->first();
-
-            if ($matchingPerson) {
-                return $matchingPerson;
-            }
-        }
-
-        $email = $this->input('email');
-
-        if ($email && $name && $surname) {
-            return (clone $query)
-                ->whereRaw('LOWER(name) = ?', [strtolower($name)])
-                ->whereRaw('LOWER(surname) = ?', [strtolower($surname)])
-                ->whereRaw('LOWER(email) = ?', [strtolower($email)])
-                ->first();
-        }
-
-        return null;
+        return app(BeneficiaryIdentityMatcher::class)->findMatch($this->all(), (int) $this->route('beneficiary'));
     }
 
     protected function normalizeInputString(mixed $value): ?string
