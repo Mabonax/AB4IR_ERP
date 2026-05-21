@@ -49,21 +49,21 @@ class BeneficiaryService
             $nextOfKin = $this->upsertNextOfKin(null, $data);
 
             $beneficiary = $this->repository->create([
-                'name' => $data['name'],
-                'surname' => $data['surname'],
-                'dob' => $this->normalizeDate($data['dob']),
-                'age' => $data['age'],
-                'id_number' => $data['id_number'],
-                'email' => $data['email'],
-                'phone' => $data['phone'] ?? null,
-                'gender' => $data['gender'],
+                'name' => $this->requiredString($data['name']),
+                'surname' => $this->requiredString($data['surname']),
+                'dob' => $this->normalizeDate($data['dob'] ?? null),
+                'age' => $this->normalizeAge($data['age'] ?? null, $data['dob'] ?? null),
+                'id_number' => $this->nullableString($data['id_number'] ?? null),
+                'email' => $this->normalizeEmail($data['email'] ?? null),
+                'phone' => $this->nullableString($data['phone'] ?? null),
+                'gender' => $this->nullableString($data['gender'] ?? null),
                 'project_id' => $projectId,
-                'street_address' => $data['street_address'] ?? null,
-                'address_line_2' => $data['address_line_2'] ?? null,
-                'city' => $data['city'] ?? null,
+                'street_address' => $this->nullableString($data['street_address'] ?? null),
+                'address_line_2' => $this->nullableString($data['address_line_2'] ?? null),
+                'city' => $this->nullableString($data['city'] ?? null),
                 'province_id' => ! empty($data['province_id']) ? (int) $data['province_id'] : null,
-                'postal_code' => $data['postal_code'] ?? null,
-                'highest_qualification' => $data['highest_qualification'] ?? null,
+                'postal_code' => $this->nullableString($data['postal_code'] ?? null),
+                'highest_qualification' => $this->nullableString($data['highest_qualification'] ?? null),
                 'attendance_status' => $attendanceStatus,
                 'next_of_kin_id' => $nextOfKin?->id,
                 'created_by' => auth()->id(),
@@ -90,21 +90,21 @@ class BeneficiaryService
             $nextOfKin = $this->upsertNextOfKin($beneficiary->nextOfKin, $data);
 
             $updated = $this->repository->update($beneficiary, [
-                'name' => $data['name'],
-                'surname' => $data['surname'],
-                'dob' => $this->normalizeDate($data['dob']),
-                'age' => $data['age'],
-                'id_number' => $data['id_number'],
-                'email' => $data['email'],
-                'phone' => $data['phone'] ?? null,
-                'gender' => $data['gender'],
+                'name' => $this->requiredString($data['name']),
+                'surname' => $this->requiredString($data['surname']),
+                'dob' => $this->normalizeDate($data['dob'] ?? null),
+                'age' => $this->normalizeAge($data['age'] ?? null, $data['dob'] ?? null),
+                'id_number' => $this->nullableString($data['id_number'] ?? null),
+                'email' => $this->normalizeEmail($data['email'] ?? null),
+                'phone' => $this->nullableString($data['phone'] ?? null),
+                'gender' => $this->nullableString($data['gender'] ?? null),
                 'project_id' => $projectId,
-                'street_address' => $data['street_address'] ?? null,
-                'address_line_2' => $data['address_line_2'] ?? null,
-                'city' => $data['city'] ?? null,
+                'street_address' => $this->nullableString($data['street_address'] ?? null),
+                'address_line_2' => $this->nullableString($data['address_line_2'] ?? null),
+                'city' => $this->nullableString($data['city'] ?? null),
                 'province_id' => ! empty($data['province_id']) ? (int) $data['province_id'] : null,
-                'postal_code' => $data['postal_code'] ?? null,
-                'highest_qualification' => $data['highest_qualification'] ?? null,
+                'postal_code' => $this->nullableString($data['postal_code'] ?? null),
+                'highest_qualification' => $this->nullableString($data['highest_qualification'] ?? null),
                 'attendance_status' => $attendanceStatus,
                 'next_of_kin_id' => $nextOfKin?->id,
                 'updated_by' => auth()->id(),
@@ -190,8 +190,39 @@ class BeneficiaryService
         return $trimmed === '' ? null : $trimmed;
     }
 
-    protected function normalizeDate(string $value): string
+    protected function normalizeDate(mixed $value): ?string
     {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
         return Carbon::parse($value)->toDateString();
+    }
+
+    protected function normalizeAge(mixed $value, mixed $dob): ?int
+    {
+        if ($value !== null && $value !== '') {
+            return (int) $value;
+        }
+
+        $normalizedDob = $this->normalizeDate($dob);
+
+        if ($normalizedDob === null) {
+            return null;
+        }
+
+        return Carbon::parse($normalizedDob)->age;
+    }
+
+    protected function normalizeEmail(mixed $value): ?string
+    {
+        $normalized = $this->nullableString($value);
+
+        return $normalized === null ? null : strtolower($normalized);
+    }
+
+    protected function requiredString(mixed $value): string
+    {
+        return trim((string) $value);
     }
 }

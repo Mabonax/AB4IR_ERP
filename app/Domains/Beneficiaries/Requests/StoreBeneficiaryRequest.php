@@ -20,14 +20,14 @@ class StoreBeneficiaryRequest extends FormRequest
             // =========================
             'name' => 'required|string|max:100',
             'surname' => 'required|string|max:100',
-            'dob' => 'required|date',
-            'age' => 'required|integer|min:0',
+            'dob' => 'nullable|date',
+            'age' => 'nullable|integer|min:0',
 
-            'id_number' => 'required|string|size:13|unique:beneficiaries,id_number',
-            'email' => 'required|email|unique:beneficiaries,email',
+            'id_number' => 'nullable|string|size:13|unique:beneficiaries,id_number',
+            'email' => 'nullable|email|unique:beneficiaries,email',
             'phone' => 'nullable|string|max:20',
 
-            'gender' => 'required|in:male,female',
+            'gender' => 'nullable|in:male,female',
             'project_id' => 'required|exists:projects,id',
             'project_location_id' => 'required|exists:project_locations,id',
 

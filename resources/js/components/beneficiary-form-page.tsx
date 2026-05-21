@@ -166,16 +166,16 @@ export function BeneficiaryFormPage({
                 <Field label="Surname" required error={form.errors.surname}>
                   <Input value={form.data.surname} onChange={(event) => form.setData("surname", event.target.value)} />
                 </Field>
-                <Field label="Date of Birth" required error={form.errors.dob}>
+                <Field label="Date of Birth" error={form.errors.dob}>
                   <Input type="date" value={form.data.dob} onChange={(event) => form.setData("dob", event.target.value)} />
                 </Field>
-                <Field label="Age" required error={form.errors.age}>
+                <Field label="Age" error={form.errors.age}>
                   <Input type="number" min={0} value={form.data.age} onChange={(event) => form.setData("age", event.target.value)} />
                 </Field>
-                <Field label="ID Number" required error={form.errors.id_number}>
+                <Field label="ID Number" error={form.errors.id_number}>
                   <Input value={form.data.id_number} onChange={(event) => form.setData("id_number", event.target.value)} />
                 </Field>
-                <Field label="Gender" required error={form.errors.gender}>
+                <Field label="Gender" error={form.errors.gender}>
                   <select
                     value={form.data.gender}
                     onChange={(event) => form.setData("gender", event.target.value)}
@@ -186,7 +186,7 @@ export function BeneficiaryFormPage({
                     <option value="female">Female</option>
                   </select>
                 </Field>
-                <Field label="Email" required error={form.errors.email}>
+                <Field label="Email" error={form.errors.email}>
                   <Input type="email" value={form.data.email} onChange={(event) => form.setData("email", event.target.value)} />
                 </Field>
                 <Field label="Phone Number" error={form.errors.phone}>

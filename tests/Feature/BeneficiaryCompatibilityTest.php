@@ -125,6 +125,40 @@ test('authorized user can create a beneficiary without next of kin details', fun
     ]);
 });
 
+test('authorized user can create a beneficiary with partial legacy profile data', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+
+    $graph = makeBeneficiaryCompatibilityGraph('Legacy Import Project', 'North West');
+
+    $response = $this->actingAs($user)
+        ->post('/beneficiaries', beneficiaryPayload($graph, [
+            'dob' => null,
+            'age' => null,
+            'id_number' => null,
+            'email' => null,
+            'gender' => null,
+            'phone' => null,
+        ]));
+
+    $beneficiary = Beneficiary::query()->latest('id')->firstOrFail();
+
+    $response->assertRedirect("/beneficiaries/{$beneficiary->id}");
+
+    expect($beneficiary->dob)->toBeNull();
+    expect($beneficiary->age)->toBeNull();
+    expect($beneficiary->id_number)->toBeNull();
+    expect($beneficiary->email)->toBeNull();
+    expect($beneficiary->gender)->toBeNull();
+
+    $this->assertDatabaseHas('project_enrollments', [
+        'project_id' => $graph['project']->id,
+        'project_location_id' => $graph['location']->id,
+        'beneficiary_id' => $beneficiary->id,
+        'status' => 'enrolled',
+    ]);
+});
+
 test('authorized user can clear next of kin details when updating a beneficiary', function () {
     $user = User::factory()->create();
     grantDomainAccess($user, 'beneficiaries');

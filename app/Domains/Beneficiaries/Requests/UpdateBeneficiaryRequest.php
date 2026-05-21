@@ -23,23 +23,23 @@ class UpdateBeneficiaryRequest extends FormRequest
             // =========================
             'name' => 'required|string|max:100',
             'surname' => 'required|string|max:100',
-            'dob' => 'required|date',
-            'age' => 'required|integer|min:0',
+            'dob' => 'nullable|date',
+            'age' => 'nullable|integer|min:0',
 
             'id_number' => [
-                'required',
+                'nullable',
                 'string',
                 'size:13',
                 Rule::unique('beneficiaries', 'id_number')->ignore($beneficiaryId),
             ],
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 Rule::unique('beneficiaries', 'email')->ignore($beneficiaryId),
             ],
 
             'phone' => 'nullable|string|max:20',
-            'gender' => 'required|in:male,female',
+            'gender' => 'nullable|in:male,female',
             'project_id' => 'required|exists:projects,id',
             'project_location_id' => 'required|exists:project_locations,id',
 
