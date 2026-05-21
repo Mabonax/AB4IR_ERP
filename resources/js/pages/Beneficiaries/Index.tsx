@@ -3,10 +3,7 @@ import { Head, Link, router } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
-
-import { BeneficiaryModelFormConfig } from "@/config/forms/beneficiary-model-form";
 
 import beneficiaries from "@/routes/beneficiaries";
 import { type BreadcrumbItem } from "@/types";
@@ -30,9 +27,6 @@ export default function BeneficiaryIndex({
   selectedProjectId,
   filterProjects,
   selectedProjectSummary,
-  provinces,
-  projects,
-  projectLocations,
 }: {
   beneficiary: { data: any[] };
   programs: { id: number; title: string }[];
@@ -40,54 +34,11 @@ export default function BeneficiaryIndex({
   selectedProjectId: number | null;
   filterProjects: { id: number; name: string; program_id: number; start_date: string | null; end_date: string | null; status: string | null }[];
   selectedProjectSummary: { id: number; name: string; start_date: string | null; end_date: string | null; status: string | null } | null;
-  provinces: { id: number; name: string }[];
-  projects: { id: number; name: string }[];
-  projectLocations: { id: number; project_id: number; name: string }[];
 }) {
-  const [selectedBeneficiary, setSelectedBeneficiary] = useState<any | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [beneficiaryToDelete, setBeneficiaryToDelete] = useState<any | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<string>(selectedProgramId ? String(selectedProgramId) : "");
   const [selectedProject, setSelectedProject] = useState<string>(selectedProjectId ? String(selectedProjectId) : "");
-
-  const mappedBeneficiaryData = selectedBeneficiary
-    ? {
-        name: selectedBeneficiary.name ?? "",
-        surname: selectedBeneficiary.surname ?? "",
-        dob: selectedBeneficiary.dob ?? "",
-        age: selectedBeneficiary.age ?? "",
-        id_number: selectedBeneficiary.id_number ?? "",
-        email: selectedBeneficiary.email ?? "",
-        phone: selectedBeneficiary.phone ?? "",
-        gender: selectedBeneficiary.gender ?? "",
-        project_id:
-          selectedBeneficiary.project_id !== null &&
-          selectedBeneficiary.project_id !== undefined
-            ? String(selectedBeneficiary.project_id)
-            : "",
-        project_location_id:
-          selectedBeneficiary.project_location_id !== null &&
-          selectedBeneficiary.project_location_id !== undefined
-            ? String(selectedBeneficiary.project_location_id)
-            : "",
-        street_address: selectedBeneficiary.street_address ?? "",
-        address_line_2: selectedBeneficiary.address_line_2 ?? "",
-        city: selectedBeneficiary.city ?? "",
-        province_id:
-          selectedBeneficiary.province_id !== null &&
-          selectedBeneficiary.province_id !== undefined
-            ? String(selectedBeneficiary.province_id)
-            : "",
-        postal_code: selectedBeneficiary.postal_code ?? "",
-        highest_qualification: selectedBeneficiary.highest_qualification ?? "",
-        attendance_status: selectedBeneficiary.attendance_status ?? "active",
-        nok_name: selectedBeneficiary.next_of_kin?.name ?? "",
-        nok_surname: selectedBeneficiary.next_of_kin?.surname ?? "",
-        nok_relationship: selectedBeneficiary.next_of_kin?.relationship ?? "",
-        nok_phone: selectedBeneficiary.next_of_kin?.phone ?? "",
-        nok_email: selectedBeneficiary.next_of_kin?.email ?? "",
-      }
-    : {};
 
   const columns = useMemo(
     () => [
@@ -222,15 +173,12 @@ export default function BeneficiaryIndex({
         )}
 
         <div className="flex justify-between">
-
-          <CustomModelForm
-            addButton={BeneficiaryModelFormConfig.addButton}
-            title="Add Beneficiary"
-            description={BeneficiaryModelFormConfig.description}
-            fields={BeneficiaryModelFormConfig.fields}
-            submitRoute={beneficiaries.store}
-            options={{ provinces, projects, projectLocations }}
-          />
+          <Link
+            href={beneficiaries.create().url}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          >
+            Add Beneficiary
+          </Link>
         </div>
 
         <CustomTable
@@ -245,9 +193,7 @@ export default function BeneficiaryIndex({
             {
               icon: "PencilIcon",
               label: "Edit beneficiary",
-              onClick: (row) => {
-                setSelectedBeneficiary(row);
-              },
+              href: (row) => beneficiaries.edit(row.id).url,
             },
             {
               icon: "Trash2",
@@ -260,25 +206,6 @@ export default function BeneficiaryIndex({
             },
           ]}
         />
-
-        {selectedBeneficiary && (
-          <CustomModelForm
-            hideTrigger
-            open={!!selectedBeneficiary}
-            onOpenChange={(nextOpen) => {
-              if (!nextOpen) {
-                setSelectedBeneficiary(null);
-              }
-            }}
-            title="Edit Beneficiary"
-            fields={BeneficiaryModelFormConfig.fields}
-            mode="edit"
-            initialData={mappedBeneficiaryData}
-            submitRoute={beneficiaries.update}
-            routeParams={selectedBeneficiary.id}
-            options={{ provinces, projects, projectLocations }}
-          />
-        )}
 
         {beneficiaryToDelete && (
           <ConfirmDeleteModal

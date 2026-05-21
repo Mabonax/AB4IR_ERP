@@ -107,11 +107,12 @@ test('authorized user can create a beneficiary without next of kin details', fun
 
     $graph = makeBeneficiaryCompatibilityGraph();
 
-    $this->actingAs($user)
-        ->post('/beneficiaries', beneficiaryPayload($graph))
-        ->assertRedirect();
+    $response = $this->actingAs($user)
+        ->post('/beneficiaries', beneficiaryPayload($graph));
 
     $beneficiary = Beneficiary::query()->latest('id')->firstOrFail();
+
+    $response->assertRedirect("/beneficiaries/{$beneficiary->id}");
 
     expect($beneficiary->next_of_kin_id)->toBeNull();
     expect($beneficiary->dob?->format('Y-m-d'))->toBe('2002-05-10');
@@ -172,7 +173,7 @@ test('authorized user can clear next of kin details when updating a beneficiary'
             'email' => $beneficiary->email,
             'phone' => $beneficiary->phone,
         ]))
-        ->assertRedirect();
+        ->assertRedirect("/beneficiaries/{$beneficiary->id}");
 
     $beneficiary->refresh();
 

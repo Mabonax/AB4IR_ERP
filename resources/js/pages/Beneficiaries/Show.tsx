@@ -2,61 +2,18 @@ import { useState } from "react";
 import { Head, Link } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
-import { BeneficiaryModelFormConfig } from "@/config/forms/beneficiary-model-form";
 import beneficiaries from "@/routes/beneficiaries";
 import { type BreadcrumbItem } from "@/types";
 
 export default function BeneficiaryShow({
   beneficiary,
   canManageBeneficiary,
-  provinces,
-  projects,
-  projectLocations,
 }: {
   beneficiary: any;
   canManageBeneficiary: boolean;
-  provinces: { id: number; name: string }[];
-  projects: { id: number; name: string }[];
-  projectLocations: { id: number; project_id: number; name: string }[];
 }) {
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const mappedBeneficiaryData = {
-    name: beneficiary.name ?? "",
-    surname: beneficiary.surname ?? "",
-    dob: beneficiary.dob ?? "",
-    age: beneficiary.age ?? "",
-    id_number: beneficiary.id_number ?? "",
-    email: beneficiary.email ?? "",
-    phone: beneficiary.phone ?? "",
-    gender: beneficiary.gender ?? "",
-    project_id:
-      beneficiary.project_id !== null && beneficiary.project_id !== undefined
-        ? String(beneficiary.project_id)
-        : "",
-    project_location_id:
-      beneficiary.project_location_id !== null && beneficiary.project_location_id !== undefined
-        ? String(beneficiary.project_location_id)
-        : "",
-    street_address: beneficiary.street_address ?? "",
-    address_line_2: beneficiary.address_line_2 ?? "",
-    city: beneficiary.city ?? "",
-    province_id:
-      beneficiary.province_id !== null && beneficiary.province_id !== undefined
-        ? String(beneficiary.province_id)
-        : "",
-    postal_code: beneficiary.postal_code ?? "",
-    highest_qualification: beneficiary.highest_qualification ?? "",
-    attendance_status: beneficiary.attendance_status ?? "active",
-    nok_name: beneficiary.next_of_kin?.name ?? "",
-    nok_surname: beneficiary.next_of_kin?.surname ?? "",
-    nok_relationship: beneficiary.next_of_kin?.relationship ?? "",
-    nok_phone: beneficiary.next_of_kin?.phone ?? "",
-    nok_email: beneficiary.next_of_kin?.email ?? "",
-  };
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Beneficiaries", href: beneficiaries.index() },
@@ -83,13 +40,12 @@ export default function BeneficiaryShow({
 
           <div className="flex flex-wrap items-center gap-2">
             {canManageBeneficiary ? (
-              <button
-                type="button"
-                onClick={() => setEditOpen(true)}
+              <Link
+                href={beneficiaries.edit(beneficiary.id).url}
                 className="rounded-md border border-orange-500 px-4 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
               >
                 Edit Beneficiary
-              </button>
+              </Link>
             ) : null}
             {canManageBeneficiary ? (
               <button
@@ -280,20 +236,6 @@ export default function BeneficiaryShow({
             </table>
           </div>
         </section>
-
-        <CustomModelForm
-          hideTrigger
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          title="Edit Beneficiary"
-          fields={BeneficiaryModelFormConfig.fields}
-          mode="edit"
-          initialData={mappedBeneficiaryData}
-          submitRoute={beneficiaries.update}
-          routeParams={beneficiary.id}
-          options={{ provinces, projects, projectLocations }}
-        />
-
         <ConfirmDeleteModal
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
