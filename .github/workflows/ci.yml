@@ -1,9 +1,5 @@
 name: CI
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: mabonax/ab4irerp
-
 on:
   push:
     branches:
@@ -34,8 +30,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
-          extensions: mbstring, pdo_sqlite, sqlite3, dom, curl
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, dom, curl, intl
           coverage: none
           tools: composer:v2
 
@@ -65,6 +61,7 @@ jobs:
           mkdir -p database bootstrap/cache
           touch database/database.sqlite
           {
+            echo "APP_NAME=AB4IRERP"
             echo "APP_ENV=testing"
             echo "APP_DEBUG=true"
             echo "APP_URL=http://localhost"
@@ -74,11 +71,13 @@ jobs:
             echo "QUEUE_CONNECTION=sync"
             echo "SESSION_DRIVER=array"
             echo "MAIL_MAILER=log"
-            echo "RUN_MIGRATIONS=false"
           } >> .env
 
           php artisan key:generate --force
           php artisan config:clear
+
+      - name: Run deployment validation
+        run: php artisan system:validate-deployment
 
       - name: Run backend checks
         run: composer test
@@ -92,19 +91,42 @@ jobs:
 
   containers:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Copy deploy environment
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          {
+            echo "APP_NAME=AB4IRERP"
+            echo "APP_KEY=base64:ci-only-placeholder-ci-only-placeholder"
+          } >> .env
 
       - name: Validate compose configuration
         run: docker compose config
 
       - name: Build runtime images
-        run: |
-          docker build --target app -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-app:test .
-          docker build --target web -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:test .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: app
+          load: true
+          tags: ghcr.io/mabonax/ab4ir_erp-app:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: web
+          load: true
+          tags: ghcr.io/mabonax/ab4ir_erp-web:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

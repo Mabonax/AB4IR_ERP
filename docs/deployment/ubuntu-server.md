@@ -1,136 +1,263 @@
 # Ubuntu Server Deployment
 
-This project now ships with a production-oriented Docker and GitHub Actions pipeline for Ubuntu deployments.
+This deployment pack is now built for deterministic Ubuntu Server rollouts using:
+
+- Docker Engine
+- Docker Compose
+- Nginx
+- PHP-FPM
+- Redis
+- MySQL
+- queue workers
+- scheduler
+- GHCR images
+- Tailscale-reachable host networking
+
+The key hardening change is that normal container startup is no longer treated as a deployment event. Runtime containers validate and start. Deployment scripts handle git pull, image pull, migrations, optimize, and queue restart explicitly.
 
 ## Runtime topology
 
-- `app`: Laravel PHP-FPM container
-- `web`: Nginx container serving `public/`
-- `worker`: queue worker container
-- `scheduler`: Laravel scheduler container
-- `mysql`: MySQL 8.4 container
-- `redis`: Redis 7.4 container
+- `app`: Laravel PHP-FPM runtime
+- `web`: Nginx reverse proxy serving `public/`
+- `worker`: queue worker runtime
+- `scheduler`: Laravel scheduler runtime
+- `mysql`: MySQL 8.4
+- `redis`: Redis 7.4
+- `backup`: one-shot ops profile for manual DB dumps
 
-All Laravel runtime containers share the `app-storage` volume so uploaded files, sessions, logs, and cache-backed artifacts stay available across restarts.
+Laravel runtime containers share `app-storage` so uploaded files, cache-backed artifacts, and backup output survive container replacement.
 
-## First-time server setup
+## 1. Bootstrap the Ubuntu host
 
-1. Install Docker Engine and the Docker Compose plugin on Ubuntu.
-2. Clone the repository onto the server:
+Use the bundled bootstrap script:
 
 ```bash
-git clone https://github.com/Mabonax/AB4IR_ERP.git /var/www/ab4irerp
+sudo bash scripts/deployment/bootstrap-ubuntu.sh
+```
+
+What it fixes:
+
+- removes conflicting `podman-docker` and old Docker apt packages
+- recreates the Docker apt repository using the correct Ubuntu codename
+- installs Docker Engine, Buildx, and Compose plugin
+- starts and enables Docker
+
+After that, add the deployment user to the docker group:
+
+```bash
+sudo usermod -aG docker <deploy-user>
+newgrp docker
+```
+
+Verify host readiness:
+
+```bash
+bash scripts/deployment/check-host-access.sh
+```
+
+If you see `permission denied while trying to connect to the docker API`, the user session does not yet have Docker group access. Re-login and rerun the check.
+
+## 2. Clone with GitHub SSH, not HTTPS
+
+Do not use HTTPS cloning for the server checkout.
+
+Recommended:
+
+```bash
+git clone git@github.com:Mabonax/AB4IR_ERP.git /var/www/ab4irerp
 cd /var/www/ab4irerp
 ```
 
-3. Copy the application environment file and fill in production values:
+If the repo already exists and was cloned with HTTPS, fix it:
+
+```bash
+git remote set-url origin git@github.com:Mabonax/AB4IR_ERP.git
+```
+
+Verify SSH access:
+
+```bash
+bash scripts/deployment/check-github-ssh.sh
+```
+
+Recommended server strategy:
+
+- create a dedicated deploy key on the Ubuntu host
+- add the public key to the GitHub repository as a read-only deploy key
+- keep GHCR credentials separate from Git credentials
+
+## 3. Prepare the environment
+
+Copy the environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Generate an application key once before the first full startup:
+Minimum production values:
+
+- `APP_NAME=AB4IRERP`
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_URL=https://your-final-hostname`
+- `APP_KEY=...`
+- `DB_DATABASE`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `DB_ROOT_PASSWORD`
+- `REDIS_PASSWORD`
+- `MAIL_*`
+- `SUPER_ADMIN_*`
+- `STAFF_USER_DEFAULT_PASSWORD`
+
+Generate the application key once:
 
 ```bash
 docker compose run --rm app php artisan key:generate --force
 ```
 
-Minimum values to change before first boot:
-
-- `APP_NAME`
-- `APP_ENV=production`
-- `APP_DEBUG=false`
-- `APP_URL=https://your-domain`
-- `DB_CONNECTION=mysql`
-- `DB_HOST=mysql`
-- `DB_PORT=3306`
-- `DB_DATABASE`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `DB_ROOT_PASSWORD`
-- `CACHE_STORE=redis`
-- `QUEUE_CONNECTION=redis`
-- `SESSION_DRIVER=database`
-- `PUBLIC_REGISTRATION_ENABLED=false`
-- `STAFF_USER_DEFAULT_PASSWORD`
-- `MAIL_*`
-- `SUPER_ADMIN_*`
-
-4. Start the stack:
+Run deployment validation before first boot:
 
 ```bash
-docker compose up -d --build
+docker compose run --rm app php artisan system:validate-deployment --strict
 ```
 
-5. Inspect startup state:
+What this validates:
+
+- required env keys exist
+- `APP_DEBUG` is not enabled in production
+- public registration remains disabled
+- placeholder passwords are not still present
+- production mailer is not left on `log`
+
+## 4. First deployment
+
+Build or pull the images, then bring the stack up:
 
 ```bash
-docker compose ps
-docker compose logs -f app
+docker compose pull
+docker compose up -d
+docker compose exec -T app php artisan system:validate-deployment --services --strict
+docker compose exec -T app php artisan migrate --force
+docker compose exec -T app php artisan optimize
+docker compose exec -T worker php artisan queue:restart || true
 ```
 
-The `app` container runs migrations automatically on boot when `RUN_MIGRATIONS=true`.
-
-Public registration is disabled by default. Staff access should be provisioned through the staff-management flow, which creates linked user accounts with the configured `STAFF_USER_DEFAULT_PASSWORD`.
-
-## Permanent bootstrap super-admin
-
-The application seeds one permanent bootstrap super-admin user from the environment:
-
-- `SUPER_ADMIN_NAME`
-- `SUPER_ADMIN_EMAIL`
-- `SUPER_ADMIN_PASSWORD`
-- `SUPER_ADMIN_SYNC_PASSWORD=false`
-
-Behavior:
-
-- the account is created automatically when `php artisan db:seed` runs
-- the `super-admin` role is always re-synced to that user
-- the password is only overwritten when `SUPER_ADMIN_SYNC_PASSWORD=true`
-
-Recommended first deploy flow:
+Seed the permanent bootstrap super-admin:
 
 ```bash
 docker compose exec -T app php artisan db:seed --class=SuperAdminUserSeeder --force
 ```
 
-If you need to rotate the bootstrap password later:
+Health validation:
 
-1. set a new `SUPER_ADMIN_PASSWORD`
-2. set `SUPER_ADMIN_SYNC_PASSWORD=true`
-3. run the seeder again
-4. set `SUPER_ADMIN_SYNC_PASSWORD=false` afterwards
+```bash
+docker compose ps
+docker compose logs -f app
+curl -fsS http://127.0.0.1:${APP_PORT:-8080}/up
+```
 
-## GitHub Actions secrets
+## 5. Standard release flow
 
-Configure these repository secrets for automated deployment:
+The repo now ships with a server-safe deployment script:
+
+```bash
+bash scripts/deployment/deploy-release.sh
+```
+
+What it does:
+
+1. verifies Docker daemon access
+2. verifies GitHub SSH remote and SSH auth
+3. optionally logs into GHCR
+4. pulls `main`
+5. pulls images
+6. recreates the app/runtime stack
+7. validates DB and Redis connectivity
+8. runs migrations
+9. rebuilds Laravel caches
+10. gracefully restarts workers
+
+When using SHA-pinned GHCR images:
+
+```bash
+APP_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-app:sha-<commit-sha> \
+WEB_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-web:sha-<commit-sha> \
+GHCR_USERNAME=<ghcr-user> \
+GHCR_TOKEN=<ghcr-token> \
+bash scripts/deployment/deploy-release.sh
+```
+
+## 6. Rollback strategy
+
+Rollback is image-tag based. Reuse a previously known-good SHA tag:
+
+```bash
+APP_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-app:sha-<old-sha> \
+WEB_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-web:sha-<old-sha> \
+GHCR_USERNAME=<ghcr-user> \
+GHCR_TOKEN=<ghcr-token> \
+bash scripts/deployment/deploy-release.sh
+```
+
+This keeps rollback deterministic because the image and code revision are both pinned to the same release commit.
+
+## 7. GitHub Actions and GHCR
+
+Required repository secrets:
 
 - `SSH_HOST`
 - `SSH_PORT`
 - `SSH_USER`
 - `SSH_PRIVATE_KEY`
 - `DEPLOY_PATH`
-- `GHCR_USERNAME` optional
-- `GHCR_TOKEN` optional
+- `GHCR_USERNAME`
+- `GHCR_TOKEN`
 
-The deploy workflow pushes two images to GHCR:
+The deploy workflow now:
 
-- `ghcr.io/mabonax/ab4ir_erp-app`
-- `ghcr.io/mabonax/ab4ir_erp-web`
+1. builds `app` and `web` images with Buildx cache
+2. publishes `latest` and `sha-<commit>` tags to GHCR
+3. SSHes into the Ubuntu host
+4. runs `scripts/deployment/deploy-release.sh` on the server
 
-On each push to `main`, the workflow:
+## 8. Healthchecks
 
-1. Builds and pushes both images.
-2. SSHes into the Ubuntu server.
-3. Pulls the latest git state.
-4. Pulls the exact image tags for that commit.
-5. Recreates the containers.
-6. Runs `php artisan migrate --force`.
-7. Rebuilds Laravel caches with `php artisan optimize`.
+Implemented runtime checks:
 
-## Backups
+- `app`: PHP-FPM ping over FastCGI
+- `web`: HTTP `GET /up`
+- `worker`: verifies `queue:work` process is alive
+- `scheduler`: verifies a fresh heartbeat file
+- `mysql`: `mysqladmin ping`
+- `redis`: `redis-cli ping`
 
-Database backups are scheduled daily at `02:00` by Laravel Scheduler when `BACKUP_ENABLED=true`.
+These are used by Compose for dependency readiness and by operators for faster fault isolation.
+
+## 9. Logging and restarts
+
+Production defaults now favor container-native logs:
+
+- Laravel logs to `stderr`
+- PHP-FPM worker output is forwarded to container logs
+- Nginx access logs go to stdout and errors go to stderr
+- Compose uses `json-file` rotation with:
+  - `max-size=10m`
+  - `max-file=5`
+
+Service restart behavior:
+
+- runtime services use `restart: unless-stopped`
+- backup runs as an explicit one-shot ops profile
+- worker and scheduler use `init: true` and grace periods for cleaner shutdown
+
+## 10. Backups
+
+Automatic DB dumps are still scheduled through Laravel Scheduler when:
+
+```env
+BACKUP_ENABLED=true
+```
 
 Manual backup:
 
@@ -138,23 +265,56 @@ Manual backup:
 docker compose exec -T app php artisan system:backup-database --prune
 ```
 
-Backups are written to the configured filesystem disk, which defaults to `storage/app/private/backups/database`.
-
-## Manual update flow on the server
-
-If you want to deploy manually without the SSH stage:
+One-shot backup container:
 
 ```bash
-cd /var/www/ab4irerp
-git pull --ff-only origin main
-docker compose pull
-docker compose up -d --remove-orphans
-docker compose exec -T app php artisan migrate --force
-docker compose exec -T app php artisan optimize
+docker compose --profile ops run --rm backup
 ```
 
-## Notes
+Retention is controlled by:
 
-- The CI workflow validates PHP, Node, asset build, and the Docker build targets.
-- The web container serves `storage/app/public` through the shared Docker volume.
-- If you terminate TLS upstream, keep `APP_URL` on the final HTTPS URL so cookies and generated URLs stay correct.
+- `BACKUP_RETENTION_DAYS`
+- `BACKUP_DISK`
+- `BACKUP_PATH`
+
+## 11. Security notes
+
+Hardening changes in this refactor:
+
+- `.env` is never copied into the image
+- PHP app processes run as `www-data`
+- Nginx runs as non-root on port `8080`
+- MySQL and Redis are no longer published to the host by default
+- Nginx blocks hidden files and PHP execution from storage paths
+- placeholder passwords in `.env.example` now fail deployment validation in strict mode
+- public registration remains disabled by default
+
+Remaining operator responsibility:
+
+- store real secrets outside Git
+- rotate the bootstrap super-admin password after first use if needed
+- keep TLS termination in front of the web container
+- restrict server SSH access to known operators / Tailscale policy
+
+## 12. Validation commands
+
+Useful operational checks:
+
+```bash
+docker compose config
+docker compose ps
+docker compose logs -f app
+docker compose logs -f worker
+docker compose exec -T app php artisan system:validate-deployment --services --strict
+docker compose exec -T app php artisan about
+curl -fsS http://127.0.0.1:${APP_PORT:-8080}/up
+```
+
+## 13. Why this architecture is safer
+
+- Build-time Laravel dependencies are now available during the Vite build, so Wayfinder no longer breaks image builds.
+- Runtime containers no longer rebuild the world on every restart; deploy steps are explicit and repeatable.
+- Healthchecks give Compose real readiness signals instead of blind process startup.
+- Non-root runtime processes reduce the blast radius of a compromised service.
+- SSH-first git access avoids failed HTTPS auth during unattended server pulls.
+- Host bootstrap scripts remove the Docker apt drift and podman conflicts that caused the original Ubuntu setup failures.

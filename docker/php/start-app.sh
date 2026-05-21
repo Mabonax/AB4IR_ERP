@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 set -eu
 
-exec php-fpm -F
+exec su-exec www-data php-fpm -F
