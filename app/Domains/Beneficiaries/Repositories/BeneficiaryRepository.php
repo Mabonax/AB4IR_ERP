@@ -18,13 +18,14 @@ class BeneficiaryRepository implements BeneficiaryRepositoryInterface
         ])->latest();
     }
 
-    public function paginate(?int $programId = null, ?int $projectId = null, int $perPage = 15): LengthAwarePaginator
+    public function paginate(?int $projectId = null, int $perPage = 15): LengthAwarePaginator
     {
         $query = $this->baseQuery();
 
         if ($projectId) {
             $query->whereHas('projectEnrollments', fn ($enrollmentQuery) => $enrollmentQuery->where('project_id', $projectId));
         } else {
+            // The beneficiary directory is intentionally scoped to a selected project iteration.
             $query->whereRaw('1 = 0');
         }
 

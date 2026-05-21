@@ -45,7 +45,7 @@ class BeneficiaryController extends Controller
 
         return Inertia::render('Beneficiaries/Index', [
             'beneficiary' => BeneficiaryResource::collection(
-                $this->service->paginateBeneficiaries($selectedProgramId, $selectedProjectId)
+                $this->service->paginateBeneficiaries($selectedProjectId)
             ),
             'programs' => Program::query()
                 ->select('id', 'title')

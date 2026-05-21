@@ -2,12 +2,16 @@
 
 namespace App\Domains\Beneficiaries\Resources;
 
+use App\Domains\Projects\Models\ProjectEnrollment;
+use Illuminate\Support\Collection;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class BeneficiaryResource extends JsonResource
 {
     public function toArray($request): array
     {
+        $currentEnrollment = $this->resolveCurrentEnrollment();
+
         return [
             'id' => $this->id,
 
@@ -29,12 +33,8 @@ class BeneficiaryResource extends JsonResource
             // Project
             'project_id' => $this->project_id,
             'project_name' => $this->project?->name,
-            'project_location_id' => $this->projectEnrollments
-                ? $this->projectEnrollments->firstWhere('project_id', $this->project_id)?->project_location_id
-                : null,
-            'project_location' => $this->projectEnrollments
-                ? $this->projectEnrollments->firstWhere('project_id', $this->project_id)?->location?->province?->name
-                : null,
+            'project_location_id' => $currentEnrollment?->project_location_id,
+            'project_location' => $currentEnrollment?->location?->province?->name,
             'program_id' => $this->project?->program?->id,
             'program_title' => $this->project?->program?->title,
 
@@ -62,12 +62,7 @@ class BeneficiaryResource extends JsonResource
                 ];
             }),
             'current_participation' => $this->whenLoaded('projectEnrollments', function () {
-                $currentEnrollment = $this->projectEnrollments
-                    ->sortByDesc(fn ($enrollment) => optional($enrollment->enrolled_at)?->timestamp ?? 0)
-                    ->firstWhere('project_id', $this->project_id)
-                    ?? $this->projectEnrollments
-                        ->sortByDesc(fn ($enrollment) => optional($enrollment->enrolled_at)?->timestamp ?? 0)
-                        ->first();
+                $currentEnrollment = $this->resolveCurrentEnrollment();
 
                 if (! $currentEnrollment) {
                     return null;
@@ -109,5 +104,24 @@ class BeneficiaryResource extends JsonResource
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
+    }
+
+    protected function resolveCurrentEnrollment(): ?ProjectEnrollment
+    {
+        if (! $this->relationLoaded('projectEnrollments')) {
+            return null;
+        }
+
+        $enrollments = $this->sortedProjectEnrollments();
+
+        return $enrollments->firstWhere('project_id', $this->project_id)
+            ?? $enrollments->first();
+    }
+
+    protected function sortedProjectEnrollments(): Collection
+    {
+        return $this->projectEnrollments
+            ->sortByDesc(fn ($enrollment) => optional($enrollment->enrolled_at)?->timestamp ?? 0)
+            ->values();
     }
 }

@@ -144,6 +144,28 @@ test('beneficiary index drills down by program and project iteration', function 
         );
 });
 
+test('beneficiary index stays empty until a project iteration is selected', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+
+    createBeneficiaryProjectFixture(
+        'Digital Incubation',
+        'Digital Incubation Cohort 2026',
+        'alpha.beneficiary@example.test',
+        'Gauteng'
+    );
+
+    $this->actingAs($user)
+        ->get('/beneficiaries')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Beneficiaries/Index')
+            ->where('selectedProgramId', null)
+            ->where('selectedProjectId', null)
+            ->has('beneficiary.data', 0)
+        );
+});
+
 test('beneficiary show page exposes participation history as a beneficiary file', function () {
     $user = User::factory()->create();
     grantDomainAccess($user, 'beneficiaries');
@@ -214,5 +236,79 @@ test('beneficiary show page exposes participation history as a beneficiary file'
             ->has('beneficiary.participation_history', 2)
             ->where('beneficiary.participation_history.0.program_title', 'Animation Track Advanced')
             ->where('beneficiary.participation_history.1.project_name', 'Animation Track Cohort 2025')
+        );
+});
+
+test('beneficiary resource uses the current project enrollment for location details after project transfer', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+
+    $first = createBeneficiaryProjectFixture(
+        'Animation Track',
+        'Animation Track Cohort 2025',
+        'latest-location@example.test',
+        'Limpopo'
+    );
+
+    $secondProgram = Program::query()->create([
+        'title' => 'Animation Track Advanced',
+        'description' => 'Advanced animation support',
+        'slug' => 'animation-track-advanced',
+    ]);
+
+    $secondProject = Project::query()->create([
+        'program_id' => $secondProgram->id,
+        'project_manager_id' => $first['project']->project_manager_id,
+        'name' => 'Animation Track Cohort 2026',
+        'start_date' => now()->toDateString(),
+        'status' => 'active',
+    ]);
+
+    $newProvince = Provinces::query()->create([
+        'name' => 'Mpumalanga',
+    ]);
+
+    $newFacilitator = Facilitator::query()->create([
+        'name' => 'Updated',
+        'surname' => 'Facilitator',
+        'dob' => '1991-03-01',
+        'id_number' => fake()->unique()->numerify('####################'),
+        'address' => '3 Venue Street',
+        'email' => fake()->unique()->safeEmail(),
+        'cell' => '0744444444',
+        'specialization' => 'Mentorship',
+    ]);
+
+    $newLocation = ProjectLocation::query()->create([
+        'project_id' => $secondProject->id,
+        'facilitator_id' => $newFacilitator->id,
+        'province_id' => $newProvince->id,
+    ]);
+
+    ProjectEnrollment::query()->create([
+        'project_id' => $secondProject->id,
+        'project_location_id' => $newLocation->id,
+        'beneficiary_id' => $first['beneficiary']->id,
+        'status' => 'enrolled',
+        'enrolled_at' => now(),
+    ]);
+
+    $first['beneficiary']->update([
+        'project_id' => $secondProject->id,
+        'attendance_status' => 'active',
+    ]);
+
+    $this->actingAs($user)
+        ->get("/beneficiaries/{$first['beneficiary']->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Beneficiaries/Show')
+            ->where('beneficiary.project_location_id', $newLocation->id)
+            ->where('beneficiary.project_location', 'Mpumalanga')
+            ->where('beneficiary.current_participation.location_id', $newLocation->id)
+            ->where('beneficiary.current_participation.location_name', 'Mpumalanga')
+            ->where('beneficiary.participation_history.0.location_id', $newLocation->id)
+            ->where('beneficiary.participation_history.0.location_name', 'Mpumalanga')
+            ->where('beneficiary.participation_history.1.location_name', 'Limpopo')
         );
 });
