@@ -126,10 +126,6 @@ class BeneficiaryService
         return DB::transaction(function () use ($id) {
             $beneficiary = $this->getById($id);
 
-            if ($beneficiary->nextOfKin) {
-                $beneficiary->nextOfKin->delete();
-            }
-
             return $this->repository->delete($beneficiary);
         });
     }

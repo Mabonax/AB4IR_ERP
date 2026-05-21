@@ -143,11 +143,42 @@ test('deleting a beneficiary from the file page returns to the beneficiary index
     grantDomainAccess($user, 'beneficiaries');
     $fixture = makeBeneficiaryPageWorkflowFixture();
 
+    $enrollmentId = ProjectEnrollment::query()
+        ->where('beneficiary_id', $fixture['beneficiary']->id)
+        ->value('id');
+
+    $nextOfKinId = $fixture['beneficiary']->next_of_kin_id;
+
     $this->actingAs($user)
         ->delete("/beneficiaries/{$fixture['beneficiary']->id}")
         ->assertRedirect('/beneficiaries');
 
-    $this->assertDatabaseMissing('beneficiaries', [
+    $this->assertSoftDeleted('beneficiaries', [
         'id' => $fixture['beneficiary']->id,
     ]);
+
+    $this->assertDatabaseHas('project_enrollments', [
+        'id' => $enrollmentId,
+        'beneficiary_id' => $fixture['beneficiary']->id,
+    ]);
+
+    $this->assertDatabaseHas('next_of_kin', [
+        'id' => $nextOfKinId,
+    ]);
+});
+
+test('archived beneficiaries are excluded from the active beneficiary directory', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+    $fixture = makeBeneficiaryPageWorkflowFixture();
+
+    $fixture['beneficiary']->delete();
+
+    $this->actingAs($user)
+        ->get("/beneficiaries?program_id={$fixture['program']->id}&project_id={$fixture['project']->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Beneficiaries/Index')
+            ->has('beneficiary.data', 0)
+        );
 });
