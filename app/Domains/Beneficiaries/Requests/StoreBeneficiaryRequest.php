@@ -3,6 +3,7 @@
 namespace App\Domains\Beneficiaries\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreBeneficiaryRequest extends FormRequest
 {
@@ -42,11 +43,45 @@ class StoreBeneficiaryRequest extends FormRequest
             // =========================
             // Next of Kin
             // =========================
-            'nok_name' => 'required|string|max:100',
-            'nok_surname' => 'required|string|max:100',
-            'nok_relationship' => 'required|string|max:100',
+            'nok_name' => 'nullable|string|max:100',
+            'nok_surname' => 'nullable|string|max:100',
+            'nok_relationship' => 'nullable|string|max:100',
             'nok_phone' => 'nullable|string|max:20',
             'nok_email' => 'nullable|email',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if (! $this->hasAnyNextOfKinInput()) {
+                return;
+            }
+
+            foreach ([
+                'nok_name' => 'Next of kin name is required when next of kin details are provided.',
+                'nok_surname' => 'Next of kin surname is required when next of kin details are provided.',
+                'nok_relationship' => 'Next of kin relationship is required when next of kin details are provided.',
+            ] as $field => $message) {
+                if ($this->filled($field)) {
+                    continue;
+                }
+
+                $validator->errors()->add($field, $message);
+            }
+        });
+    }
+
+    protected function hasAnyNextOfKinInput(): bool
+    {
+        foreach (['nok_name', 'nok_surname', 'nok_relationship', 'nok_phone', 'nok_email'] as $field) {
+            $value = $this->input($field);
+
+            if (is_string($value) && trim($value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -179,9 +179,9 @@ export const BeneficiaryModelFormConfig = {
    // =========================
     // NEXT OF KIN
     // =========================
-    { id: "nok_name", name: "nok_name", label: "Next of Kin Name", type: "text", required: true },
-    { id: "nok_surname", name: "nok_surname", label: "Next of Kin Surname", type: "text", required: true },
-    { id: "nok_relationship", name: "nok_relationship", label: "Relationship", type: "text", required: true },
+    { id: "nok_name", name: "nok_name", label: "Next of Kin Name", type: "text" },
+    { id: "nok_surname", name: "nok_surname", label: "Next of Kin Surname", type: "text" },
+    { id: "nok_relationship", name: "nok_relationship", label: "Relationship", type: "text" },
     { id: "nok_phone", name: "nok_phone", label: "Next of Kin Phone", type: "tel" },
     { id: "nok_email", name: "nok_email", label: "Next of Kin Email", type: "email" },
     ],
