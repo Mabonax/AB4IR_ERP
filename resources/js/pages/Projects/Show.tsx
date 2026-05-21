@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Head, router } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
@@ -115,7 +115,17 @@ export default function ProjectShow({
 
       <div className="p-4 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">{projectData.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-xl font-semibold">{projectData.name}</h1>
+            {canManageProjects ? (
+              <Link
+                href={`/projects/${projectData.id}/edit`}
+                className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+              >
+                Edit Project
+              </Link>
+            ) : null}
+          </div>
           <DomainNav items={projectNavItems} />
         </div>
 

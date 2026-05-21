@@ -93,13 +93,20 @@ class ProjectController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        $this->authorize('create', Project::class);
+
+        return Inertia::render('Projects/Create', $this->formOptions());
+    }
+
     public function store(StoreProjectRequest $request)
     {
         $this->authorize('create', Project::class);
 
-        $this->service->createProject($request->validated(), $request->user());
+        $project = $this->service->createProject($request->validated(), $request->user());
 
-        return redirect()->back()->with('success', 'Project created');
+        return redirect()->route('projects.show', $project->id)->with('success', 'Project created');
     }
 
     public function show(Request $request, int $project)
@@ -243,14 +250,25 @@ class ProjectController extends Controller
         return redirect()->back()->with('success', 'Program milestones synced');
     }
 
+    public function edit(int $project)
+    {
+        $projectModel = Project::with(['program', 'sponsor', 'partners', 'projectManager'])->findOrFail($project);
+        $this->authorize('update', $projectModel);
+
+        return Inertia::render('Projects/Edit', [
+            'project' => new ProjectResource($projectModel),
+            ...$this->formOptions(),
+        ]);
+    }
+
     public function update(UpdateProjectRequest $request, int $project)
     {
         $projectModel = Project::findOrFail($project);
         $this->authorize('update', $projectModel);
 
-        $this->service->updateProject($project, $request->validated(), $request->user());
+        $updated = $this->service->updateProject($project, $request->validated(), $request->user());
 
-        return redirect()->back()->with('success', 'Project updated');
+        return redirect()->route('projects.show', $updated->id)->with('success', 'Project updated');
     }
 
     public function destroy(int $project)
@@ -303,5 +321,29 @@ class ProjectController extends Controller
         $this->governanceService->deleteClosureEvidence($projectModel, $evidenceModel, $request->user());
 
         return redirect()->back()->with('success', 'Project evidence removed.');
+    }
+
+    protected function formOptions(): array
+    {
+        $stakeholders = Stakeholder::select('id', 'organization_name', 'name')
+            ->orderBy('organization_name')
+            ->get()
+            ->map(fn ($stakeholder) => [
+                'id' => $stakeholder->id,
+                'name' => trim($stakeholder->organization_name.' - '.$stakeholder->name),
+            ]);
+
+        return [
+            'programs' => Program::select('id', 'title')->orderBy('title')->get(),
+            'stakeholders' => $stakeholders,
+            'partnerStakeholders' => $stakeholders,
+            'staffMembers' => StaffMember::select('id', 'first_name', 'last_name')
+                ->orderBy('first_name')
+                ->get()
+                ->map(fn ($staff) => [
+                    'id' => $staff->id,
+                    'name' => trim($staff->first_name.' '.$staff->last_name),
+                ]),
+        ];
     }
 }
