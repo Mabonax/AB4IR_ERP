@@ -27,6 +27,7 @@ require_env() {
 mkdir -p \
     bootstrap/cache \
     storage/app/public \
+    storage/framework/health \
     storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/testing \

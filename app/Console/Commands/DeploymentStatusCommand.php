@@ -15,13 +15,31 @@ class DeploymentStatusCommand extends Command
     public function handle(): int
     {
         $storageLinkTarget = public_path('storage');
-        $schedulerHeartbeatFile = '/tmp/scheduler-heartbeat';
+        $schedulerHeartbeatFile = storage_path('framework/health/scheduler-heartbeat');
+        $workerHeartbeatFile = storage_path('framework/health/worker-heartbeat');
+        $workerStartedFile = storage_path('framework/health/worker-started-at');
         $schedulerHeartbeatAge = null;
+        $workerHeartbeatAge = null;
+        $workerStartedAt = null;
 
         if (is_file($schedulerHeartbeatFile)) {
             $lastHeartbeat = (int) trim((string) file_get_contents($schedulerHeartbeatFile));
             if ($lastHeartbeat > 0) {
                 $schedulerHeartbeatAge = max(0, now()->timestamp - $lastHeartbeat);
+            }
+        }
+
+        if (is_file($workerHeartbeatFile)) {
+            $lastHeartbeat = (int) trim((string) file_get_contents($workerHeartbeatFile));
+            if ($lastHeartbeat > 0) {
+                $workerHeartbeatAge = max(0, now()->timestamp - $lastHeartbeat);
+            }
+        }
+
+        if (is_file($workerStartedFile)) {
+            $timestamp = (int) trim((string) file_get_contents($workerStartedFile));
+            if ($timestamp > 0) {
+                $workerStartedAt = now()->createFromTimestamp($timestamp)->toIso8601String();
             }
         }
 
@@ -42,6 +60,8 @@ class DeploymentStatusCommand extends Command
                     || in_array((string) env('CACHE_STORE'), ['redis'], true)
                     || in_array((string) env('SESSION_DRIVER'), ['redis'], true),
                 'redis_connected' => false,
+                'worker_heartbeat_age_seconds' => $workerHeartbeatAge,
+                'worker_started_at' => $workerStartedAt,
                 'scheduler_heartbeat_age_seconds' => $schedulerHeartbeatAge,
             ],
         ];
@@ -81,6 +101,8 @@ class DeploymentStatusCommand extends Command
         $this->line('Database connected: '.($status['checks']['database_connected'] ? 'yes' : 'no'));
         $this->line('Redis required: '.($status['checks']['redis_required'] ? 'yes' : 'no'));
         $this->line('Redis connected: '.($status['checks']['redis_connected'] ? 'yes' : 'no'));
+        $this->line('Worker started at: '.($workerStartedAt ?? 'unavailable'));
+        $this->line('Worker heartbeat age: '.($workerHeartbeatAge !== null ? $workerHeartbeatAge.'s' : 'unavailable'));
         $this->line('Scheduler heartbeat age: '.($schedulerHeartbeatAge !== null ? $schedulerHeartbeatAge.'s' : 'unavailable'));
 
         return $this->exitCode($status);

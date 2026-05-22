@@ -1,8 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 
-heartbeat_file="/tmp/scheduler-heartbeat"
+heartbeat_dir="/var/www/html/storage/framework/health"
+heartbeat_file="${heartbeat_dir}/scheduler-heartbeat"
 trap 'exit 0' INT TERM
+
+mkdir -p "${heartbeat_dir}"
 
 while true; do
     date +%s > "$heartbeat_file"

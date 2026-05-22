@@ -244,6 +244,30 @@ It verifies:
 
 The deployment script runs this automatically after service startup.
 
+## 6.2 Operations diagnostics
+
+The repo now includes an operational diagnostics command for queue and scheduler visibility:
+
+```bash
+docker compose exec -T app php artisan system:operations-status --json
+```
+
+It reports:
+
+- release SHA and deploy timestamp
+- worker start time
+- worker heartbeat age
+- scheduler heartbeat age
+- configured queues
+- queue depth by queue
+- reserved and delayed Redis queue depth where applicable
+- oldest pending job age for database-backed queues
+- failed jobs count
+- most recent failed job timestamp
+- latest backup file and inferred backup timestamp
+
+This is intended as the first-line operator command for async-processing diagnostics.
+
 ## 7. GitHub Actions and GHCR
 
 Required repository secrets:
@@ -351,6 +375,7 @@ docker compose logs -f app
 docker compose logs -f worker
 docker compose exec -T app php artisan system:validate-deployment --services --strict
 docker compose exec -T app php artisan system:deployment-status --json
+docker compose exec -T app php artisan system:operations-status --json
 docker compose exec -T app php artisan about
 curl -fsS http://127.0.0.1:${APP_PORT:-8080}/up
 bash scripts/deployment/post-deploy-verify.sh
