@@ -19,6 +19,24 @@ retry_until() {
     done
 }
 
+wait_for_tcp_endpoint() {
+    target_host="$1"
+    target_port="$2"
+
+    php -r '
+        $host = $argv[1];
+        $port = (int) $argv[2];
+        $connection = @fsockopen($host, $port, $errno, $error, 2);
+
+        if ($connection === false) {
+            fwrite(STDERR, sprintf("Endpoint %s:%d is not reachable yet.\n", $host, $port));
+            exit(1);
+        }
+
+        fclose($connection);
+    ' "$target_host" "$target_port"
+}
+
 wait_for_database() {
     if [ "${WAIT_FOR_DB:-true}" != "true" ]; then
         return 0
@@ -26,13 +44,7 @@ wait_for_database() {
 
     echo "Waiting for MySQL at ${DB_HOST}:${DB_PORT}..."
 
-    retry_until "${DB_CONNECT_TIMEOUT:-60}" sh -c '
-        if [ -n "${DB_PASSWORD:-}" ]; then
-            mysqladmin ping -h "${DB_HOST}" -P "${DB_PORT}" -u"${DB_USERNAME}" -p"${DB_PASSWORD}" --silent
-        else
-            mysqladmin ping -h "${DB_HOST}" -P "${DB_PORT}" -u"${DB_USERNAME}" --silent
-        fi
-    '
+    retry_until "${DB_CONNECT_TIMEOUT:-60}" wait_for_tcp_endpoint "${DB_HOST}" "${DB_PORT}"
 }
 
 wait_for_redis() {
@@ -42,13 +54,7 @@ wait_for_redis() {
 
     echo "Waiting for Redis at ${REDIS_HOST}:${REDIS_PORT}..."
 
-    retry_until "${REDIS_CONNECT_TIMEOUT:-60}" sh -c '
-        if [ -n "${REDIS_PASSWORD:-}" ] && [ "${REDIS_PASSWORD}" != "null" ]; then
-            redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" -a "${REDIS_PASSWORD}" ping | grep -q PONG
-        else
-            redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" ping | grep -q PONG
-        fi
-    '
+    retry_until "${REDIS_CONNECT_TIMEOUT:-60}" wait_for_tcp_endpoint "${REDIS_HOST}" "${REDIS_PORT}"
 }
 
 wait_for_database

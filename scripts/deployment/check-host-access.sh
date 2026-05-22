@@ -11,6 +11,7 @@ if ! docker info >/dev/null 2>&1; then
     echo "If you see a docker.sock permission error, add your user to the docker group and re-login:" >&2
     echo "  sudo usermod -aG docker ${USER}" >&2
     echo "  newgrp docker" >&2
+    echo "If the current shell still does not see the new group, log out and back in before retrying." >&2
     exit 1
 fi
 

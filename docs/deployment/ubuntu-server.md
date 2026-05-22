@@ -49,6 +49,13 @@ sudo usermod -aG docker <deploy-user>
 newgrp docker
 ```
 
+Then fully verify the host before any clone or deploy step:
+
+```bash
+bash scripts/deployment/check-host-access.sh
+ssh -T git@github.com
+```
+
 Verify host readiness:
 
 ```bash
@@ -56,6 +63,16 @@ bash scripts/deployment/check-host-access.sh
 ```
 
 If you see `permission denied while trying to connect to the docker API`, the user session does not yet have Docker group access. Re-login and rerun the check.
+
+Required operator sequence on a fresh host:
+
+1. run `bootstrap-ubuntu.sh`
+2. add the deploy user to the `docker` group
+3. re-login or run `newgrp docker`
+4. verify Docker access
+5. verify GitHub SSH access
+
+Production servers are deployment targets only. If host state diverges from the repository, fix the repository and redeploy instead of applying server-only hotfixes.
 
 ## 2. Clone with GitHub SSH, not HTTPS
 
@@ -136,11 +153,14 @@ Build or pull the images, then bring the stack up:
 
 ```bash
 docker compose pull
-docker compose up -d
+docker compose up -d mysql redis
+docker compose up -d app
 docker compose exec -T app php artisan system:validate-deployment --services --strict
 docker compose exec -T app php artisan migrate --force
 docker compose exec -T app php artisan optimize
+docker compose up -d worker scheduler
 docker compose exec -T worker php artisan queue:restart || true
+docker compose up -d web
 ```
 
 Seed the permanent bootstrap super-admin:
@@ -172,11 +192,14 @@ What it does:
 3. optionally logs into GHCR
 4. pulls `main`
 5. pulls images
-6. recreates the app/runtime stack
-7. validates DB and Redis connectivity
-8. runs migrations
-9. rebuilds Laravel caches
-10. gracefully restarts workers
+6. starts `mysql` and `redis`
+7. starts `app`
+8. validates DB and Redis connectivity
+9. runs migrations
+10. rebuilds Laravel caches
+11. starts `worker` and `scheduler`
+12. gracefully restarts workers
+13. starts `web`
 
 When using SHA-pinned GHCR images:
 
@@ -229,10 +252,12 @@ Implemented runtime checks:
 - `web`: HTTP `GET /up`
 - `worker`: verifies `queue:work` process is alive
 - `scheduler`: verifies a fresh heartbeat file
-- `mysql`: `mysqladmin ping`
-- `redis`: `redis-cli ping`
+- `mysql`: minimal container-local server ping without credentials
+- `redis`: minimal container-local server ping without requiring app authentication
 
 These are used by Compose for dependency readiness and by operators for faster fault isolation.
+
+Healthchecks only prove service viability. They are intentionally lighter than application boot validation. The app entrypoint still waits for infrastructure reachability before starting PHP-FPM, but that waiting logic is separate from Compose healthchecks and does not use database application credentials.
 
 ## 9. Logging and restarts
 
@@ -310,7 +335,35 @@ docker compose exec -T app php artisan about
 curl -fsS http://127.0.0.1:${APP_PORT:-8080}/up
 ```
 
-## 13. Why this architecture is safer
+## 13. Persistent volume recovery
+
+Container replacement does not clear database state. `mysql-data` is a persistent Docker volume.
+
+That means a failed or partial MySQL bootstrap can leave the container recreated but the bad database state still present.
+
+Typical symptoms:
+
+- MySQL never becomes healthy after an earlier failed bootstrap
+- env changes do not appear to fix the DB container
+- the container restarts cleanly but initialization remains broken
+
+Only use the following when you intentionally want to destroy the current Docker-managed database volume and reinitialize it from scratch:
+
+```bash
+docker compose down -v
+docker volume ls | grep ab4irerp
+docker compose up -d mysql redis
+```
+
+This is destructive. It removes persistent Docker volumes, including MySQL state. Do not use it on a live environment unless you have a valid backup and explicitly intend to rebuild the database volume.
+
+Preferred operator response:
+
+1. inspect `docker compose logs mysql`
+2. determine whether the issue is config, credentials, or partial initialization
+3. restore from backup or destroy/recreate the volume only if the DB state is intentionally disposable
+
+## 14. Why this architecture is safer
 
 - Build-time Laravel dependencies are now available during the Vite build, so Wayfinder no longer breaks image builds.
 - Runtime containers no longer rebuild the world on every restart; deploy steps are explicit and repeatable.

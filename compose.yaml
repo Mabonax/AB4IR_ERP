@@ -157,16 +157,12 @@ services:
       MYSQL_USER: ${DB_USERNAME:-ab4irerp}
       MYSQL_PASSWORD: ${DB_PASSWORD:-change-me-db-password}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-change-me-root-password}
-    command:
-      - --default-authentication-plugin=caching_sha2_password
-      - --skip-host-cache
-      - --skip-name-resolve
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -190,7 +186,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ] && [ \"$$REDIS_PASSWORD\" != \"null\" ]; then redis-cli -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
+      test: ["CMD-SHELL", "redis-cli ping | grep -Eq 'PONG|NOAUTH'"]
       interval: 10s
       timeout: 3s
       retries: 10

@@ -27,11 +27,22 @@ export WEB_RUNTIME_IMAGE
 
 docker compose config >/dev/null
 docker compose pull
-docker compose up -d --remove-orphans app worker scheduler web
+
+echo "Starting infrastructure services first..."
+docker compose up -d --remove-orphans mysql redis
+
+echo "Starting application runtime..."
+docker compose up -d app
 docker compose exec -T app php artisan system:validate-deployment --services --strict
 docker compose exec -T app php artisan migrate --force
 docker compose exec -T app php artisan optimize
+
+echo "Starting asynchronous runtimes..."
+docker compose up -d worker scheduler
 docker compose exec -T worker php artisan queue:restart || true
+
+echo "Starting web entrypoint last..."
+docker compose up -d web
 
 echo
 echo "Deployment completed successfully."
