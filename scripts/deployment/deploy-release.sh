@@ -22,8 +22,13 @@ git fetch origin
 git checkout main
 git pull --ff-only origin main
 
+RELEASE_SHA="$(git rev-parse HEAD)"
+DEPLOYED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
 export APP_RUNTIME_IMAGE
 export WEB_RUNTIME_IMAGE
+export RELEASE_SHA
+export DEPLOYED_AT
 
 docker compose config >/dev/null
 docker compose pull
@@ -43,6 +48,9 @@ docker compose exec -T worker php artisan queue:restart || true
 
 echo "Starting web entrypoint last..."
 docker compose up -d web
+
+echo "Running post-deploy verification..."
+bash scripts/deployment/post-deploy-verify.sh
 
 echo
 echo "Deployment completed successfully."

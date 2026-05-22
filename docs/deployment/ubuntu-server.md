@@ -200,6 +200,7 @@ What it does:
 11. starts `worker` and `scheduler`
 12. gracefully restarts workers
 13. starts `web`
+14. runs post-deploy verification
 
 When using SHA-pinned GHCR images:
 
@@ -224,6 +225,24 @@ bash scripts/deployment/deploy-release.sh
 ```
 
 This keeps rollback deterministic because the image and code revision are both pinned to the same release commit.
+
+## 6.1 Post-deploy verification
+
+The repo now includes an explicit verification script:
+
+```bash
+bash scripts/deployment/post-deploy-verify.sh
+```
+
+It verifies:
+
+- `GET /up` responds successfully
+- `php artisan system:validate-deployment --services --strict` passes
+- `php artisan system:deployment-status --json` reports release metadata and runtime checks
+- `app`, `worker`, `scheduler`, and `web` containers are running
+- container health states are healthy where healthchecks exist
+
+The deployment script runs this automatically after service startup.
 
 ## 7. GitHub Actions and GHCR
 
@@ -331,8 +350,10 @@ docker compose ps
 docker compose logs -f app
 docker compose logs -f worker
 docker compose exec -T app php artisan system:validate-deployment --services --strict
+docker compose exec -T app php artisan system:deployment-status --json
 docker compose exec -T app php artisan about
 curl -fsS http://127.0.0.1:${APP_PORT:-8080}/up
+bash scripts/deployment/post-deploy-verify.sh
 ```
 
 ## 13. Persistent volume recovery

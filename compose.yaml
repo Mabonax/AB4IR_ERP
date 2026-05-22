@@ -8,6 +8,10 @@ x-app-environment: &app-environment
   LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
   LOG_STACK: ${LOG_STACK:-stderr}
   LOG_LEVEL: ${LOG_LEVEL:-info}
+  RELEASE_SHA: ${RELEASE_SHA:-unknown}
+  DEPLOYED_AT: ${DEPLOYED_AT:-unknown}
+  APP_RUNTIME_IMAGE_REF: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-app:latest}
+  WEB_RUNTIME_IMAGE_REF: ${WEB_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-web:latest}
   DB_CONNECTION: ${DB_CONNECTION:-mysql}
   DB_HOST: ${DB_HOST:-mysql}
   DB_PORT: ${DB_PORT:-3306}
