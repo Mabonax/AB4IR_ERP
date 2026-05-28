@@ -56,7 +56,6 @@ class ValidateDeploymentCommand extends Command
             'DB_PASSWORD' => ['secret', 'password', 'change-me-db-password'],
             'DB_ROOT_PASSWORD' => ['root-secret', 'password', 'change-me-root-password'],
             'SUPER_ADMIN_PASSWORD' => ['password', 'change-me-super-admin-password'],
-            'BOT_MEMBER_PASSWORD' => ['password', 'change-me-bot-member-password'],
             'STAFF_USER_DEFAULT_PASSWORD' => ['password', 'change-me-staff-password'],
         ] as $variable => $defaultValues) {
             if (in_array((string) env($variable), $defaultValues, true)) {

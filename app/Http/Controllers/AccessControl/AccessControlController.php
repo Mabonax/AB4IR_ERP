@@ -79,7 +79,6 @@ class AccessControlController extends Controller
             'super-admin',
             'super admin',
             'admin',
-            'bot-member',
             'viewer-cross-domain',
         ];
     }
@@ -105,6 +104,8 @@ class AccessControlController extends Controller
 
     public function index(): Response
     {
+        $this->assertSuperUser(request());
+
         return Inertia::render('AccessControl/Index', [
             'roles' => $this->roleRows(),
             'permissions' => $this->permissionRows(),
@@ -114,6 +115,8 @@ class AccessControlController extends Controller
 
     public function rolesPage(): Response
     {
+        $this->assertSuperUser(request());
+
         return Inertia::render('AccessControl/Roles', [
             'roles' => $this->roleRows(),
             'permissions' => $this->permissionRows(),
@@ -122,6 +125,8 @@ class AccessControlController extends Controller
 
     public function permissionsPage(): Response
     {
+        $this->assertSuperUser(request());
+
         return Inertia::render('AccessControl/Permissions', [
             'permissions' => $this->permissionRows(),
         ]);
@@ -129,6 +134,8 @@ class AccessControlController extends Controller
 
     public function assignmentsPage(): Response
     {
+        $this->assertSuperUser(request());
+
         return Inertia::render('AccessControl/Assignments', [
             'roles' => $this->roleRows(),
             'permissions' => $this->permissionRows(),
@@ -138,6 +145,8 @@ class AccessControlController extends Controller
 
     public function storeRole(Request $request): RedirectResponse
     {
+        $this->assertSuperUser($request);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', 'unique:roles,name'],
             'permissions' => ['array'],
@@ -158,6 +167,8 @@ class AccessControlController extends Controller
 
     public function updateRole(Request $request, Role $role): RedirectResponse
     {
+        $this->assertSuperUser($request);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100', 'unique:roles,name,'.$role->id],
             'permissions' => ['array'],
@@ -186,6 +197,8 @@ class AccessControlController extends Controller
 
     public function destroyRole(Role $role): RedirectResponse
     {
+        $this->assertSuperUser(request());
+
         if (in_array($role->name, $this->protectedRoleNames(), true)) {
             return redirect()->back()->withErrors([
                 'role' => 'Core roles cannot be deleted.',
@@ -200,6 +213,8 @@ class AccessControlController extends Controller
 
     public function storePermission(Request $request): RedirectResponse
     {
+        $this->assertSuperUser($request);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150', 'unique:permissions,name'],
         ]);
@@ -216,6 +231,8 @@ class AccessControlController extends Controller
 
     public function updatePermission(Request $request, Permission $permission): RedirectResponse
     {
+        $this->assertSuperUser($request);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150', 'unique:permissions,name,'.$permission->id],
         ]);
@@ -240,6 +257,8 @@ class AccessControlController extends Controller
 
     public function destroyPermission(Permission $permission): RedirectResponse
     {
+        $this->assertSuperUser(request());
+
         if (in_array($permission->name, $this->protectedPermissionNames(), true)) {
             return redirect()->back()->withErrors([
                 'permission' => 'Core access-control permissions cannot be deleted.',
@@ -254,6 +273,8 @@ class AccessControlController extends Controller
 
     public function syncUserRoles(Request $request, User $user): RedirectResponse
     {
+        $this->assertSuperUser($request);
+
         $validated = $request->validate([
             'roles' => ['array'],
             'roles.*' => ['string', 'exists:roles,name'],
@@ -267,6 +288,8 @@ class AccessControlController extends Controller
 
     public function syncUserPermissions(Request $request, User $user): RedirectResponse
     {
+        $this->assertSuperUser($request);
+
         $validated = $request->validate([
             'permissions' => ['array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
@@ -276,5 +299,10 @@ class AccessControlController extends Controller
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return redirect()->back()->with('success', 'User direct permissions updated successfully.');
+    }
+
+    protected function assertSuperUser(Request $request): void
+    {
+        abort_unless($request->user()?->hasAnyRole(['super-admin', 'super admin']), 403);
     }
 }

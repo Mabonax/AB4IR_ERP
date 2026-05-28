@@ -178,7 +178,7 @@ export default function AccessControlRoles({
               className="mt-4 space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                updateRoleForm.patch(`/access-control/roles/${editingRole.id}`, {
+                updateRoleForm.put(`/access-control/roles/${editingRole.id}`, {
                   preserveScroll: true,
                   onSuccess: () => setEditingRole(null),
                   onError: (errors) => {

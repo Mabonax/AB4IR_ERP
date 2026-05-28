@@ -137,7 +137,7 @@ export default function AccessControlPermissions({
               className="mt-4 flex gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                updatePermissionForm.patch(`/access-control/permissions/${editingPermission.id}`, {
+                updatePermissionForm.put(`/access-control/permissions/${editingPermission.id}`, {
                   preserveScroll: true,
                   onSuccess: () => setEditingPermission(null),
                   onError: (errors) => {
