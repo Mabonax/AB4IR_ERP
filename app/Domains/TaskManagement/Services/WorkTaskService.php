@@ -5,6 +5,7 @@ namespace App\Domains\TaskManagement\Services;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\TaskManagement\Notifications\TaskActivityNotification;
+use App\Domains\TaskManagement\Models\WorkTaskDocument;
 use App\Domains\TaskManagement\Models\WorkTask;
 use App\Domains\TaskManagement\Models\WorkTaskHistory;
 use App\Domains\TaskManagement\Notifications\TaskAssignedNotification;
@@ -13,15 +14,18 @@ use App\Domains\TaskManagement\Repositories\WorkTaskRepositoryInterface;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class WorkTaskService
 {
     public function __construct(
-        protected WorkTaskRepositoryInterface $repository
+        protected WorkTaskRepositoryInterface $repository,
+        protected TaskWorkflowGovernance $governance,
     ) {}
 
     public function paginateForUser(User $actor, array $filters = [], int $perPage = 15): LengthAwarePaginator
@@ -30,10 +34,14 @@ class WorkTaskService
             ->with([
                 'creator:id,name,email',
                 'assignee:id,name,email',
+                'submittedBy:id,name,email',
+                'reviewedBy:id,name,email',
+                'closedBy:id,name,email',
                 'creatorDepartment:id,name',
                 'assignedDepartment:id,name',
                 'project:id,name,project_manager_id',
                 'program:id,title',
+                'documents.uploader:id,name',
                 'comments.user:id,name',
                 'history.actor:id,name',
             ])
@@ -78,6 +86,8 @@ class WorkTaskService
                 'creator_department_id' => $creatorDepartmentId,
                 'assigned_to_user_id' => $assignedToUserId,
                 'assigned_department_id' => $assignedDepartmentId,
+                'closed_at' => null,
+                'closed_by_user_id' => null,
             ]);
 
             $this->recordHistory($task, $actor, 'created', sprintf(
@@ -87,18 +97,9 @@ class WorkTaskService
                     ?? 'the target queue'
             ));
 
-            $this->notifyAssignmentRecipients($task, 'A new task has been assigned to your work queue.');
+            $this->notifyAssignmentRecipients($task, 'A new task has been assigned to your work queue.', $actor);
 
-            return $task->load([
-                'creator:id,name,email',
-                'assignee:id,name,email',
-                'creatorDepartment:id,name',
-                'assignedDepartment:id,name',
-                'project:id,name,project_manager_id',
-                'program:id,title',
-                'comments.user:id,name',
-                'history.actor:id,name',
-            ]);
+            return $this->loadTaskRelations($task);
         });
     }
 
@@ -107,11 +108,15 @@ class WorkTaskService
         $status = $data['status'];
 
         return DB::transaction(function () use ($task, $data, $status, $actor) {
+            $this->assertStatusTransitionAllowed($task, $status, $actor);
+
             $originalStatus = $task->status;
             $task = $this->repository->update($task, [
                 'status' => $status,
                 'completion_notes' => $data['completion_notes'] ?? null,
-                'completed_at' => $status === 'completed' ? now() : null,
+                'completed_at' => null,
+                'closed_at' => null,
+                'closed_by_user_id' => null,
             ]);
 
             if ($originalStatus !== $status) {
@@ -138,16 +143,136 @@ class WorkTaskService
                 );
             }
 
-            return $task->load([
-                'creator:id,name,email',
-                'assignee:id,name,email',
-                'creatorDepartment:id,name',
-                'assignedDepartment:id,name',
-                'project:id,name,project_manager_id',
-                'program:id,title',
-                'comments.user:id,name',
-                'history.actor:id,name',
+            return $this->loadTaskRelations($task);
+        });
+    }
+
+    public function submitForReview(WorkTask $task, array $data, User $actor): WorkTask
+    {
+        return DB::transaction(function () use ($task, $data, $actor) {
+            if ((int) ($task->assigned_to_user_id ?? 0) !== (int) $actor->id) {
+                throw ValidationException::withMessages([
+                    'status' => ['Only the assigned user can submit this task for manager review.'],
+                ]);
+            }
+
+            if (! in_array($task->status, ['open', 'in_progress', 'blocked', 'changes_requested'], true)) {
+                throw ValidationException::withMessages([
+                    'status' => ['Only active or returned tasks can be submitted for review.'],
+                ]);
+            }
+
+            $this->syncTaskProof($task, $data, $data['proof_file'] ?? null);
+
+            $task = $this->repository->update($task, [
+                'status' => 'pending_review',
+                'completion_notes' => $data['completion_notes'] ?? $task->completion_notes,
+                'submitted_for_review_at' => now(),
+                'submitted_by_user_id' => $actor->id,
+                'manager_review_notes' => null,
+                'reviewed_at' => null,
+                'reviewed_by_user_id' => null,
+                'returned_for_amendments_at' => null,
+                'completed_at' => null,
+                'closed_at' => null,
+                'closed_by_user_id' => null,
             ]);
+
+            $summary = sprintf('%s submitted the completed work for manager review.', $actor->name);
+            $this->recordHistory($task, $actor, 'submitted_for_review', $summary, [
+                'proof_url' => $task->proof_url,
+                'proof_file_name' => $task->proof_file_name,
+            ]);
+
+            if (($data['proof_file'] ?? null) instanceof UploadedFile) {
+                $this->recordDocumentUpload(
+                    $task,
+                    $actor,
+                    $data['proof_file'],
+                    'delivery',
+                    $data['completion_notes'] ?? null,
+                    title: $task->title.' delivery proof'
+                );
+            }
+
+            $this->notifyUsers(
+                $this->interactionRecipients($task, $actor),
+                new TaskActivityNotification(
+                    $task,
+                    'Task submitted for review',
+                    sprintf('%s submitted task "%s" for manager review.', $actor->name, $task->title)
+                )
+            );
+
+            return $this->loadTaskRelations($task);
+        });
+    }
+
+    public function approveCompletion(WorkTask $task, array $data, User $actor): WorkTask
+    {
+        return DB::transaction(function () use ($task, $data, $actor) {
+            $this->assertReviewableTask($task);
+
+            $task = $this->repository->update($task, [
+                'status' => 'completed',
+                'manager_review_notes' => $data['manager_review_notes'],
+                'reviewed_at' => now(),
+                'reviewed_by_user_id' => $actor->id,
+                'returned_for_amendments_at' => null,
+                'completed_at' => now(),
+                'closed_at' => now(),
+                'closed_by_user_id' => $actor->id,
+            ]);
+
+            $summary = sprintf('%s approved the submitted work and completed the task.', $actor->name);
+            $this->recordHistory($task, $actor, 'approved_completion', $summary, [
+                'manager_review_notes' => $data['manager_review_notes'],
+            ]);
+
+            $this->notifyUsers(
+                $this->interactionRecipients($task, $actor),
+                new TaskActivityNotification(
+                    $task,
+                    'Task approved and completed',
+                    sprintf('%s approved task "%s" and marked it complete.', $actor->name, $task->title)
+                )
+            );
+
+            return $this->loadTaskRelations($task);
+        });
+    }
+
+    public function returnForAmendments(WorkTask $task, array $data, User $actor): WorkTask
+    {
+        return DB::transaction(function () use ($task, $data, $actor) {
+            $this->assertReviewableTask($task);
+
+            $task = $this->repository->update($task, [
+                'status' => 'changes_requested',
+                'manager_review_notes' => $data['manager_review_notes'],
+                'reviewed_at' => now(),
+                'reviewed_by_user_id' => $actor->id,
+                'returned_for_amendments_at' => now(),
+                'completed_at' => null,
+                'closed_at' => null,
+                'closed_by_user_id' => null,
+            ]);
+
+            $summary = sprintf('%s returned the task for further amendments.', $actor->name);
+            $this->recordHistory($task, $actor, 'returned_for_amendments', $summary, [
+                'manager_review_notes' => $data['manager_review_notes'],
+            ]);
+
+            $this->notifyUsers(
+                $this->interactionRecipients($task, $actor),
+                new TaskActivityNotification(
+                    $task,
+                    'Task returned for amendments',
+                    sprintf('%s returned task "%s" for further amendments.', $actor->name, $task->title)
+                )
+            );
+
+            return $this->loadTaskRelations($task);
         });
     }
 
@@ -170,16 +295,7 @@ class WorkTaskService
                 )
             );
 
-            return $task->fresh([
-                'creator:id,name,email',
-                'assignee:id,name,email',
-                'creatorDepartment:id,name',
-                'assignedDepartment:id,name',
-                'project:id,name,project_manager_id',
-                'program:id,title',
-                'comments.user:id,name',
-                'history.actor:id,name',
-            ]);
+            return $this->loadTaskRelations($task->fresh());
         });
     }
 
@@ -202,11 +318,21 @@ class WorkTaskService
             $this->assertAssignmentAllowed($actor, $assignedToUserId, $assignedDepartmentId, $task->project_id ? (int) $task->project_id : null);
 
             $originalAssignee = $task->assignee?->name ?? $task->assignedDepartment?->name ?? 'the current queue';
+            $previousRecipients = $this->assignmentRecipients($task);
+            $previousAssignee = $task->assignee;
+            $previousUserId = $task->assigned_to_user_id ? (int) $task->assigned_to_user_id : null;
+            $previousDepartmentId = $task->assigned_department_id ? (int) $task->assigned_department_id : null;
+            $status = $this->resolveReassignmentStatus($task, $data);
 
             $task = $this->repository->update($task, [
                 'assigned_to_user_id' => $assignedToUserId,
                 'assigned_department_id' => $assignedDepartmentId,
-                'status' => $data['status'] ?? $task->status,
+                'status' => $status,
+                'reviewed_at' => null,
+                'reviewed_by_user_id' => null,
+                'completed_at' => null,
+                'closed_at' => null,
+                'closed_by_user_id' => null,
             ]);
 
             $task->loadMissing(['assignee:id,name', 'assignedDepartment:id,name']);
@@ -217,21 +343,64 @@ class WorkTaskService
             if ($reason !== '') {
                 $summary .= ' Reason: '.$reason;
             }
+            $summary .= ' Workflow status reset to '.str_replace('_', ' ', $status).'.';
 
-            $this->recordHistory($task, $actor, 'reassigned', $summary);
-            $this->notifyAssignmentRecipients($task, $summary);
-
-            return $task->fresh([
-                'creator:id,name,email',
-                'assignee:id,name,email',
-                'creatorDepartment:id,name',
-                'assignedDepartment:id,name',
-                'project:id,name,project_manager_id',
-                'program:id,title',
-                'comments.user:id,name',
-                'history.actor:id,name',
+            $this->recordHistory($task, $actor, 'reassigned', $summary, [
+                'previous_assigned_to_user_id' => $previousUserId,
+                'previous_assigned_department_id' => $previousDepartmentId,
+                'new_assigned_to_user_id' => $assignedToUserId,
+                'new_assigned_department_id' => $assignedDepartmentId,
+                'status' => $status,
+                'reason' => $reason !== '' ? $reason : null,
             ]);
+
+            $this->notifyTaskReassignment($task, $actor, $summary, $previousRecipients, $previousAssignee);
+
+            return $this->loadTaskRelations($task->fresh());
         });
+    }
+
+    public function uploadDocument(WorkTask $task, array $data, User $actor): WorkTaskDocument
+    {
+        return DB::transaction(function () use ($task, $data, $actor) {
+            /** @var UploadedFile $file */
+            $file = $data['file'];
+
+            $document = $this->recordDocumentUpload(
+                $task,
+                $actor,
+                $file,
+                $data['document_kind'],
+                $data['notes'] ?? null,
+                title: $data['title'] ?? null,
+            );
+
+            $this->recordHistory($task, $actor, 'document_uploaded', sprintf(
+                '%s uploaded %s for the task.',
+                $actor->name,
+                $document->title
+            ), [
+                'document_id' => $document->id,
+                'document_kind' => $document->document_kind,
+                'file_name' => $document->file_name,
+            ]);
+
+            $this->notifyUsers(
+                $this->interactionRecipients($task, $actor),
+                new TaskActivityNotification(
+                    $task,
+                    'Task document uploaded',
+                    sprintf('%s uploaded "%s" to task "%s".', $actor->name, $document->title, $task->title)
+                )
+            );
+
+            return $document->load('uploader:id,name');
+        });
+    }
+
+    public function downloadDocument(WorkTaskDocument $document)
+    {
+        return Storage::disk($document->disk)->download($document->path, $document->file_name);
     }
 
     public function dashboardSummary(User $actor, array $filters = []): array
@@ -249,8 +418,10 @@ class WorkTaskService
             'total' => $tasks->count(),
             'open' => $tasks->where('status', 'open')->count(),
             'in_progress' => $tasks->where('status', 'in_progress')->count(),
+            'pending_review' => $tasks->where('status', 'pending_review')->count(),
+            'changes_requested' => $tasks->where('status', 'changes_requested')->count(),
             'completed' => $tasks->where('status', 'completed')->count(),
-            'overdue' => $tasks->filter(fn (WorkTask $task) => $task->status !== 'completed' && $task->due_date && Carbon::parse($task->due_date)->lt($today))->count(),
+            'overdue' => $tasks->filter(fn (WorkTask $task) => ! in_array($task->status, ['completed', 'cancelled'], true) && $task->due_date && Carbon::parse($task->due_date)->lt($today))->count(),
         ];
     }
 
@@ -270,18 +441,24 @@ class WorkTaskService
         $today = now()->startOfDay();
 
         $overdueTasks = $tasks
-            ->filter(fn (WorkTask $task) => in_array($task->status, ['open', 'in_progress', 'blocked'], true) && $task->due_date && Carbon::parse($task->due_date)->lt($today))
+            ->filter(fn (WorkTask $task) => in_array($task->status, ['open', 'in_progress', 'blocked', 'pending_review', 'changes_requested'], true) && $task->due_date && Carbon::parse($task->due_date)->lt($today))
             ->sortBy('due_date')
             ->take(5)
             ->values();
 
         $unassignedQueue = $tasks
-            ->filter(fn (WorkTask $task) => $task->assigned_to_user_id === null && in_array($task->status, ['open', 'in_progress', 'blocked'], true))
+            ->filter(fn (WorkTask $task) => $task->assigned_to_user_id === null && in_array($task->status, ['open', 'in_progress', 'blocked', 'changes_requested'], true))
+            ->take(5)
+            ->values();
+
+        $pendingReview = $tasks
+            ->filter(fn (WorkTask $task) => $task->status === 'pending_review')
+            ->sortByDesc(fn (WorkTask $task) => $task->submitted_for_review_at?->timestamp ?? 0)
             ->take(5)
             ->values();
 
         $workloadByAssignee = $tasks
-            ->filter(fn (WorkTask $task) => $task->assigned_to_user_id !== null && in_array($task->status, ['open', 'in_progress', 'blocked'], true))
+            ->filter(fn (WorkTask $task) => $task->assigned_to_user_id !== null && in_array($task->status, ['open', 'in_progress', 'blocked', 'pending_review', 'changes_requested'], true))
             ->groupBy('assigned_to_user_id')
             ->map(function (Collection $items) {
                 $first = $items->first();
@@ -300,7 +477,7 @@ class WorkTaskService
             ->all();
 
         $departmentQueues = $tasks
-            ->filter(fn (WorkTask $task) => $task->assigned_department_id !== null && in_array($task->status, ['open', 'in_progress', 'blocked'], true))
+            ->filter(fn (WorkTask $task) => $task->assigned_department_id !== null && in_array($task->status, ['open', 'in_progress', 'blocked', 'changes_requested'], true))
             ->groupBy('assigned_department_id')
             ->map(function (Collection $items) {
                 $first = $items->first();
@@ -337,9 +514,104 @@ class WorkTaskService
                 'department_name' => $task->assignedDepartment?->name,
                 'context_name' => $task->project?->name ?? $task->program?->title ?? 'General',
             ])->all(),
+            'pending_review_tasks' => $pendingReview->map(fn (WorkTask $task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'status' => $task->status,
+                'priority' => $task->priority,
+                'due_date' => $task->due_date?->format('Y-m-d'),
+                'assignee_name' => $task->assignee?->name,
+                'department_name' => $task->assignedDepartment?->name,
+                'context_name' => $task->project?->name ?? $task->program?->title ?? 'General',
+                'submitted_for_review_at' => $task->submitted_for_review_at?->toDateTimeString(),
+            ])->all(),
             'workload_by_assignee' => $workloadByAssignee,
             'department_queues' => $departmentQueues,
         ];
+    }
+
+    public function homeDashboard(User $actor): array
+    {
+        $tasks = $this->visibleQuery(
+            WorkTask::query()->with([
+                'assignee:id,name',
+                'assignedDepartment:id,name',
+                'project:id,name',
+                'program:id,title',
+            ]),
+            $actor
+        )->latest()->get();
+
+        $today = now()->startOfDay();
+        $activeStatuses = ['open', 'in_progress', 'blocked', 'pending_review', 'changes_requested'];
+        $departmentId = (int) ($actor->staffMember?->department_id ?? 0);
+
+        $assigned = $tasks
+            ->filter(fn (WorkTask $task) => (int) ($task->assigned_to_user_id ?? 0) === (int) $actor->id && in_array($task->status, $activeStatuses, true))
+            ->sortBy(fn (WorkTask $task) => $task->due_date?->timestamp ?? PHP_INT_MAX)
+            ->take(5)
+            ->values();
+
+        $created = $tasks
+            ->filter(fn (WorkTask $task) => (int) $task->creator_user_id === (int) $actor->id && in_array($task->status, $activeStatuses, true))
+            ->sortByDesc('created_at')
+            ->take(5)
+            ->values();
+
+        $overdue = $tasks
+            ->filter(fn (WorkTask $task) => in_array($task->status, $activeStatuses, true) && $task->due_date && Carbon::parse($task->due_date)->lt($today))
+            ->sortBy('due_date')
+            ->take(5)
+            ->values();
+
+        $queue = $tasks
+            ->filter(fn (WorkTask $task) => $departmentId > 0
+                && (int) ($task->assigned_department_id ?? 0) === $departmentId
+                && $task->assigned_to_user_id === null
+                && in_array($task->status, $activeStatuses, true))
+            ->sortBy(fn (WorkTask $task) => $task->due_date?->timestamp ?? PHP_INT_MAX)
+            ->take(5)
+            ->values();
+
+        $pendingReview = $tasks
+            ->filter(fn (WorkTask $task) => $task->status === 'pending_review')
+            ->sortByDesc(fn (WorkTask $task) => $task->submitted_for_review_at?->timestamp ?? 0)
+            ->take(5)
+            ->values();
+
+        $returned = $tasks
+            ->filter(fn (WorkTask $task) => $task->status === 'changes_requested')
+            ->sortByDesc(fn (WorkTask $task) => $task->returned_for_amendments_at?->timestamp ?? 0)
+            ->take(5)
+            ->values();
+
+        return [
+            'summary' => [
+                'total' => $tasks->count(),
+                'assigned_to_me' => $tasks->where('assigned_to_user_id', $actor->id)->whereIn('status', $activeStatuses)->count(),
+                'created_by_me' => $tasks->where('creator_user_id', $actor->id)->whereIn('status', $activeStatuses)->count(),
+                'overdue' => $tasks->filter(fn (WorkTask $task) => in_array($task->status, $activeStatuses, true) && $task->due_date && Carbon::parse($task->due_date)->lt($today))->count(),
+                'pending_review' => $tasks->where('status', 'pending_review')->count(),
+                'changes_requested' => $tasks->where('status', 'changes_requested')->count(),
+                'unassigned_queue' => $tasks->filter(fn (WorkTask $task) => $departmentId > 0
+                    && (int) ($task->assigned_department_id ?? 0) === $departmentId
+                    && $task->assigned_to_user_id === null
+                    && in_array($task->status, $activeStatuses, true))->count(),
+            ],
+            'assigned' => $assigned->map(fn (WorkTask $task) => $this->mapDashboardTask($task))->all(),
+            'created' => $created->map(fn (WorkTask $task) => $this->mapDashboardTask($task))->all(),
+            'overdue' => $overdue->map(fn (WorkTask $task) => $this->mapDashboardTask($task))->all(),
+            'queue' => $queue->map(fn (WorkTask $task) => $this->mapDashboardTask($task))->all(),
+            'pending_review' => $pendingReview->map(fn (WorkTask $task) => $this->mapDashboardTask($task))->all(),
+            'returned' => $returned->map(fn (WorkTask $task) => $this->mapDashboardTask($task))->all(),
+        ];
+    }
+
+    public function downloadProof(WorkTask $task)
+    {
+        abort_if(! $task->proof_path || ! $task->proof_disk, 404);
+
+        return Storage::disk($task->proof_disk)->download($task->proof_path, $task->proof_file_name);
     }
 
     public function sendOverdueReminders(): int
@@ -366,8 +638,9 @@ class WorkTaskService
 
     protected function visibleQuery(Builder $query, User $actor): Builder
     {
+        $isTaskManager = $this->governance->isOperationalManager($actor);
         $departmentId = (int) ($actor->staffMember?->department_id ?? 0);
-        $directReportUserIds = $actor->staffMember
+        $directReportUserIds = $isTaskManager && $actor->staffMember
             ? $actor->staffMember->directReports()
                 ->whereNotNull('user_id')
                 ->pluck('user_id')
@@ -398,6 +671,20 @@ class WorkTaskService
                 $builder->orWhereIn('project_id', $managedProjectIds);
             }
         });
+    }
+
+    protected function mapDashboardTask(WorkTask $task): array
+    {
+        return [
+            'id' => $task->id,
+            'title' => $task->title,
+            'status' => $task->status,
+            'priority' => $task->priority,
+            'due_date' => $task->due_date?->format('Y-m-d'),
+            'assignee_name' => $task->assignee?->name,
+            'department_name' => $task->assignedDepartment?->name,
+            'context_name' => $task->project?->name ?? $task->program?->title ?? 'General',
+        ];
     }
 
     protected function applyFilters(Builder $query, array $filters, array $ignore = []): Builder
@@ -444,22 +731,18 @@ class WorkTaskService
 
     protected function assertAssignmentAllowed(User $actor, ?int $assignedToUserId, ?int $assignedDepartmentId, ?int $projectId): void
     {
-        if ($actor->hasAnyRole(['super-admin', 'super admin', 'admin'])) {
+        if ($this->governance->isSuperUser($actor)) {
             return;
         }
 
         $staff = $actor->staffMember;
-        if (! $staff) {
+        if (! $this->governance->canCreateDepartmentTask($actor)) {
             throw ValidationException::withMessages([
-                'assigned_to_user_id' => ['Only staff-linked managers can assign tasks.'],
+                'assigned_to_user_id' => ['Only managers can create and assign tasks.'],
             ]);
         }
 
-        $isProjectManager = false;
-        if ($projectId) {
-            $project = Project::query()->findOrFail($projectId);
-            $isProjectManager = (int) $project->project_manager_id === (int) $staff->id;
-        }
+        $isProjectManager = $projectId ? $this->governance->managesProject($actor, $projectId) : false;
 
         if ($assignedToUserId && (int) $assignedToUserId === (int) $actor->id) {
             return;
@@ -477,7 +760,7 @@ class WorkTaskService
                 return;
             }
 
-            if ($assigneeStaff && (int) $assigneeStaff->manager_id === (int) $staff->id) {
+            if ($assigneeStaff && (int) $assigneeStaff->manager_id === (int) $staff?->id) {
                 return;
             }
         }
@@ -503,9 +786,9 @@ class WorkTaskService
         ]);
     }
 
-    protected function notifyAssignmentRecipients(WorkTask $task, string $context): void
+    protected function notifyAssignmentRecipients(WorkTask $task, string $context, ?User $exclude = null): void
     {
-        foreach ($this->assignmentRecipients($task) as $recipient) {
+        foreach ($this->assignmentRecipients($task, $exclude) as $recipient) {
             $recipient->notify(new TaskAssignedNotification($task, $context));
         }
 
@@ -515,7 +798,7 @@ class WorkTaskService
         ])->save();
     }
 
-    protected function assignmentRecipients(WorkTask $task): Collection
+    protected function assignmentRecipients(WorkTask $task, ?User $exclude = null): Collection
     {
         $recipients = collect();
 
@@ -527,13 +810,15 @@ class WorkTaskService
         }
 
         if ($task->assigned_department_id) {
-            $departmentUsers = User::query()
-                ->whereHas('staffMember', fn (Builder $query) => $query->where('department_id', $task->assigned_department_id))
+            $departmentUsers = $this->departmentRoutingRecipients((int) $task->assigned_department_id)
                 ->get();
             $recipients = $recipients->concat($departmentUsers);
         }
 
-        return $recipients->unique('id')->values();
+        return $recipients
+            ->filter(fn (User $user) => $exclude === null || (int) $user->id !== (int) $exclude->id)
+            ->unique('id')
+            ->values();
     }
 
     protected function interactionRecipients(WorkTask $task, ?User $exclude = null): Collection
@@ -550,5 +835,181 @@ class WorkTaskService
     protected function notifyUsers(Collection $users, object $notification): void
     {
         $users->unique('id')->each(fn (User $user) => $user->notify($notification));
+    }
+
+    protected function notifyTaskReassignment(WorkTask $task, User $actor, string $summary, Collection $previousRecipients, ?User $previousAssignee): void
+    {
+        $newRecipients = $this->assignmentRecipients($task, $actor);
+        $formerRecipients = $previousRecipients
+            ->filter(fn (User $user) => (int) $user->id !== (int) $actor->id)
+            ->unique('id')
+            ->values();
+
+        $this->notifyUsers($newRecipients, new TaskAssignedNotification($task, $summary));
+
+        if ($formerRecipients->isNotEmpty()) {
+            $this->notifyUsers(
+                $formerRecipients,
+                new TaskActivityNotification(
+                    $task,
+                    'Task reassigned for further work',
+                    sprintf('%s reassigned task "%s". %s', $actor->name, $task->title, $summary)
+                )
+            );
+        }
+
+        if ($previousAssignee && (int) ($task->assigned_to_user_id ?? 0) !== (int) $previousAssignee->id) {
+            $previousAssignee->notify(new TaskActivityNotification(
+                $task,
+                'Task review outcome changed your assignment',
+                sprintf('%s reviewed task "%s" and changed its assignment. %s', $actor->name, $task->title, $summary)
+            ));
+        }
+    }
+
+    protected function departmentRoutingRecipients(int $departmentId): Builder
+    {
+        $managerQuery = User::query()
+            ->whereHas('staffMember', fn (Builder $query) => $query
+                ->where('department_id', $departmentId)
+                ->where(function (Builder $manager) {
+                    $manager->where('is_manager', true)
+                        ->orWhere('is_ceo', true);
+                }));
+
+        if ($managerQuery->exists()) {
+            return $managerQuery;
+        }
+
+        return User::query()
+            ->whereHas('staffMember', fn (Builder $query) => $query->where('department_id', $departmentId));
+    }
+
+    protected function loadTaskRelations(WorkTask $task): WorkTask
+    {
+        return $task->load([
+            'creator:id,name,email',
+            'assignee:id,name,email',
+            'submittedBy:id,name,email',
+            'reviewedBy:id,name,email',
+            'closedBy:id,name,email',
+            'creatorDepartment:id,name',
+            'assignedDepartment:id,name',
+            'project:id,name,project_manager_id',
+            'program:id,title',
+            'documents.uploader:id,name',
+            'comments.user:id,name',
+            'history.actor:id,name',
+        ]);
+    }
+
+    protected function assertStatusTransitionAllowed(WorkTask $task, string $status, ?User $actor): void
+    {
+        if (! $actor) {
+            return;
+        }
+
+        if (in_array($task->status, ['pending_review', 'completed', 'cancelled'], true)) {
+            throw ValidationException::withMessages([
+                'status' => ['This task is in a managed review state and cannot be changed with the general progress update action.'],
+            ]);
+        }
+
+        if (! in_array($status, ['open', 'in_progress', 'blocked', 'cancelled'], true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Use the dedicated review workflow to submit, approve, or return completed work.'],
+            ]);
+        }
+
+        if ($status === 'cancelled' && ! $this->governance->isOperationalManager($actor) && ! $this->governance->isSuperUser($actor)) {
+            throw ValidationException::withMessages([
+                'status' => ['Only managers can cancel operational tasks.'],
+            ]);
+        }
+    }
+
+    protected function assertReviewableTask(WorkTask $task): void
+    {
+        if ($task->status !== 'pending_review') {
+            throw ValidationException::withMessages([
+                'status' => ['Only tasks awaiting manager review can be approved or returned.'],
+            ]);
+        }
+    }
+
+    protected function syncTaskProof(WorkTask $task, array $data, ?UploadedFile $proofFile = null): void
+    {
+        if (($data['remove_proof_file'] ?? false) && $task->proof_path && $task->proof_disk) {
+            Storage::disk($task->proof_disk)->delete($task->proof_path);
+            $task->forceFill([
+                'proof_disk' => null,
+                'proof_path' => null,
+                'proof_file_name' => null,
+                'proof_mime_type' => null,
+                'proof_file_size' => null,
+            ])->save();
+        }
+
+        if ($proofFile) {
+            if ($task->proof_path && $task->proof_disk) {
+                Storage::disk($task->proof_disk)->delete($task->proof_path);
+            }
+
+            $path = $proofFile->store("work-task-proof/{$task->id}", 'local');
+
+            $task->forceFill([
+                'proof_disk' => 'local',
+                'proof_path' => $path,
+                'proof_file_name' => $proofFile->getClientOriginalName(),
+                'proof_mime_type' => $proofFile->getClientMimeType(),
+                'proof_file_size' => $proofFile->getSize(),
+            ])->save();
+        }
+
+        $task->forceFill([
+            'proof_url' => filled($data['proof_url'] ?? null) ? trim((string) $data['proof_url']) : null,
+        ])->save();
+    }
+
+    protected function isTaskManager(User $user): bool
+    {
+        return $this->governance->isOperationalManager($user);
+    }
+
+    protected function resolveReassignmentStatus(WorkTask $task, array $data): string
+    {
+        if (filled($data['status'] ?? null)) {
+            $candidate = (string) $data['status'];
+            if (! in_array($candidate, ['pending_review', 'completed', 'cancelled'], true)) {
+                return $candidate;
+            }
+        }
+
+        return in_array($task->status, ['pending_review', 'completed', 'changes_requested'], true)
+            ? 'changes_requested'
+            : 'open';
+    }
+
+    protected function recordDocumentUpload(
+        WorkTask $task,
+        User $actor,
+        UploadedFile $file,
+        string $documentKind,
+        ?string $notes = null,
+        ?string $title = null,
+    ): WorkTaskDocument {
+        $path = $file->store("work-task-documents/{$task->id}", 'local');
+
+        return $task->documents()->create([
+            'uploaded_by_user_id' => $actor->id,
+            'title' => $title ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME),
+            'document_kind' => $documentKind,
+            'notes' => $notes,
+            'disk' => 'local',
+            'path' => $path,
+            'file_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType(),
+            'file_size' => $file->getSize(),
+        ]);
     }
 }

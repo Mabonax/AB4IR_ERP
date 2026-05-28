@@ -15,6 +15,8 @@ class AccessControlSeeder extends Seeder
 {
     public function run(): void
     {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
         $guard = config('access_control.guard', 'web');
         $domains = config('access_control.domains', []);
 
@@ -90,11 +92,17 @@ class AccessControlSeeder extends Seeder
         ]);
         $superAdmin->syncPermissions($allPermissions);
 
+        $adminPermissions = array_values(array_diff(
+            $allPermissions,
+            $accessControlPermissions,
+            ['domain.task-management.manage', 'technical-tickets.respond']
+        ));
+
         $admin = Role::firstOrCreate([
             'name' => 'admin',
             'guard_name' => $guard,
         ]);
-        $admin->syncPermissions($allPermissions);
+        $admin->syncPermissions($adminPermissions);
 
         $viewerCrossDomain = Role::firstOrCreate([
             'name' => 'viewer-cross-domain',
@@ -106,14 +114,6 @@ class AccessControlSeeder extends Seeder
             'domain.leave.view',
         ])));
 
-        $botMember = Role::firstOrCreate([
-            'name' => 'bot-member',
-            'guard_name' => $guard,
-        ]);
-        $botMember->syncPermissions([
-            'domain.projects.view',
-        ]);
-
         $facilitatorRole = Role::firstOrCreate([
             'name' => 'facilitator',
             'guard_name' => $guard,
@@ -122,6 +122,15 @@ class AccessControlSeeder extends Seeder
             ...$projectActivityPermissions,
             ...$attendancePermissions,
         ])));
+
+        $technicalResponderRole = Role::firstOrCreate([
+            'name' => 'technical-responder',
+            'guard_name' => $guard,
+        ]);
+        $technicalResponderRole->syncPermissions([
+            'domain.task-management.view',
+            'technical-tickets.respond',
+        ]);
 
         $departmentMap = config('access_control.department_domain_map', []);
 
@@ -246,9 +255,7 @@ class AccessControlSeeder extends Seeder
             $hasReports = $staff->directReports()->exists();
 
             $rolesToAssign = [];
-            if ($staff->department && strtolower($staff->department->name) === 'admin') {
-                $rolesToAssign[] = 'admin';
-            } elseif ($departmentSlug && $hasReports) {
+            if ($departmentSlug && $hasReports) {
                 $rolesToAssign[] = "department-manager-{$departmentSlug}";
             } elseif ($departmentSlug) {
                 $rolesToAssign[] = "department-user-{$departmentSlug}";

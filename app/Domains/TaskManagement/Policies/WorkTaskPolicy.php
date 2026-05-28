@@ -3,12 +3,18 @@
 namespace App\Domains\TaskManagement\Policies;
 
 use App\Domains\TaskManagement\Models\WorkTask;
+use App\Domains\TaskManagement\Services\TaskWorkflowGovernance;
 use App\Models\User;
 use App\Policies\Concerns\InteractsWithDomainPermissions;
 
 class WorkTaskPolicy
 {
     use InteractsWithDomainPermissions;
+
+    protected function isTaskManager(User $user): bool
+    {
+        return app(TaskWorkflowGovernance::class)->isOperationalManager($user);
+    }
 
     protected function managedProjectIds(User $user): array
     {
@@ -40,6 +46,11 @@ class WorkTaskPolicy
             ->all();
     }
 
+    protected function departmentId(User $user): int
+    {
+        return (int) ($user->staffMember?->department_id ?? 0);
+    }
+
     public function viewAny(User $user): bool
     {
         return $this->canViewDomain($user, 'task-management');
@@ -47,7 +58,8 @@ class WorkTaskPolicy
 
     public function create(User $user): bool
     {
-        return $this->canManageDomain($user, 'task-management');
+        return $this->canManageDomain($user, 'task-management')
+            && app(TaskWorkflowGovernance::class)->canCreateDepartmentTask($user);
     }
 
     public function view(User $user, WorkTask $task): bool
@@ -56,9 +68,10 @@ class WorkTaskPolicy
             return false;
         }
 
-        $departmentId = (int) ($user->staffMember?->department_id ?? 0);
+        $isTaskManager = $this->isTaskManager($user);
+        $departmentId = $this->departmentId($user);
         $managedProjectIds = $this->managedProjectIds($user);
-        $directReportUserIds = $this->directReportUserIds($user);
+        $directReportUserIds = $isTaskManager ? $this->directReportUserIds($user) : [];
 
         return (int) $task->creator_user_id === (int) $user->id
             || (int) ($task->assigned_to_user_id ?? 0) === (int) $user->id
@@ -69,7 +82,11 @@ class WorkTaskPolicy
 
     public function updateStatus(User $user, WorkTask $task): bool
     {
-        return $this->view($user, $task);
+        return $this->view($user, $task)
+            && (
+                (int) ($task->assigned_to_user_id ?? 0) === (int) $user->id
+                || $this->isTaskManager($user)
+            );
     }
 
     public function comment(User $user, WorkTask $task): bool
@@ -79,6 +96,26 @@ class WorkTaskPolicy
 
     public function reassign(User $user, WorkTask $task): bool
     {
-        return $this->canManageDomain($user, 'task-management') && $this->view($user, $task);
+        return $this->canManageDomain($user, 'task-management')
+            && $this->isTaskManager($user)
+            && $this->view($user, $task);
+    }
+
+    public function submitForReview(User $user, WorkTask $task): bool
+    {
+        return $this->view($user, $task)
+            && (int) ($task->assigned_to_user_id ?? 0) === (int) $user->id;
+    }
+
+    public function approveCompletion(User $user, WorkTask $task): bool
+    {
+        return $this->canManageDomain($user, 'task-management')
+            && $this->isTaskManager($user)
+            && $this->view($user, $task);
+    }
+
+    public function returnForAmendments(User $user, WorkTask $task): bool
+    {
+        return $this->approveCompletion($user, $task);
     }
 }
