@@ -55,6 +55,7 @@ class ProjectService
     public function createProject(array $data, ?User $actor = null): Project
     {
         return DB::transaction(function () use ($data, $actor) {
+            $data = $this->normalizeProjectPayload($data);
             $partnerIds = collect($data['partner_stakeholder_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
             $projectData = collect($data)->except('partner_stakeholder_ids')->all();
 
@@ -107,13 +108,22 @@ class ProjectService
     {
         return DB::transaction(function () use ($id, $data, $actor) {
             $project = $this->getProjectById($id);
+            $data = $this->normalizeProjectPayload($data, $project);
             $original = $project->replicate();
             $partnerIds = collect($data['partner_stakeholder_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
             $projectData = collect($data)->except('partner_stakeholder_ids')->all();
+            $programChanged = (int) ($data['program_id'] ?? $project->program_id) !== (int) $project->program_id;
+
+            $this->assertProgramChangeIsSafe($project, $programChanged);
             $this->assertProjectStatusReadiness($project, $project->status, $data);
 
             $updated = $this->repository->update($project, $projectData);
             $updated->partners()->sync($partnerIds);
+
+            if ($programChanged) {
+                $this->replaceProgramMilestones($updated);
+            }
+
             $changes = array_keys($updated->getChanges());
 
             if (($data['status'] ?? $project->status) === 'completed') {
@@ -264,6 +274,10 @@ class ProjectService
 
         $blockers = [];
 
+        if (! $project->project_manager_id) {
+            $blockers[] = 'A project needs a project manager before it can become active.';
+        }
+
         if (! $project->locations->isNotEmpty()) {
             $blockers[] = 'A project needs at least one location before it can become active.';
         }
@@ -333,5 +347,45 @@ class ProjectService
     protected function statusLabel(string $status): string
     {
         return self::STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
+    }
+
+    protected function normalizeProjectPayload(array $data, ?Project $project = null): array
+    {
+        $data['status'] = (string) ($data['status'] ?? $project?->status ?? 'planned');
+
+        if (array_key_exists('project_manager_id', $data) && blank($data['project_manager_id'])) {
+            $data['project_manager_id'] = null;
+        }
+
+        return $data;
+    }
+
+    protected function assertProgramChangeIsSafe(Project $project, bool $programChanged): void
+    {
+        if (! $programChanged) {
+            return;
+        }
+
+        $hasOperationalData = $project->locations()->exists()
+            || $project->enrollments()->exists()
+            || DB::table('project_milestone_assessments')
+                ->whereIn('project_milestone_id', ProjectMilestone::query()->where('project_id', $project->id)->select('id'))
+                ->exists()
+            || $project->closure()->exists()
+            || $project->reports()->exists();
+
+        if (! $hasOperationalData) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'program_id' => ['Project program cannot change after locations, enrollments, assessments, or governance records already exist.'],
+        ]);
+    }
+
+    protected function replaceProgramMilestones(Project $project): void
+    {
+        ProjectMilestone::query()->where('project_id', $project->id)->delete();
+        $this->syncProgramMilestones($project->fresh());
     }
 }

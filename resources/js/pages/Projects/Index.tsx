@@ -57,6 +57,32 @@ export default function ProjectIndex({
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<any | null>(null);
+  const actions = [
+    {
+      icon: "Eye" as const,
+      onClick: (row: any) => {
+        router.visit(`/projects/${row.id}`);
+      },
+    },
+    ...(canManageProjects
+      ? [
+          {
+            icon: "PencilIcon" as const,
+            onClick: (row: any) => {
+              router.visit(`/projects/${row.id}/edit`);
+            },
+          },
+          {
+            icon: "Trash2" as const,
+            variant: "danger" as const,
+            onClick: (row: any) => {
+              setProjectToDelete(row);
+              setDeleteOpen(true);
+            },
+          },
+        ]
+      : []),
+  ];
 
   const columns = ProjectTableConfig.columns.map((column) =>
     column.key === "status"
@@ -94,34 +120,14 @@ export default function ProjectIndex({
           <DomainNav items={projectNavItems} />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              asChild
-              variant="outline"
-              className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
-            >
-              <Link href="/project-locations">Project Locations</Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
-            >
-              <Link href="/project-enrollments">Project Enrollments</Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
-            >
-              <Link href="/milestone-templates">Milestone Templates</Link>
-            </Button>
-          </div>
-
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {canManageProjects ? (
-            <Button asChild className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700">
-              <Link href="/projects/create">Add Project</Link>
+            <Button
+              type="button"
+              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+              onClick={() => router.visit("/projects/create")}
+            >
+              Add Project
             </Button>
           ) : null}
         </div>
@@ -129,32 +135,7 @@ export default function ProjectIndex({
         <CustomTable
           columns={columns}
           data={projectPagination.data}
-          actions={[
-            {
-              icon: "Eye",
-              onClick: (row) => {
-                router.visit(`/projects/${row.id}`);
-              },
-            },
-            ...(canManageProjects
-              ? [
-                  {
-                    icon: "PencilIcon",
-                    onClick: (row: any) => {
-                      router.visit(`/projects/${row.id}/edit`);
-                    },
-                  },
-                  {
-                    icon: "Trash2",
-                    variant: "danger" as const,
-                    onClick: (row: any) => {
-                      setProjectToDelete(row);
-                      setDeleteOpen(true);
-                    },
-                  },
-                ]
-              : []),
-          ]}
+          actions={actions}
         />
 
         {projectToDelete && (

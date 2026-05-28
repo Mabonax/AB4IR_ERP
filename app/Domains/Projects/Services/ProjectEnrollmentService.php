@@ -37,6 +37,7 @@ class ProjectEnrollmentService
         return DB::transaction(function () use ($data) {
             $beneficiary = Beneficiary::query()->findOrFail((int) $data['beneficiary_id']);
             $this->consistency->assertBeneficiaryBelongsToProject($beneficiary, (int) $data['project_id']);
+            $this->consistency->assertProjectAcceptsBeneficiaryPlacement((int) $data['project_id'], (int) $beneficiary->project_id);
             $this->consistency->assertLocationBelongsToProject((int) $data['project_id'], (int) $data['project_location_id']);
 
             return $this->repository->create($data);
@@ -49,6 +50,7 @@ class ProjectEnrollmentService
             $enrollment = $this->getEnrollmentById($id);
             $beneficiary = Beneficiary::query()->findOrFail((int) $data['beneficiary_id']);
             $this->consistency->assertBeneficiaryBelongsToProject($beneficiary, (int) $data['project_id']);
+            $this->consistency->assertProjectAcceptsBeneficiaryPlacement((int) $data['project_id'], (int) $beneficiary->project_id);
             $this->consistency->assertLocationBelongsToProject((int) $data['project_id'], (int) $data['project_location_id']);
 
             return $this->repository->update($enrollment, $data);

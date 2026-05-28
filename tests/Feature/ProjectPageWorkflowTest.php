@@ -126,3 +126,22 @@ test('creating a project from the page redirects to the project file', function 
 
     $response->assertRedirect("/projects/{$project->id}");
 });
+
+test('creating a project from the page allows deferring optional governance and manager fields', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'projects');
+    $fixture = makeProjectPageWorkflowFixture();
+
+    $response = $this->actingAs($user)->post('/projects', [
+        'program_id' => $fixture['program']->id,
+        'name' => 'Lean Intake Project',
+        'start_date' => now()->toDateString(),
+        'description' => 'Created with only the minimum required delivery details.',
+    ]);
+
+    $project = Project::query()->where('name', 'Lean Intake Project')->firstOrFail();
+
+    $response->assertRedirect("/projects/{$project->id}");
+    expect($project->project_manager_id)->toBeNull();
+    expect($project->status)->toBe('planned');
+});

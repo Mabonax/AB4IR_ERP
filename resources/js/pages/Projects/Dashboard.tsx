@@ -1,8 +1,9 @@
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
 import { projectNavItems } from "@/config/domain-nav/projects";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -19,6 +20,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function ProjectsDashboard({
   stats,
   portfolio,
+  canManageProjects,
 }: {
   stats: {
     totalProjects: number;
@@ -48,15 +50,27 @@ export default function ProjectsDashboard({
       blocked_locations: number;
     };
   };
+  canManageProjects: boolean;
 }) {
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Projects Dashboard" />
 
       <div className="p-4 space-y-6">
-        <div className="flex flex-wrap items-center jusify-start gap-3">
-          <h1 className="text-xl font-semibold">Projects Dashboard</h1>
-          <DomainNav items={projectNavItems} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-xl font-semibold">Projects Dashboard</h1>
+            <DomainNav items={projectNavItems} />
+          </div>
+          {canManageProjects ? (
+            <Button
+              type="button"
+              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+              onClick={() => router.visit("/projects/create")}
+            >
+              Create Project
+            </Button>
+          ) : null}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

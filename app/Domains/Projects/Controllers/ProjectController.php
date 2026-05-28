@@ -90,6 +90,7 @@ class ProjectController extends Controller
                 'totalLocations' => ProjectLocation::count(),
             ],
             'portfolio' => $portfolio,
+            'canManageProjects' => (bool) request()->user()?->can('create', Project::class),
         ]);
     }
 

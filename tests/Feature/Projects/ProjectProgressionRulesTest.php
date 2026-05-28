@@ -199,6 +199,31 @@ test('project creation cannot start directly as active before operational setup 
     ]);
 });
 
+test('project without a manager can be created as planned but cannot move to active', function () {
+    $program = Program::query()->create([
+        'title' => 'Deferred Manager Program',
+        'description' => 'Deferred Manager Program',
+        'slug' => 'deferred-manager-program-'.Str::lower(Str::random(5)),
+    ]);
+
+    $project = app(ProjectService::class)->createProject([
+        'program_id' => $program->id,
+        'name' => 'Deferred Manager Project',
+        'start_date' => now()->toDateString(),
+        'description' => 'Starts lean and gets a manager later.',
+    ]);
+
+    expect($project->project_manager_id)->toBeNull();
+
+    expect(fn () => app(ProjectService::class)->updateProject($project->id, [
+        'program_id' => $project->program_id,
+        'name' => $project->name,
+        'start_date' => $project->start_date->format('Y-m-d'),
+        'status' => 'active',
+        'description' => $project->description,
+    ]))->toThrow(ValidationException::class);
+});
+
 test('project creation cannot start directly as completed before delivery evidence exists', function () {
     $department = StaffDepartment::query()->create([
         'name' => 'Complete Department',
@@ -397,7 +422,7 @@ test('project status summary exposes readiness blockers for active and completed
     ]);
     $project = Project::query()->create([
         'program_id' => $program->id,
-        'project_manager_id' => $manager->id,
+        'project_manager_id' => null,
         'name' => 'Summary Project',
         'start_date' => now()->toDateString(),
         'status' => 'planned',
@@ -409,8 +434,99 @@ test('project status summary exposes readiness blockers for active and completed
     expect($summary['current'])->toBe('planned');
     expect($summary['readiness']['active']['ready'])->toBeFalse();
     expect($summary['readiness']['completed']['ready'])->toBeFalse();
+    expect($summary['readiness']['active']['blockers'])->toContain('A project needs a project manager before it can become active.');
     expect($summary['readiness']['active']['blockers'])->toContain('A project needs at least one location before it can become active.');
     expect($summary['readiness']['completed']['blockers'])->toContain('A completed project must have an end date.');
+});
+
+test('project program can be changed only before operational records exist and milestones are resynced', function () {
+    $department = StaffDepartment::query()->create([
+        'name' => 'Program Change Department',
+        'description' => 'Program Change Department',
+    ]);
+    $manager = StaffMember::query()->create([
+        'department_id' => $department->id,
+        'first_name' => 'Mila',
+        'last_name' => 'Switcher',
+        'email' => 'manager-'.Str::lower(Str::random(8)).'@example.com',
+        'employee_number' => 'EMP-'.Str::upper(Str::random(8)),
+        'status' => 'active',
+    ]);
+    $originalProgram = Program::query()->create([
+        'title' => 'Original Program',
+        'description' => 'Original Program',
+        'slug' => 'original-program-'.Str::lower(Str::random(5)),
+    ]);
+    $replacementProgram = Program::query()->create([
+        'title' => 'Replacement Program',
+        'description' => 'Replacement Program',
+        'slug' => 'replacement-program-'.Str::lower(Str::random(5)),
+    ]);
+
+    ProgramMilestoneTemplate::query()->create([
+        'program_id' => $originalProgram->id,
+        'title' => 'Original Milestone',
+        'description' => 'Original Milestone',
+        'sort_order' => 1,
+        'max_score' => 10,
+    ]);
+
+    ProgramMilestoneTemplate::query()->create([
+        'program_id' => $replacementProgram->id,
+        'title' => 'Replacement Milestone',
+        'description' => 'Replacement Milestone',
+        'sort_order' => 1,
+        'max_score' => 20,
+    ]);
+
+    $project = app(ProjectService::class)->createProject([
+        'program_id' => $originalProgram->id,
+        'project_manager_id' => $manager->id,
+        'name' => 'Program Switch Project',
+        'start_date' => now()->toDateString(),
+        'status' => 'planned',
+        'description' => 'Program switch project',
+    ]);
+
+    expect($project->milestones()->pluck('title')->all())->toBe(['Original Milestone']);
+
+    $updated = app(ProjectService::class)->updateProject($project->id, [
+        'program_id' => $replacementProgram->id,
+        'project_manager_id' => $manager->id,
+        'name' => $project->name,
+        'start_date' => $project->start_date->format('Y-m-d'),
+        'status' => 'planned',
+        'description' => $project->description,
+    ]);
+
+    expect($updated->program_id)->toBe($replacementProgram->id);
+    expect($updated->milestones->pluck('title')->all())->toBe(['Replacement Milestone']);
+
+    ProjectLocation::query()->create([
+        'project_id' => $updated->id,
+        'facilitator_id' => Facilitator::query()->create([
+            'name' => 'Guard',
+            'surname' => 'Facilitator',
+            'dob' => now()->subYears(29)->toDateString(),
+            'id_number' => fake()->unique()->numerify('####################'),
+            'address' => '1 Guard Street',
+            'email' => 'facilitator-'.Str::lower(Str::random(8)).'@example.com',
+            'cell' => '0712345678',
+            'specialization' => 'Training',
+            'province_id' => Provinces::query()->create(['name' => 'Guard Province '.Str::upper(Str::random(4))])->id,
+        ])->id,
+        'province_id' => Provinces::query()->create(['name' => 'Block Province '.Str::upper(Str::random(4))])->id,
+        'training_venue_address' => 'Switch Hall',
+    ]);
+
+    expect(fn () => app(ProjectService::class)->updateProject($updated->id, [
+        'program_id' => $originalProgram->id,
+        'project_manager_id' => $manager->id,
+        'name' => $updated->name,
+        'start_date' => $updated->start_date->format('Y-m-d'),
+        'status' => 'planned',
+        'description' => $updated->description,
+    ]))->toThrow(ValidationException::class);
 });
 
 test('project status summary marks completion ready when every active beneficiary has completed delivery', function () {
