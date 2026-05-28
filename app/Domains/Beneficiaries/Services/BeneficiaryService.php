@@ -121,7 +121,8 @@ class BeneficiaryService
                 $updated,
                 $projectId,
                 $projectLocationId,
-                $this->enrollmentStatusFromAttendanceStatus($attendanceStatus)
+                $this->enrollmentStatusFromAttendanceStatus($attendanceStatus),
+                currentProjectId: (int) $beneficiary->project_id
             );
 
             return $updated;

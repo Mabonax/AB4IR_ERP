@@ -123,6 +123,41 @@ test('authorized user can open the beneficiary create page', function () {
         );
 });
 
+test('beneficiary create page only exposes assignable projects while keeping planned projects available', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'beneficiaries');
+    $fixture = makeBeneficiaryPageWorkflowFixture();
+
+    $completedProject = Project::query()->create([
+        'program_id' => $fixture['program']->id,
+        'project_manager_id' => $fixture['project']->project_manager_id,
+        'name' => 'Completed Cohort',
+        'start_date' => now()->subMonths(3)->toDateString(),
+        'end_date' => now()->subDay()->toDateString(),
+        'status' => 'completed',
+        'description' => 'Closed project',
+    ]);
+
+    $plannedProject = Project::query()->create([
+        'program_id' => $fixture['program']->id,
+        'project_manager_id' => null,
+        'name' => 'Planned Cohort',
+        'start_date' => now()->addWeek()->toDateString(),
+        'status' => 'planned',
+        'description' => 'Open for setup',
+    ]);
+
+    $this->actingAs($user)
+        ->get('/beneficiaries/create')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Beneficiaries/Create')
+            ->where('projects', fn ($projects) => collect($projects)->pluck('name')->contains('Planned Cohort'))
+            ->where('projects', fn ($projects) => ! collect($projects)->pluck('id')->contains($completedProject->id))
+            ->where('projects', fn ($projects) => collect($projects)->pluck('id')->contains($plannedProject->id))
+        );
+});
+
 test('authorized user can open the beneficiary edit page', function () {
     $user = User::factory()->create();
     grantDomainAccess($user, 'beneficiaries');

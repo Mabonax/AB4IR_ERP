@@ -4,6 +4,8 @@ namespace App\Domains\Beneficiaries\Requests;
 
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Support\BeneficiaryIdentityMatcher;
+use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Services\ProjectEnrollmentConsistencyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -67,6 +69,8 @@ class UpdateBeneficiaryRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            $this->guardAgainstIneligibleProjectPlacement($validator);
+
             if (! $this->hasAnyNextOfKinInput()) {
                 $this->guardAgainstDuplicateBeneficiary($validator);
 
@@ -137,6 +141,28 @@ class UpdateBeneficiaryRequest extends FormRequest
     protected function findDuplicateBeneficiary(): ?Beneficiary
     {
         return app(BeneficiaryIdentityMatcher::class)->findMatch($this->all(), (int) $this->route('beneficiary'));
+    }
+
+    protected function guardAgainstIneligibleProjectPlacement(Validator $validator): void
+    {
+        if (! $this->filled('project_id')) {
+            return;
+        }
+
+        $selectedProjectId = (int) $this->input('project_id');
+        $currentProjectId = (int) Beneficiary::query()->whereKey($this->route('beneficiary'))->value('project_id');
+
+        if ($selectedProjectId === $currentProjectId) {
+            return;
+        }
+
+        $status = Project::query()->whereKey($selectedProjectId)->value('status');
+
+        if ($status === null || in_array($status, ProjectEnrollmentConsistencyService::BENEFICIARY_ASSIGNABLE_STATUSES, true)) {
+            return;
+        }
+
+        $validator->errors()->add('project_id', 'Beneficiaries can only be added to planned, active, or on-hold projects.');
     }
 
     protected function normalizeInputString(mixed $value): ?string

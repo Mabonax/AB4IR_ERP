@@ -142,7 +142,7 @@ class BeneficiaryController extends Controller
 
         return Inertia::render('Beneficiaries/Edit', [
             'beneficiary' => (new BeneficiaryResource($model))->resolve(),
-            ...$this->formOptions(),
+            ...$this->formOptions((int) $model->project_id),
         ]);
     }
 
@@ -170,8 +170,20 @@ class BeneficiaryController extends Controller
             ->with('success', 'Beneficiary deleted');
     }
 
-    protected function formOptions(): array
+    protected function formOptions(?int $currentProjectId = null): array
     {
+        $projects = Project::query()
+            ->select('id', 'name', 'program_id', 'status')
+            ->where(function ($query) use ($currentProjectId) {
+                $query->whereIn('status', \App\Domains\Projects\Services\ProjectEnrollmentConsistencyService::BENEFICIARY_ASSIGNABLE_STATUSES);
+
+                if ($currentProjectId !== null) {
+                    $query->orWhere('id', $currentProjectId);
+                }
+            })
+            ->orderBy('name')
+            ->get();
+
         return [
             'programs' => Program::query()
                 ->select('id', 'title')
@@ -185,12 +197,15 @@ class BeneficiaryController extends Controller
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get(),
-            'projects' => Project::query()
-                ->select('id', 'name', 'program_id')
-                ->orderBy('name')
-                ->get(),
+            'projects' => $projects->map(fn ($project) => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'program_id' => $project->program_id,
+                'status' => $project->status,
+            ])->values(),
             'projectLocations' => ProjectLocation::with(['project:id,name', 'province:id,name'])
                 ->select('id', 'project_id', 'province_id')
+                ->whereIn('project_id', $projects->pluck('id'))
                 ->orderBy('province_id')
                 ->get()
                 ->map(fn ($location) => [

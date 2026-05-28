@@ -4,6 +4,8 @@ namespace App\Domains\Beneficiaries\Requests;
 
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Support\BeneficiaryIdentityMatcher;
+use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Services\ProjectEnrollmentConsistencyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -56,6 +58,8 @@ class StoreBeneficiaryRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            $this->guardAgainstIneligibleProjectPlacement($validator);
+
             if (! $this->hasAnyNextOfKinInput()) {
                 $this->guardAgainstDuplicateBeneficiary($validator);
 
@@ -126,6 +130,21 @@ class StoreBeneficiaryRequest extends FormRequest
     protected function findDuplicateBeneficiary(): ?Beneficiary
     {
         return app(BeneficiaryIdentityMatcher::class)->findMatch($this->all());
+    }
+
+    protected function guardAgainstIneligibleProjectPlacement(Validator $validator): void
+    {
+        if (! $this->filled('project_id')) {
+            return;
+        }
+
+        $status = Project::query()->whereKey($this->input('project_id'))->value('status');
+
+        if ($status === null || in_array($status, ProjectEnrollmentConsistencyService::BENEFICIARY_ASSIGNABLE_STATUSES, true)) {
+            return;
+        }
+
+        $validator->errors()->add('project_id', 'Beneficiaries can only be added to planned, active, or on-hold projects.');
     }
 
     protected function normalizeInputString(mixed $value): ?string
