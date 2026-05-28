@@ -6,9 +6,10 @@ import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 type TaskDashboard = {
-  summary: { total: number; open: number; in_progress: number; completed: number; overdue: number };
+  summary: { total: number; open: number; in_progress: number; pending_review: number; changes_requested: number; completed: number; overdue: number };
   overdue_tasks: Array<{ id: number; title: string; status: string; priority: string; due_date: string | null; assignee_name: string | null; department_name: string | null; context_name: string }>;
   unassigned_queue: Array<{ id: number; title: string; status: string; priority: string; department_name: string | null; context_name: string }>;
+  pending_review_tasks: Array<{ id: number; title: string; status: string; priority: string; due_date: string | null; assignee_name: string | null; department_name: string | null; context_name: string; submitted_for_review_at: string | null }>;
   workload_by_assignee: Array<{ assignee_name: string; open_count: number; in_progress_count: number; blocked_count: number; total_active: number }>;
   department_queues: Array<{ department_name: string; open_count: number; blocked_count: number; active_count: number }>;
 };
@@ -41,8 +42,11 @@ function EmptyState({ message }: { message: string }) {
 export default function TaskManagementDashboard({
   dashboard,
 }: {
-  dashboard: { tasks: TaskDashboard; tickets: TicketDashboard };
+  dashboard: { persona: string; can_create_task: boolean; can_respond: boolean; tasks: TaskDashboard; tickets: TicketDashboard };
 }) {
+  const managerView = dashboard.persona === "manager";
+  const responderView = dashboard.can_respond && dashboard.persona === "technical_responder";
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Task Management Dashboard" />
@@ -51,7 +55,13 @@ export default function TaskManagementDashboard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">Task Management Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Operational view of workload, queue pressure, overdue items, and ticket response exposure.</p>
+            <p className="text-sm text-muted-foreground">
+              {managerView
+                ? "Manager view of team workload, queue pressure, overdue work, and task governance."
+                : responderView
+                  ? "Responder view of incident backlog, SLA pressure, and assigned response work."
+                  : "Personal workflow view of assigned tasks, deadlines, and tickets you raised or carry."}
+            </p>
           </div>
           <DomainNav items={taskManagementNavItems} />
         </div>
@@ -59,16 +69,20 @@ export default function TaskManagementDashboard({
         <section className="space-y-3">
           <div>
             <h2 className="text-base font-semibold">Task Operations</h2>
-            <p className="text-sm text-muted-foreground">Current delivery load across direct assignments and department queues.</p>
+            <p className="text-sm text-muted-foreground">
+              {managerView ? "Current delivery load across direct assignments and department queues." : "Current work assigned to you, with only governance context relevant to your workflow."}
+            </p>
           </div>
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-6 xl:grid-cols-7">
             <MetricCard label="Visible Tasks" value={dashboard.tasks.summary.total} />
             <MetricCard label="Open" value={dashboard.tasks.summary.open} />
             <MetricCard label="In Progress" value={dashboard.tasks.summary.in_progress} />
+            <MetricCard label="Awaiting Review" value={dashboard.tasks.summary.pending_review} />
+            <MetricCard label="Returned" value={dashboard.tasks.summary.changes_requested} />
             <MetricCard label="Completed" value={dashboard.tasks.summary.completed} />
             <MetricCard label="Overdue" value={dashboard.tasks.summary.overdue} />
           </div>
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className={`grid gap-4 ${managerView ? "xl:grid-cols-2" : ""}`}>
             <section className="rounded-xl border bg-card p-4 shadow-sm">
               <h3 className="text-sm font-semibold">Overdue Tasks</h3>
               <div className="mt-3 space-y-3">
@@ -81,59 +95,90 @@ export default function TaskManagementDashboard({
                     <div className="mt-1 text-xs text-muted-foreground">
                       {task.assignee_name ?? task.department_name ?? "Queue"} | {task.context_name}
                     </div>
+                    <a href={`/task-management/tasks/${task.id}`} className="mt-2 inline-block text-xs text-blue-700 underline">
+                      Open task
+                    </a>
                   </div>
                 ))}
               </div>
             </section>
-            <section className="rounded-xl border bg-card p-4 shadow-sm">
-              <h3 className="text-sm font-semibold">Department Queue Intake</h3>
-              <div className="mt-3 space-y-3">
-                {dashboard.tasks.unassigned_queue.length === 0 ? <EmptyState message="No unassigned department-queue work is waiting." /> : dashboard.tasks.unassigned_queue.map((task) => (
-                  <div key={task.id} className="rounded-lg border p-3">
-                    <div className="font-medium">{task.title}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {task.priority.toUpperCase()} | {task.status.replaceAll("_", " ")} | {task.department_name ?? "No department"}
+            {managerView ? (
+              <section className="rounded-xl border bg-card p-4 shadow-sm">
+                <h3 className="text-sm font-semibold">Department Queue Intake</h3>
+                <div className="mt-3 space-y-3">
+                  {dashboard.tasks.unassigned_queue.length === 0 ? <EmptyState message="No unassigned department-queue work is waiting." /> : dashboard.tasks.unassigned_queue.map((task) => (
+                    <div key={task.id} className="rounded-lg border p-3">
+                      <div className="font-medium">{task.title}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {task.priority.toUpperCase()} | {task.status.replaceAll("_", " ")} | {task.department_name ?? "No department"}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">{task.context_name}</div>
+                      <a href={`/task-management/tasks/${task.id}`} className="mt-2 inline-block text-xs text-blue-700 underline">
+                        Open task
+                      </a>
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">{task.context_name}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
-          <div className="grid gap-4 xl:grid-cols-2">
-            <section className="rounded-xl border bg-card p-4 shadow-sm">
-              <h3 className="text-sm font-semibold">Workload By Assignee</h3>
-              <div className="mt-3 space-y-3">
-                {dashboard.tasks.workload_by_assignee.length === 0 ? <EmptyState message="No active assignee workload found." /> : dashboard.tasks.workload_by_assignee.map((row) => (
-                  <div key={row.assignee_name} className="rounded-lg border p-3">
-                    <div className="font-medium">{row.assignee_name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Active {row.total_active} | Open {row.open_count} | In Progress {row.in_progress_count} | Blocked {row.blocked_count}
+          {managerView ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <section className="rounded-xl border bg-card p-4 shadow-sm">
+                <h3 className="text-sm font-semibold">Pending Manager Review</h3>
+                <div className="mt-3 space-y-3">
+                  {dashboard.tasks.pending_review_tasks.length === 0 ? <EmptyState message="No submitted task work is waiting for signoff." /> : dashboard.tasks.pending_review_tasks.map((task) => (
+                    <div key={task.id} className="rounded-lg border p-3">
+                      <div className="font-medium">{task.title}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {task.priority.toUpperCase()} | {task.status.replaceAll("_", " ")} | Submitted {task.submitted_for_review_at ?? "-"}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {task.assignee_name ?? task.department_name ?? "Queue"} | {task.context_name}
+                      </div>
+                      <a href={`/task-management/tasks/${task.id}`} className="mt-2 inline-block text-xs text-blue-700 underline">
+                        Open task
+                      </a>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section className="rounded-xl border bg-card p-4 shadow-sm">
-              <h3 className="text-sm font-semibold">Department Queue Pressure</h3>
-              <div className="mt-3 space-y-3">
-                {dashboard.tasks.department_queues.length === 0 ? <EmptyState message="No department queues are carrying active work." /> : dashboard.tasks.department_queues.map((row) => (
-                  <div key={row.department_name} className="rounded-lg border p-3">
-                    <div className="font-medium">{row.department_name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Active {row.active_count} | Open {row.open_count} | Blocked {row.blocked_count}
+                  ))}
+                </div>
+              </section>
+              <section className="rounded-xl border bg-card p-4 shadow-sm">
+                <h3 className="text-sm font-semibold">Workload By Assignee</h3>
+                <div className="mt-3 space-y-3">
+                  {dashboard.tasks.workload_by_assignee.length === 0 ? <EmptyState message="No active assignee workload found." /> : dashboard.tasks.workload_by_assignee.map((row) => (
+                    <div key={row.assignee_name} className="rounded-lg border p-3">
+                      <div className="font-medium">{row.assignee_name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Active {row.total_active} | Open {row.open_count} | In Progress {row.in_progress_count} | Blocked {row.blocked_count}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
+                  ))}
+                </div>
+              </section>
+              <section className="rounded-xl border bg-card p-4 shadow-sm">
+                <h3 className="text-sm font-semibold">Department Queue Pressure</h3>
+                <div className="mt-3 space-y-3">
+                  {dashboard.tasks.department_queues.length === 0 ? <EmptyState message="No department queues are carrying active work." /> : dashboard.tasks.department_queues.map((row) => (
+                    <div key={row.department_name} className="rounded-lg border p-3">
+                      <div className="font-medium">{row.department_name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Active {row.active_count} | Open {row.open_count} | Blocked {row.blocked_count}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : null}
         </section>
 
         <section className="space-y-3">
           <div>
             <h2 className="text-base font-semibold">Technical Support Operations</h2>
-            <p className="text-sm text-muted-foreground">Current SLA pressure, responder workloads, and project-linked support load.</p>
+            <p className="text-sm text-muted-foreground">
+              {dashboard.can_respond ? "Current SLA pressure, responder workloads, and project-linked support load." : "Support issues relevant to your requester or assignee workflow."}
+            </p>
           </div>
           <div className="grid gap-3 md:grid-cols-6">
             <MetricCard label="Visible Tickets" value={dashboard.tickets.summary.total} />
@@ -175,34 +220,36 @@ export default function TaskManagementDashboard({
               </div>
             </section>
           </div>
-          <div className="grid gap-4 xl:grid-cols-2">
-            <section className="rounded-xl border bg-card p-4 shadow-sm">
-              <h3 className="text-sm font-semibold">Responder Workload</h3>
-              <div className="mt-3 space-y-3">
-                {dashboard.tickets.workload_by_responder.length === 0 ? <EmptyState message="No technical responders currently hold active tickets." /> : dashboard.tickets.workload_by_responder.map((row) => (
-                  <div key={row.responder_name} className="rounded-lg border p-3">
-                    <div className="font-medium">{row.responder_name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Active {row.active_count} | Open {row.open_count} | Assigned {row.assigned_count} | In Progress {row.in_progress_count}
+          {dashboard.can_respond ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <section className="rounded-xl border bg-card p-4 shadow-sm">
+                <h3 className="text-sm font-semibold">Responder Workload</h3>
+                <div className="mt-3 space-y-3">
+                  {dashboard.tickets.workload_by_responder.length === 0 ? <EmptyState message="No technical responders currently hold active tickets." /> : dashboard.tickets.workload_by_responder.map((row) => (
+                    <div key={row.responder_name} className="rounded-lg border p-3">
+                      <div className="font-medium">{row.responder_name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Active {row.active_count} | Open {row.open_count} | Assigned {row.assigned_count} | In Progress {row.in_progress_count}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-            <section className="rounded-xl border bg-card p-4 shadow-sm">
-              <h3 className="text-sm font-semibold">Project Support Pressure</h3>
-              <div className="mt-3 space-y-3">
-                {dashboard.tickets.project_pressure.length === 0 ? <EmptyState message="No active project-linked tickets are in scope." /> : dashboard.tickets.project_pressure.map((row) => (
-                  <div key={row.project_name} className="rounded-lg border p-3">
-                    <div className="font-medium">{row.project_name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Active {row.active_count} | Overdue {row.overdue_count}
+                  ))}
+                </div>
+              </section>
+              <section className="rounded-xl border bg-card p-4 shadow-sm">
+                <h3 className="text-sm font-semibold">Project Support Pressure</h3>
+                <div className="mt-3 space-y-3">
+                  {dashboard.tickets.project_pressure.length === 0 ? <EmptyState message="No active project-linked tickets are in scope." /> : dashboard.tickets.project_pressure.map((row) => (
+                    <div key={row.project_name} className="rounded-lg border p-3">
+                      <div className="font-medium">{row.project_name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Active {row.active_count} | Overdue {row.overdue_count}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : null}
         </section>
       </div>
     </AppLayout>

@@ -18,6 +18,7 @@ use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\Finance\Controllers\TravelClaimController;
 use App\Domains\HumanResources\Controllers\HumanResourcesController;
 use App\Domains\Leave\Controllers\LeaveRequestController;
+use App\Domains\Marketing\Controllers\MarketingController;
 use App\Domains\Organization\Controllers\OrganizationProfileController;
 use App\Domains\Programs\Controllers\ProgramController;
 use App\Domains\Projects\Controllers\MilestoneTemplateController;
@@ -33,9 +34,9 @@ use App\Domains\TaskManagement\Controllers\SupportTicketController;
 use App\Domains\TaskManagement\Controllers\WorkTaskController;
 use App\Http\Controllers\AccessControl\AccessControlController;
 use App\Http\Controllers\BusinessDevelopment\AdjudicationAssessmentController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::redirect('/', 'dashboard')->name('home');
 
@@ -45,9 +46,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     $adjudicationPermission = 'permission:domain.business-development.view|domain.business-development.manage|business-development.adjudications.score';
     $adjudicationManagePermission = 'permission:domain.business-development.manage|business-development.adjudications.score';
 
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('notifications', [NotificationController::class, 'index'])
         ->name('notifications.index');
@@ -106,9 +105,66 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.finance.view|domain.finance.manage')
         ->whereNumber('travelClaim')
         ->name('finance.travel-claims.reject');
+    Route::get('marketing', [MarketingController::class, 'dashboard'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.dashboard');
+    Route::get('marketing/jobs', [MarketingController::class, 'index'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.jobs.index');
+    Route::get('marketing/jobs/create', [MarketingController::class, 'create'])
+        ->middleware('permission:domain.marketing.manage')
+        ->name('marketing.jobs.create');
+    Route::get('marketing/jobs/{job}', [MarketingController::class, 'show'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.show');
+    Route::post('marketing/jobs', [MarketingController::class, 'store'])
+        ->middleware('permission:domain.marketing.manage')
+        ->name('marketing.jobs.store');
+    Route::post('marketing/jobs/{job}/status', [MarketingController::class, 'updateStatus'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.status');
+    Route::post('marketing/jobs/{job}/submit-approval', [MarketingController::class, 'submitForApproval'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.submit-approval');
+    Route::post('marketing/jobs/{job}/approve', [MarketingController::class, 'approve'])
+        ->middleware('permission:domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.approve');
+    Route::post('marketing/jobs/{job}/request-amendments', [MarketingController::class, 'requestAmendments'])
+        ->middleware('permission:domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.request-amendments');
+    Route::post('marketing/jobs/{job}/comment', [MarketingController::class, 'comment'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.comment');
+    Route::post('marketing/jobs/{job}/documents', [MarketingController::class, 'uploadDocument'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.documents.store');
+    Route::post('marketing/jobs/{job}/reassign', [MarketingController::class, 'reassign'])
+        ->middleware('permission:domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.reassign');
+    Route::get('marketing/jobs/{job}/proof', [MarketingController::class, 'downloadProof'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('job')
+        ->name('marketing.jobs.proof');
+    Route::get('marketing/jobs/{job}/documents/{document}', [MarketingController::class, 'downloadDocument'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('job')
+        ->whereNumber('document')
+        ->name('marketing.jobs.documents.download');
     Route::get('task-management/tasks', [WorkTaskController::class, 'index'])
         ->middleware('permission:domain.task-management.view|domain.task-management.manage')
         ->name('task-management.tasks.index');
+    Route::get('task-management/tasks/{task}', [WorkTaskController::class, 'show'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.show');
     Route::post('task-management/tasks', [WorkTaskController::class, 'store'])
         ->middleware('permission:domain.task-management.manage')
         ->name('task-management.tasks.store');
@@ -116,14 +172,39 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.task-management.view|domain.task-management.manage')
         ->whereNumber('task')
         ->name('task-management.tasks.status');
+    Route::post('task-management/tasks/{task}/submit-review', [WorkTaskController::class, 'submitForReview'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.submit-review');
+    Route::post('task-management/tasks/{task}/approve', [WorkTaskController::class, 'approveCompletion'])
+        ->middleware('permission:domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.approve');
+    Route::post('task-management/tasks/{task}/return', [WorkTaskController::class, 'returnForAmendments'])
+        ->middleware('permission:domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.return');
     Route::post('task-management/tasks/{task}/comment', [WorkTaskController::class, 'comment'])
         ->middleware('permission:domain.task-management.view|domain.task-management.manage')
         ->whereNumber('task')
         ->name('task-management.tasks.comment');
+    Route::post('task-management/tasks/{task}/documents', [WorkTaskController::class, 'uploadDocument'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.documents.store');
     Route::post('task-management/tasks/{task}/reassign', [WorkTaskController::class, 'reassign'])
         ->middleware('permission:domain.task-management.manage')
         ->whereNumber('task')
         ->name('task-management.tasks.reassign');
+    Route::get('task-management/tasks/{task}/proof', [WorkTaskController::class, 'downloadProof'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.proof');
+    Route::get('task-management/tasks/{task}/documents/{document}', [WorkTaskController::class, 'downloadDocument'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->whereNumber('document')
+        ->name('task-management.tasks.documents.download');
     Route::get('task-management/tickets', [SupportTicketController::class, 'index'])
         ->name('task-management.tickets.index');
     Route::post('task-management/tickets', [SupportTicketController::class, 'store'])
@@ -590,45 +671,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('staff'));
 
     Route::get('access-control', [AccessControlController::class, 'index'])
-        ->middleware('permission:access-control.view')
         ->name('access-control.index');
     Route::get('access-control/roles', [AccessControlController::class, 'rolesPage'])
-        ->middleware('permission:access-control.view')
         ->name('access-control.roles.index');
     Route::post('access-control/roles', [AccessControlController::class, 'storeRole'])
-        ->middleware('permission:roles.create|roles.update')
         ->name('access-control.roles.store');
     Route::put('access-control/roles/{role}', [AccessControlController::class, 'updateRole'])
-        ->middleware('permission:roles.update')
         ->whereNumber('role')
         ->name('access-control.roles.update');
     Route::delete('access-control/roles/{role}', [AccessControlController::class, 'destroyRole'])
-        ->middleware('permission:roles.delete')
         ->whereNumber('role')
         ->name('access-control.roles.destroy');
     Route::get('access-control/permissions', [AccessControlController::class, 'permissionsPage'])
-        ->middleware('permission:access-control.view')
         ->name('access-control.permissions.index');
     Route::post('access-control/permissions', [AccessControlController::class, 'storePermission'])
-        ->middleware('permission:permissions.create|permissions.update')
         ->name('access-control.permissions.store');
     Route::put('access-control/permissions/{permission}', [AccessControlController::class, 'updatePermission'])
-        ->middleware('permission:permissions.update')
         ->whereNumber('permission')
         ->name('access-control.permissions.update');
     Route::delete('access-control/permissions/{permission}', [AccessControlController::class, 'destroyPermission'])
-        ->middleware('permission:permissions.delete')
         ->whereNumber('permission')
         ->name('access-control.permissions.destroy');
     Route::get('access-control/assignments', [AccessControlController::class, 'assignmentsPage'])
-        ->middleware('permission:access-control.view')
         ->name('access-control.assignments.index');
     Route::post('access-control/users/{user}/roles', [AccessControlController::class, 'syncUserRoles'])
-        ->middleware('permission:assignments.manage')
         ->whereNumber('user')
         ->name('access-control.users.roles.sync');
     Route::post('access-control/users/{user}/permissions', [AccessControlController::class, 'syncUserPermissions'])
-        ->middleware('permission:assignments.manage')
         ->whereNumber('user')
         ->name('access-control.users.permissions.sync');
 });

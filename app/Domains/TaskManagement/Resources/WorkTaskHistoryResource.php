@@ -13,6 +13,7 @@ class WorkTaskHistoryResource extends JsonResource
             'actor_name' => $this->actor?->name,
             'action' => $this->action,
             'summary' => $this->summary,
+            'meta' => $this->meta,
             'created_at' => $this->created_at?->toDateTimeString(),
         ];
     }

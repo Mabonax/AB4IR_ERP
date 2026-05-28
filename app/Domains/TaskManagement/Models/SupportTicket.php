@@ -21,6 +21,7 @@ class SupportTicket extends Model
         'description',
         'status',
         'priority',
+        'support_area',
         'requester_user_id',
         'requester_department_id',
         'assigned_to_user_id',

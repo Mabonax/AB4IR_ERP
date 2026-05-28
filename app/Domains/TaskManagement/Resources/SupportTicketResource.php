@@ -18,6 +18,7 @@ class SupportTicketResource extends JsonResource
             'description' => $this->description,
             'status' => $this->status,
             'priority' => $this->priority,
+            'support_area' => $this->support_area,
             'requester_user_id' => $this->requester_user_id,
             'requester_name' => $this->requester?->name,
             'requester_department_name' => $this->requesterDepartment?->name,

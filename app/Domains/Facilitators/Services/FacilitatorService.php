@@ -134,7 +134,7 @@ class FacilitatorService
             $user = $this->ensureLinkedUser($data);
             $data['user_id'] = $user->id;
 
-            return $this->repository->create($data);
+            return $this->repository->create($this->normalizePayload($data));
         });
     }
 
@@ -145,7 +145,7 @@ class FacilitatorService
             $user = $this->ensureLinkedUser($data, $facilitator);
             $data['user_id'] = $user->id;
 
-            return $this->repository->update($facilitator, $data);
+            return $this->repository->update($facilitator, $this->normalizePayload($data));
         });
     }
 
@@ -163,5 +163,18 @@ class FacilitatorService
 
             return $this->repository->delete($facilitator);
         });
+    }
+
+    protected function normalizePayload(array $data): array
+    {
+        foreach (['dob', 'id_number', 'address', 'cell', 'specialization', 'province_id'] as $field) {
+            if (! array_key_exists($field, $data) || $data[$field] !== '') {
+                continue;
+            }
+
+            $data[$field] = null;
+        }
+
+        return $data;
     }
 }

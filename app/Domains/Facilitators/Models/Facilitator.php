@@ -30,6 +30,11 @@ class Facilitator extends Model
         'dob' => 'date:Y-m-d',
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'id';
+    }
+
     public function province()
     {
         return $this->belongsTo(Provinces::class, 'province_id');

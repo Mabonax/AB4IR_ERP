@@ -20,7 +20,8 @@ use Illuminate\Validation\ValidationException;
 class SupportTicketService
 {
     public function __construct(
-        protected SupportTicketRepositoryInterface $repository
+        protected SupportTicketRepositoryInterface $repository,
+        protected TaskWorkflowGovernance $governance,
     ) {}
 
     public function paginateForUser(User $actor, array $filters = [], int $perPage = 15): LengthAwarePaginator
@@ -39,12 +40,7 @@ class SupportTicketService
             ])
             ->latest();
 
-        if (! $this->canRespond($actor)) {
-            $query->where(function (Builder $builder) use ($actor) {
-                $builder->where('requester_user_id', $actor->id)
-                    ->orWhere('assigned_to_user_id', $actor->id);
-            });
-        }
+        $this->applyVisibilityScope($query, $actor);
 
         $query = $this->applyFilters($query, $filters);
 
@@ -58,6 +54,7 @@ class SupportTicketService
             'description' => $data['description'],
             'status' => 'open',
             'priority' => $data['priority'],
+            'support_area' => $data['support_area'] ?? ($data['asset_id'] ?? null ? 'hardware' : 'software'),
             'requester_user_id' => $actor->id,
             'requester_department_id' => $actor->staffMember?->department_id,
             'assigned_department_id' => $this->technicalDepartmentId(),
@@ -81,20 +78,23 @@ class SupportTicketService
         ]);
     }
 
-    public function assignTicket(SupportTicket $ticket, int $assigneeUserId): SupportTicket
+    public function assignTicket(SupportTicket $ticket, int $assigneeUserId, ?User $actor = null): SupportTicket
     {
         $assignee = User::query()->with('staffMember')->findOrFail($assigneeUserId);
 
-        if (! $this->canRespond($assignee)) {
+        if (! $this->isEligibleTechnicalAssignee($assignee)) {
             throw ValidationException::withMessages([
-                'assigned_to_user_id' => ['Selected assignee is not allowed to respond to technical tickets.'],
+                'assigned_to_user_id' => ['Selected assignee must be part of the technical support team.'],
             ]);
         }
+
+        $status = $actor && (int) $actor->id === (int) $assignee->id ? 'in_progress' : 'assigned';
 
         $ticket = $this->repository->update($ticket, [
             'assigned_to_user_id' => $assignee->id,
             'assigned_department_id' => $assignee->staffMember?->department_id ?? $this->technicalDepartmentId(),
-            'status' => 'assigned',
+            'status' => $status,
+            'first_responded_at' => $status === 'in_progress' ? ($ticket->first_responded_at ?: now()) : $ticket->first_responded_at,
         ]);
 
         $this->notifyUsers(
@@ -133,6 +133,7 @@ class SupportTicketService
                 $ticket->update([
                     'status' => 'in_progress',
                     'assigned_to_user_id' => $ticket->assigned_to_user_id ?: $actor->id,
+                    'assigned_department_id' => $ticket->assigned_department_id ?: ($actor->staffMember?->department_id ?? $this->technicalDepartmentId()),
                     'first_responded_at' => $ticket->first_responded_at ?: now(),
                 ]);
             }
@@ -171,6 +172,7 @@ class SupportTicketService
 
             $ticket->update([
                 'assigned_to_user_id' => $ticket->assigned_to_user_id ?: $actor->id,
+                'assigned_department_id' => $ticket->assigned_department_id ?: ($actor->staffMember?->department_id ?? $this->technicalDepartmentId()),
                 'status' => 'resolved',
                 'resolution_summary' => $resolutionSummary,
                 'first_responded_at' => $ticket->first_responded_at ?: now(),
@@ -276,14 +278,14 @@ class SupportTicketService
 
     public function technicalResponders(): array
     {
-        return User::query()
+        return $this->technicalQueueRecipients()
             ->with('staffMember.department')
             ->get()
-            ->filter(fn (User $user) => $this->canRespond($user))
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'department_name' => $user->staffMember?->department?->name,
+                'is_manager' => $this->governance->isTechnicalManager($user),
             ])
             ->values()
             ->all();
@@ -293,12 +295,7 @@ class SupportTicketService
     {
         $query = SupportTicket::query();
 
-        if (! $this->canRespond($actor)) {
-            $query->where(function (Builder $builder) use ($actor) {
-                $builder->where('requester_user_id', $actor->id)
-                    ->orWhere('assigned_to_user_id', $actor->id);
-            });
-        }
+        $this->applyVisibilityScope($query, $actor);
 
         $tickets = $this->applyFilters($query, $filters, ignore: ['status', 'overdue'])->get();
 
@@ -308,6 +305,8 @@ class SupportTicketService
             'in_progress' => $tickets->where('status', 'in_progress')->count(),
             'resolved' => $tickets->where('status', 'resolved')->count(),
             'closed' => $tickets->where('status', 'closed')->count(),
+            'hardware' => $tickets->where('support_area', 'hardware')->count(),
+            'software' => $tickets->where('support_area', 'software')->count(),
             'overdue' => $tickets->filter(fn (SupportTicket $ticket) => $this->slaStatus($ticket)['is_overdue'])->count(),
         ];
     }
@@ -325,12 +324,7 @@ class SupportTicketService
             'asset.category:id,name',
         ]);
 
-        if (! $this->canRespond($actor)) {
-            $query->where(function (Builder $builder) use ($actor) {
-                $builder->where('requester_user_id', $actor->id)
-                    ->orWhere('assigned_to_user_id', $actor->id);
-            });
-        }
+        $this->applyVisibilityScope($query, $actor);
 
         $tickets = $query->latest()->get();
 
@@ -388,6 +382,7 @@ class SupportTicketService
                 return [
                     'id' => $ticket->id,
                     'title' => $ticket->title,
+                    'support_area' => $ticket->support_area,
                     'priority' => $ticket->priority,
                     'status' => $ticket->status,
                     'requester_name' => $ticket->requester?->name,
@@ -402,6 +397,7 @@ class SupportTicketService
                 return [
                     'id' => $ticket->id,
                     'title' => $ticket->title,
+                    'support_area' => $ticket->support_area,
                     'priority' => $ticket->priority,
                     'status' => $ticket->status,
                     'requester_name' => $ticket->requester?->name,
@@ -410,6 +406,60 @@ class SupportTicketService
             })->all(),
             'workload_by_responder' => $workloadByResponder,
             'project_pressure' => $projectPressure,
+        ];
+    }
+
+    public function homeDashboard(User $actor): array
+    {
+        $query = SupportTicket::query()->with([
+            'requester:id,name',
+            'assignee:id,name',
+            'requesterDepartment:id,name',
+            'assignedDepartment:id,name',
+            'project:id,name',
+            'program:id,title',
+            'asset:id,name,asset_code,asset_category_id',
+        ]);
+
+        $this->applyVisibilityScope($query, $actor);
+
+        $tickets = $query->latest()->get();
+        $activeStatuses = ['open', 'assigned', 'in_progress'];
+
+        $assigned = $tickets
+            ->filter(fn (SupportTicket $ticket) => (int) ($ticket->assigned_to_user_id ?? 0) === (int) $actor->id && in_array($ticket->status, $activeStatuses, true))
+            ->take(5)
+            ->values();
+
+        $requested = $tickets
+            ->filter(fn (SupportTicket $ticket) => (int) $ticket->requester_user_id === (int) $actor->id && in_array($ticket->status, $activeStatuses, true))
+            ->take(5)
+            ->values();
+
+        $overdue = $tickets
+            ->filter(fn (SupportTicket $ticket) => $this->slaStatus($ticket)['is_overdue'])
+            ->take(5)
+            ->values();
+
+        $unassigned = $tickets
+            ->filter(fn (SupportTicket $ticket) => $ticket->assigned_to_user_id === null && in_array($ticket->status, $activeStatuses, true))
+            ->take(5)
+            ->values();
+
+        return [
+            'summary' => [
+                'total' => $tickets->count(),
+                'assigned_to_me' => $tickets->where('assigned_to_user_id', $actor->id)->whereIn('status', $activeStatuses)->count(),
+                'requested_by_me' => $tickets->where('requester_user_id', $actor->id)->whereIn('status', $activeStatuses)->count(),
+                'overdue' => $tickets->filter(fn (SupportTicket $ticket) => $this->slaStatus($ticket)['is_overdue'])->count(),
+                'unassigned_queue' => $tickets->filter(fn (SupportTicket $ticket) => $ticket->assigned_to_user_id === null && in_array($ticket->status, $activeStatuses, true))->count(),
+                'hardware' => $tickets->where('support_area', 'hardware')->count(),
+                'software' => $tickets->where('support_area', 'software')->count(),
+            ],
+            'assigned' => $assigned->map(fn (SupportTicket $ticket) => $this->mapDashboardTicket($ticket))->all(),
+            'requested' => $requested->map(fn (SupportTicket $ticket) => $this->mapDashboardTicket($ticket))->all(),
+            'overdue' => $overdue->map(fn (SupportTicket $ticket) => $this->mapDashboardTicket($ticket))->all(),
+            'unassigned' => $unassigned->map(fn (SupportTicket $ticket) => $this->mapDashboardTicket($ticket))->all(),
         ];
     }
 
@@ -481,8 +531,19 @@ class SupportTicketService
 
     protected function canRespond(User $user): bool
     {
-        return $user->can('technical-tickets.respond')
-            || $user->hasAnyRole(['super-admin', 'super admin', 'admin']);
+        return $this->governance->canRespondToTechnicalTickets($user);
+    }
+
+    protected function applyVisibilityScope(Builder $query, User $actor): void
+    {
+        if ($this->governance->canViewTechnicalTicketQueue($actor)) {
+            return;
+        }
+
+        $query->where(function (Builder $builder) use ($actor) {
+            $builder->where('requester_user_id', $actor->id)
+                ->orWhere('assigned_to_user_id', $actor->id);
+        });
     }
 
     protected function applyFilters(Builder $query, array $filters, array $ignore = []): Builder
@@ -493,6 +554,10 @@ class SupportTicketService
 
         if (filled($filters['priority'] ?? null)) {
             $query->where('priority', $filters['priority']);
+        }
+
+        if (filled($filters['support_area'] ?? null)) {
+            $query->where('support_area', $filters['support_area']);
         }
 
         if (filled($filters['assigned_to_user_id'] ?? null)) {
@@ -545,12 +610,33 @@ class SupportTicketService
         return $query;
     }
 
+    protected function mapDashboardTicket(SupportTicket $ticket): array
+    {
+        $sla = $this->slaStatus($ticket);
+
+        return [
+            'id' => $ticket->id,
+            'title' => $ticket->title,
+            'support_area' => $ticket->support_area,
+            'priority' => $ticket->priority,
+            'status' => $ticket->status,
+            'requester_name' => $ticket->requester?->name,
+            'responder_name' => $ticket->assignee?->name,
+            'age_hours' => $sla['age_hours'],
+            'sla_target_hours' => $sla['sla_target_hours'],
+        ];
+    }
+
     protected function notifyTechnicalQueue(SupportTicket $ticket, string $context): void
     {
-        $recipients = User::query()
-            ->with('staffMember.department')
-            ->get()
-            ->filter(fn (User $user) => $this->canRespond($user));
+        $recipients = $this->technicalQueueRecipients()->get();
+
+        if ($recipients->isEmpty()) {
+            $recipients = User::query()
+                ->with('staffMember.department')
+                ->get()
+                ->filter(fn (User $user) => $this->canRespond($user));
+        }
 
         $this->notifyUsers($recipients, new SupportTicketAssignedNotification($ticket, $context));
 
@@ -570,9 +656,7 @@ class SupportTicketService
         $recipients = collect([$ticket->requester, $ticket->assignee])->filter();
 
         if ($ticket->assigned_department_id) {
-            $departmentUsers = User::query()
-                ->whereHas('staffMember', fn (Builder $query) => $query->where('department_id', $ticket->assigned_department_id))
-                ->get();
+            $departmentUsers = $this->technicalQueueRecipients((int) $ticket->assigned_department_id)->get();
             $recipients = $recipients->concat($departmentUsers);
         }
 
@@ -580,5 +664,35 @@ class SupportTicketService
             ->filter(fn (User $user) => $exclude === null || (int) $user->id !== (int) $exclude->id)
             ->unique('id')
             ->values();
+    }
+
+    protected function technicalQueueRecipients(?int $departmentId = null): Builder
+    {
+        $resolvedDepartmentId = $departmentId ?: $this->technicalDepartmentId();
+
+        $query = User::query();
+
+        if ($resolvedDepartmentId) {
+            $query->whereHas('staffMember', fn (Builder $staffQuery) => $staffQuery->where('department_id', $resolvedDepartmentId));
+        } else {
+            $query->whereHas('staffMember.department', fn (Builder $departmentQuery) => $departmentQuery->whereRaw('LOWER(name) = ?', ['technical']));
+        }
+
+        return $query->where(function (Builder $builder) {
+            $builder->whereHas('roles', function (Builder $roleQuery) {
+                $roleQuery->whereIn('name', $this->governance->superUserRoles());
+            })->orWhere(function (Builder $permissionUser) {
+                $permissionUser->whereHas('permissions', function (Builder $permissionQuery) {
+                    $permissionQuery->where('name', 'technical-tickets.respond');
+                })->orWhereHas('roles.permissions', function (Builder $rolePermissionQuery) {
+                    $rolePermissionQuery->where('name', 'technical-tickets.respond');
+                });
+            });
+        });
+    }
+
+    protected function isEligibleTechnicalAssignee(User $assignee): bool
+    {
+        return $this->canRespond($assignee) && $this->governance->belongsToTechnicalDepartment($assignee);
     }
 }

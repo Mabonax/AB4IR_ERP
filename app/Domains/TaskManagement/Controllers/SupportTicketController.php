@@ -8,6 +8,7 @@ use App\Domains\Projects\Models\Project;
 use App\Domains\TaskManagement\Models\SupportTicket;
 use App\Domains\TaskManagement\Resources\SupportTicketResource;
 use App\Domains\TaskManagement\Services\SupportTicketService;
+use App\Domains\TaskManagement\Services\TaskWorkflowGovernance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TaskManagement\AssignSupportTicketRequest;
 use App\Http\Requests\TaskManagement\CloseSupportTicketRequest;
@@ -23,17 +24,20 @@ use Inertia\Response;
 class SupportTicketController extends Controller
 {
     public function __construct(
-        protected SupportTicketService $service
+        protected SupportTicketService $service,
+        protected TaskWorkflowGovernance $governance,
     ) {}
 
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', SupportTicket::class);
 
+        $canManageQueue = $request->user() ? $this->governance->canManageTechnicalTickets($request->user()) : false;
         $perPage = (int) $request->integer('per_page', 15);
         $filters = $request->only([
             'status',
             'priority',
+            'support_area',
             'assigned_to_user_id',
             'requester_user_id',
             'project_id',
@@ -65,8 +69,10 @@ class SupportTicketController extends Controller
 
         return Inertia::render('TaskManagement/Tickets/Index', [
             'tickets' => SupportTicketResource::collection($tickets),
-            'technicalResponders' => $this->service->technicalResponders(),
-            'requesters' => \App\Models\User::query()->orderBy('name')->get(['id', 'name']),
+            'technicalResponders' => $canManageQueue ? $this->service->technicalResponders() : [],
+            'requesters' => $canManageQueue
+                ? \App\Models\User::query()->orderBy('name')->get(['id', 'name'])
+                : $request->user()->newQuery()->whereKey($request->user()->id)->get(['id', 'name']),
             'projects' => Project::query()->orderBy('name')->get(['id', 'name']),
             'programs' => Program::query()->orderBy('title')->get(['id', 'title']),
             'reportableAssets' => $reportableAssets,
@@ -74,6 +80,8 @@ class SupportTicketController extends Controller
             'summary' => $this->service->dashboardSummary($request->user(), $filters),
             'can' => [
                 'create' => $request->user()?->can('create', SupportTicket::class) ?? false,
+                'respond' => $request->user() ? $this->governance->canRespondToTechnicalTickets($request->user()) : false,
+                'manageQueue' => $canManageQueue,
             ],
         ]);
     }
@@ -92,7 +100,7 @@ class SupportTicketController extends Controller
     {
         $this->authorize('assign', $ticket);
 
-        $this->service->assignTicket($ticket, (int) $request->validated()['assigned_to_user_id']);
+        $this->service->assignTicket($ticket, (int) $request->validated()['assigned_to_user_id'], $request->user());
 
         return redirect()->route('task-management.tickets.index')
             ->with('success', 'Support ticket assigned.');

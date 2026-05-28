@@ -20,6 +20,7 @@ type TicketRow = {
   description: string;
   status: "open" | "assigned" | "in_progress" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
+  support_area: "hardware" | "software";
   requester_name: string | null;
   requester_department_name: string | null;
   assigned_to_user_id: number | null;
@@ -60,14 +61,14 @@ export default function TaskManagementTicketsIndex({
   can,
 }: {
   tickets: { data: TicketRow[] };
-  technicalResponders: Array<{ id: number; name: string; department_name?: string | null }>;
+  technicalResponders: Array<{ id: number; name: string; department_name?: string | null; is_manager?: boolean }>;
   requesters: Array<{ id: number; name: string }>;
   projects: Array<{ id: number; name: string }>;
   programs: Array<{ id: number; title: string }>;
   reportableAssets: Array<{ id: number; name: string; asset_code: string | null; status: string }>;
   filters: Record<string, string>;
-  summary: { total: number; open: number; in_progress: number; resolved: number; closed: number; overdue: number };
-  can: { create: boolean };
+  summary: { total: number; open: number; in_progress: number; resolved: number; closed: number; overdue: number; hardware: number; software: number };
+  can: { create: boolean; respond: boolean; manageQueue: boolean };
 }) {
   const { props } = usePage<SharedData>();
   const flash = (props.flash ?? {}) as Record<string, unknown>;
@@ -77,6 +78,7 @@ export default function TaskManagementTicketsIndex({
     title: "",
     description: "",
     priority: "medium",
+    support_area: "software",
     project_id: "",
     program_id: "",
     asset_id: "",
@@ -85,6 +87,7 @@ export default function TaskManagementTicketsIndex({
     search: filters.search ?? "",
     status: filters.status ?? "",
     priority: filters.priority ?? "",
+    support_area: filters.support_area ?? "",
     assigned_to_user_id: filters.assigned_to_user_id ?? "",
     requester_user_id: filters.requester_user_id ?? "",
     project_id: filters.project_id ?? "",
@@ -117,9 +120,11 @@ export default function TaskManagementTicketsIndex({
 
         {can.create ? (
           <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Log Technical Ticket</h2>
+            <h2 className="text-base font-semibold">Log Technical Support Request</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Any staff member can log an issue. The technical department can assign, respond, and resolve it.
+              {can.respond
+                ? "Any authenticated user can log a hardware or software issue. Technical managers govern assignment, and technical staff work the queue."
+                : "Any authenticated user can log a hardware or software issue. The technical support team will pick it up from the queue."}
             </p>
             <form
               className="mt-4 grid gap-3 md:grid-cols-2"
@@ -140,7 +145,7 @@ export default function TaskManagementTicketsIndex({
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium">Issue Description</label>
+                <label className="mb-1 block text-sm font-medium">Technical Issue Description</label>
                 <textarea
                   value={createForm.data.description}
                   onChange={(e) => createForm.setData("description", e.currentTarget.value)}
@@ -159,6 +164,17 @@ export default function TaskManagementTicketsIndex({
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
                   <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Support Area</label>
+                <select
+                  value={createForm.data.support_area}
+                  onChange={(e) => createForm.setData("support_area", e.currentTarget.value as typeof createForm.data.support_area)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="software">Software</option>
+                  <option value="hardware">Hardware</option>
                 </select>
               </div>
               <div>
@@ -212,19 +228,21 @@ export default function TaskManagementTicketsIndex({
                   disabled={createForm.processing}
                   className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
                 >
-                  {createForm.processing ? "Logging..." : "Log Ticket"}
+                  {createForm.processing ? "Logging..." : "Log Support Request"}
                 </button>
               </div>
             </form>
           </section>
         ) : null}
 
-        <section className="grid gap-3 md:grid-cols-6">
+        <section className="grid gap-3 md:grid-cols-8">
           <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">Visible Tickets</div><div className="mt-2 text-2xl font-semibold">{summary.total}</div></div>
           <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">Open</div><div className="mt-2 text-2xl font-semibold">{summary.open}</div></div>
           <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">In Progress</div><div className="mt-2 text-2xl font-semibold">{summary.in_progress}</div></div>
           <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">Resolved</div><div className="mt-2 text-2xl font-semibold">{summary.resolved}</div></div>
           <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">Closed</div><div className="mt-2 text-2xl font-semibold">{summary.closed}</div></div>
+          <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">Hardware</div><div className="mt-2 text-2xl font-semibold">{summary.hardware}</div></div>
+          <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">Software</div><div className="mt-2 text-2xl font-semibold">{summary.software}</div></div>
           <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="text-xs text-muted-foreground">SLA Overdue</div><div className="mt-2 text-2xl font-semibold">{summary.overdue}</div></div>
         </section>
 
@@ -253,14 +271,23 @@ export default function TaskManagementTicketsIndex({
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
             </select>
-            <select value={filterForm.data.assigned_to_user_id} onChange={(e) => filterForm.setData("assigned_to_user_id", e.currentTarget.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
-              <option value="">All responders</option>
-              {technicalResponders.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+            <select value={filterForm.data.support_area} onChange={(e) => filterForm.setData("support_area", e.currentTarget.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="">All support areas</option>
+              <option value="hardware">Hardware</option>
+              <option value="software">Software</option>
             </select>
-            <select value={filterForm.data.requester_user_id} onChange={(e) => filterForm.setData("requester_user_id", e.currentTarget.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
-              <option value="">All requesters</option>
-              {requesters.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-            </select>
+            {can.manageQueue ? (
+              <select value={filterForm.data.assigned_to_user_id} onChange={(e) => filterForm.setData("assigned_to_user_id", e.currentTarget.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
+                <option value="">All responders</option>
+                {technicalResponders.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+              </select>
+            ) : null}
+            {can.manageQueue ? (
+              <select value={filterForm.data.requester_user_id} onChange={(e) => filterForm.setData("requester_user_id", e.currentTarget.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
+                <option value="">All requesters</option>
+                {requesters.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+              </select>
+            ) : null}
             <select value={filterForm.data.project_id} onChange={(e) => filterForm.setData("project_id", e.currentTarget.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
               <option value="">All projects</option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
@@ -302,7 +329,7 @@ export default function TaskManagementTicketsIndex({
                       <h2 className="text-base font-semibold">{ticket.title}</h2>
                       <p className="mt-1 text-sm text-muted-foreground">{ticket.description}</p>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        {ticket.priority.toUpperCase()} | {ticket.status.replaceAll("_", " ")} | Requested by {ticket.requester_name ?? "-"}
+                        {ticket.support_area.toUpperCase()} | {ticket.priority.toUpperCase()} | {ticket.status.replaceAll("_", " ")} | Requested by {ticket.requester_name ?? "-"}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {ticket.requester_department_name ?? "No department"} | Assigned to {ticket.assignee_name ?? ticket.assigned_department_name ?? "Technical queue"}
@@ -349,7 +376,7 @@ export default function TaskManagementTicketsIndex({
                           }}
                         >
                           <div className="min-w-[260px] flex-1">
-                            <label className="mb-1 block text-sm font-medium">Assign Responder</label>
+                            <label className="mb-1 block text-sm font-medium">Assign Or Reassign Technical Staff</label>
                             <select
                               name="assigned_to_user_id"
                               defaultValue={String(ticket.assigned_to_user_id ?? technicalResponders[0]?.id ?? "")}
@@ -357,7 +384,7 @@ export default function TaskManagementTicketsIndex({
                             >
                               {technicalResponders.map((user) => (
                                 <option key={user.id} value={user.id}>
-                                  {user.name} {user.department_name ? `| ${user.department_name}` : ""}
+                                  {user.name} {user.is_manager ? "| Technical Manager" : ""} {user.department_name ? `| ${user.department_name}` : ""}
                                 </option>
                               ))}
                             </select>
@@ -366,7 +393,7 @@ export default function TaskManagementTicketsIndex({
                             type="submit"
                             className="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900"
                           >
-                            Assign
+                            Save Assignment
                           </button>
                         </form>
                       ) : null}
@@ -427,7 +454,7 @@ export default function TaskManagementTicketsIndex({
                             }, { preserveScroll: true });
                           }}
                         >
-                          <label className="mb-1 block text-sm font-medium">Resolution Summary</label>
+                          <label className="mb-1 block text-sm font-medium">Technical Resolution Summary</label>
                           <textarea
                             name="resolution_summary"
                             defaultValue={ticket.resolution_summary ?? ""}
@@ -438,7 +465,7 @@ export default function TaskManagementTicketsIndex({
                             type="submit"
                             className="mt-3 rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
                           >
-                            Resolve Ticket
+                            Complete Technical Ticket
                           </button>
                         </form>
                       ) : null}

@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, LayoutGrid, LifeBuoy, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
+import { Bell, BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, LayoutGrid, LifeBuoy, Megaphone, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -91,6 +91,12 @@ const mainNavItems: NavItem[] = [
         requiredPermissions: ['domain.task-management.view', 'domain.task-management.manage'],
     },
     {
+        title: 'Marketing',
+        href: '/marketing',
+        icon: Megaphone,
+        requiredPermissions: ['domain.marketing.view', 'domain.marketing.manage'],
+    },
+    {
         title: 'Finance',
         href: '/finance/travel-claims',
         icon: ReceiptText,
@@ -111,8 +117,7 @@ const mainNavItems: NavItem[] = [
         title: 'Access Control',
         href: '/access-control/roles',
         icon: ShieldCheck,
-        requiredRoles: ['super-admin', 'super admin', 'admin'],
-        requiredPermissions: ['access-control.view'],
+        requiredRoles: ['super-admin', 'super admin'],
     },
 ];
 

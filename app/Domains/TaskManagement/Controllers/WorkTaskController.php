@@ -10,14 +10,19 @@ use App\Domains\TaskManagement\Resources\WorkTaskResource;
 use App\Domains\TaskManagement\Services\WorkTaskService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TaskManagement\ReassignWorkTaskRequest;
+use App\Http\Requests\TaskManagement\ReviewWorkTaskCompletionRequest;
 use App\Http\Requests\TaskManagement\StoreWorkTaskCommentRequest;
 use App\Http\Requests\TaskManagement\StoreWorkTaskRequest;
+use App\Http\Requests\TaskManagement\SubmitWorkTaskReviewRequest;
+use App\Http\Requests\TaskManagement\UploadWorkTaskDocumentRequest;
 use App\Http\Requests\TaskManagement\UpdateWorkTaskStatusRequest;
+use App\Domains\TaskManagement\Models\WorkTaskDocument;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class WorkTaskController extends Controller
 {
@@ -64,6 +69,40 @@ class WorkTaskController extends Controller
         ]);
     }
 
+    public function show(Request $request, WorkTask $task): Response
+    {
+        $this->authorize('view', $task);
+
+        $task->load([
+            'creator:id,name,email',
+            'assignee:id,name,email',
+            'submittedBy:id,name,email',
+            'reviewedBy:id,name,email',
+            'closedBy:id,name,email',
+            'creatorDepartment:id,name',
+            'assignedDepartment:id,name',
+            'project:id,name,project_manager_id',
+            'program:id,title',
+            'documents.uploader:id,name',
+            'comments.user:id,name',
+            'history.actor:id,name',
+        ]);
+
+        return Inertia::render('TaskManagement/Tasks/Show', [
+            'task' => WorkTaskResource::make($task)->resolve(),
+            'assignees' => User::query()
+                ->whereHas('staffMember')
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+                ->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ]),
+            'departments' => StaffDepartment::query()->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
     public function store(StoreWorkTaskRequest $request): RedirectResponse
     {
         $this->authorize('create', WorkTask::class);
@@ -80,8 +119,38 @@ class WorkTaskController extends Controller
 
         $this->service->updateStatus($task, $request->validated(), $request->user());
 
-        return redirect()->route('task-management.tasks.index')
+        return redirect()->route('task-management.tasks.show', $task)
             ->with('success', 'Task status updated.');
+    }
+
+    public function submitForReview(SubmitWorkTaskReviewRequest $request, WorkTask $task): RedirectResponse
+    {
+        $this->authorize('submitForReview', $task);
+
+        $this->service->submitForReview($task, $request->validated(), $request->user());
+
+        return redirect()->route('task-management.tasks.show', $task)
+            ->with('success', 'Task submitted for manager review.');
+    }
+
+    public function approveCompletion(ReviewWorkTaskCompletionRequest $request, WorkTask $task): RedirectResponse
+    {
+        $this->authorize('approveCompletion', $task);
+
+        $this->service->approveCompletion($task, $request->validated(), $request->user());
+
+        return redirect()->route('task-management.tasks.show', $task)
+            ->with('success', 'Task approved and completed.');
+    }
+
+    public function returnForAmendments(ReviewWorkTaskCompletionRequest $request, WorkTask $task): RedirectResponse
+    {
+        $this->authorize('returnForAmendments', $task);
+
+        $this->service->returnForAmendments($task, $request->validated(), $request->user());
+
+        return redirect()->route('task-management.tasks.show', $task)
+            ->with('success', 'Task returned for amendments.');
     }
 
     public function comment(StoreWorkTaskCommentRequest $request, WorkTask $task): RedirectResponse
@@ -90,7 +159,7 @@ class WorkTaskController extends Controller
 
         $this->service->addComment($task, $request->user(), $request->validated()['message']);
 
-        return redirect()->route('task-management.tasks.index')
+        return redirect()->route('task-management.tasks.show', $task)
             ->with('success', 'Task comment added.');
     }
 
@@ -100,7 +169,32 @@ class WorkTaskController extends Controller
 
         $this->service->reassignTask($task, $request->validated(), $request->user());
 
-        return redirect()->route('task-management.tasks.index')
+        return redirect()->route('task-management.tasks.show', $task)
             ->with('success', 'Task reassigned.');
+    }
+
+    public function uploadDocument(UploadWorkTaskDocumentRequest $request, WorkTask $task): RedirectResponse
+    {
+        $this->authorize('comment', $task);
+
+        $this->service->uploadDocument($task, $request->validated(), $request->user());
+
+        return redirect()->route('task-management.tasks.show', $task)
+            ->with('success', 'Task document uploaded.');
+    }
+
+    public function downloadProof(Request $request, WorkTask $task): HttpResponse
+    {
+        $this->authorize('view', $task);
+
+        return $this->service->downloadProof($task);
+    }
+
+    public function downloadDocument(Request $request, WorkTask $task, WorkTaskDocument $document): HttpResponse
+    {
+        $this->authorize('view', $task);
+        abort_unless((int) $document->work_task_id === (int) $task->id, 404);
+
+        return $this->service->downloadDocument($document);
     }
 }

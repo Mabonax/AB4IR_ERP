@@ -12,6 +12,7 @@ export type DomainNavItem = {
   requiredPermissions?: string[];
   requiredRoles?: string[];
   native?: boolean;
+  isActive?: (url: string) => boolean;
 };
 
 export function DomainNav({
@@ -31,7 +32,7 @@ export function DomainNav({
     <div className="flex flex-wrap items-center gap-2">
       {visibleItems.map((item) => {
         const isAnchor = item.href.startsWith("#") || item.native;
-        const isActive = !isAnchor && (url === item.href || url.startsWith(`${item.href}/`));
+        const isActive = !isAnchor && (item.isActive ? item.isActive(url) : url === item.href || url.startsWith(`${item.href}/`));
         const className = cn(
           "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm transition",
           isActive

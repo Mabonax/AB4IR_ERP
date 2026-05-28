@@ -3,14 +3,19 @@
 namespace App\Domains\TaskManagement\Policies;
 
 use App\Domains\TaskManagement\Models\SupportTicket;
+use App\Domains\TaskManagement\Services\TaskWorkflowGovernance;
 use App\Models\User;
 
 class SupportTicketPolicy
 {
+    protected function governance(): TaskWorkflowGovernance
+    {
+        return app(TaskWorkflowGovernance::class);
+    }
+
     protected function canRespond(User $user): bool
     {
-        return $user->can('technical-tickets.respond')
-            || $user->hasAnyRole(['super-admin', 'super admin', 'admin']);
+        return $this->governance()->canRespondToTechnicalTickets($user);
     }
 
     public function viewAny(User $user): bool
@@ -32,17 +37,21 @@ class SupportTicketPolicy
 
     public function assign(User $user, SupportTicket $ticket): bool
     {
-        return $this->canRespond($user) && in_array($ticket->status, ['open', 'assigned', 'in_progress'], true);
+        return $this->governance()->canManageTechnicalTickets($user)
+            && in_array($ticket->status, ['open', 'assigned', 'in_progress'], true);
     }
 
     public function reply(User $user, SupportTicket $ticket): bool
     {
-        return $this->view($user, $ticket);
+        return (int) $ticket->requester_user_id === (int) $user->id
+            || $this->governance()->canWorkTechnicalTicket($user, $ticket);
     }
 
     public function resolve(User $user, SupportTicket $ticket): bool
     {
-        return $this->canRespond($user) && in_array($ticket->status, ['assigned', 'in_progress'], true);
+        return $this->canRespond($user)
+            && in_array($ticket->status, ['open', 'assigned', 'in_progress'], true)
+            && $this->governance()->canWorkTechnicalTicket($user, $ticket);
     }
 
     public function close(User $user, SupportTicket $ticket): bool

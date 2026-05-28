@@ -28,10 +28,16 @@ use App\Domains\Events\Models\Event;
 use App\Domains\Events\Policies\EventPolicy;
 use App\Domains\Events\Repositories\EventRepository;
 use App\Domains\Events\Repositories\EventRepositoryInterface;
+use App\Domains\Facilitators\Models\Facilitator;
+use App\Domains\Facilitators\Policies\FacilitatorPolicy;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Finance\Models\TravelClaim;
 use App\Domains\Finance\Policies\TravelClaimPolicy;
+use App\Domains\Marketing\Models\MarketingJob;
+use App\Domains\Marketing\Policies\MarketingJobPolicy;
+use App\Domains\Marketing\Repositories\MarketingJobRepository;
+use App\Domains\Marketing\Repositories\MarketingJobRepositoryInterface;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Organization\Policies\OrganizationProfilePolicy;
 use App\Domains\Organization\Repositories\OrganizationProfileRepository;
@@ -156,6 +162,11 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            MarketingJobRepositoryInterface::class,
+            MarketingJobRepository::class
+        );
+
+        $this->app->bind(
             OrganizationProfileRepositoryInterface::class,
             OrganizationProfileRepository::class
         );
@@ -171,6 +182,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Gate::policy(Beneficiary::class, BeneficiaryPolicy::class);
+        Gate::policy(Facilitator::class, FacilitatorPolicy::class);
         Gate::policy(OrganizationProfile::class, OrganizationProfilePolicy::class);
         Gate::policy(Event::class, EventPolicy::class);
         Gate::policy(Project::class, ProjectPolicy::class);
@@ -182,6 +194,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(AdjudicationAssessment::class, AdjudicationAssessmentPolicy::class);
         Gate::policy(WorkTask::class, WorkTaskPolicy::class);
         Gate::policy(SupportTicket::class, SupportTicketPolicy::class);
+        Gate::policy(MarketingJob::class, MarketingJobPolicy::class);
         Gate::policy(TravelClaim::class, TravelClaimPolicy::class);
 
         Gate::before(function ($user, string $ability) {

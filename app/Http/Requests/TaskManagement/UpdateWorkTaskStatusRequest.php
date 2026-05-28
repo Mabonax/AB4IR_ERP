@@ -15,7 +15,7 @@ class UpdateWorkTaskStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['required', Rule::in(['open', 'in_progress', 'blocked', 'completed', 'cancelled'])],
+            'status' => ['required', Rule::in(['open', 'in_progress', 'blocked', 'cancelled'])],
             'completion_notes' => ['nullable', 'string'],
         ];
     }

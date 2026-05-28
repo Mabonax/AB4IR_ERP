@@ -1,7 +1,6 @@
-﻿export const FacilitatorTableConfig = {
+export const FacilitatorTableConfig = {
   columns: [
-    { label: "Name", key: "name", className: "px-4 py-2 text-left" },
-    { label: "Surname", key: "surname", className: "px-4 py-2 text-left" },
+    { label: "Facilitator", key: "full_name", className: "px-4 py-2 text-left" },
     { label: "Email", key: "email", className: "px-4 py-2 text-left" },
     { label: "Cell", key: "cell", className: "px-4 py-2 text-left" },
     { label: "Province", key: "province_name", className: "px-4 py-2 text-left" },

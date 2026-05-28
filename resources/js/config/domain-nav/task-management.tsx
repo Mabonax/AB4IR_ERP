@@ -19,6 +19,5 @@ export const taskManagementNavItems: DomainNavItem[] = [
     label: "Support Tickets",
     href: "/task-management/tickets",
     icon: <LifeBuoy className="h-4 w-4" />,
-    requiredPermissions: ["domain.task-management.view", "domain.task-management.manage"],
   },
 ];

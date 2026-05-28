@@ -18,6 +18,7 @@ class StoreSupportTicketRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
+            'support_area' => ['nullable', Rule::in(['hardware', 'software'])],
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'program_id' => ['nullable', 'integer', 'exists:programs,id'],
             'asset_id' => ['nullable', 'integer', 'exists:assets,id'],
