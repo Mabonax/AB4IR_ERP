@@ -7,6 +7,7 @@ use App\Domains\Programs\Requests\UpdateProgramRequest;
 use App\Domains\Programs\Resources\ProgramResource;
 use App\Domains\Programs\Services\ProgramService;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
@@ -17,11 +18,17 @@ class ProgramController extends Controller
 
     public function index()
     {
-        return Inertia::render('Programs/Index', [
-            'programs' => ProgramResource::collection(
-                $this->service->paginatePrograms()
-            ),
+        $portfolio = $this->service->summarizePortfolio();
+
+        return Inertia::render('Programs/Dashboard', [
+            'stats' => $portfolio['stats'],
+            'programs' => $portfolio['programs'],
         ]);
+    }
+
+    public function list(): RedirectResponse
+    {
+        return redirect()->route('programs.index');
     }
 
     public function store(StoreProgramRequest $request)
@@ -33,9 +40,14 @@ class ProgramController extends Controller
 
     public function show(int $program)
     {
-        $model = $this->service->getById($program);
+        $overview = $this->service->getOverview($program);
 
-        return response()->json(new ProgramResource($model));
+        return Inertia::render('Programs/Show', [
+            'program' => new ProgramResource($overview['program']),
+            'stats' => $overview['stats'],
+            'yearlyImpact' => $overview['yearly_impact'],
+            'projects' => $overview['projects'],
+        ]);
     }
 
     public function update(UpdateProgramRequest $request, int $program)

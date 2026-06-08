@@ -236,6 +236,7 @@ export default function BeneficiaryShow({
             </table>
           </div>
         </section>
+
         <ConfirmDeleteModal
           open={deleteOpen}
           onOpenChange={setDeleteOpen}

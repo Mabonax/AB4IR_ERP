@@ -2,10 +2,13 @@
 
 namespace App\Domains\Organization\Services;
 
+use App\Domains\Organization\Models\OrganizationMetricSnapshot;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Organization\Repositories\OrganizationProfileRepositoryInterface;
+use Carbon\CarbonInterface;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 class OrganizationProfileService
@@ -32,7 +35,11 @@ class OrganizationProfileService
             $data['updated_by_user_id'] = $actor->id;
         }
 
-        return $this->repository->upsert($data);
+        $updated = $this->repository->upsert($data);
+
+        $this->recordMetricSnapshotIfNeeded($updated, $profile, $data);
+
+        return $updated;
     }
 
     public function updateLogos(array $files, User $actor): OrganizationProfile
@@ -70,6 +77,8 @@ class OrganizationProfileService
 
     public function mapProfile(OrganizationProfile $profile): array
     {
+        $this->backfillMetricSnapshotIfMissing($profile);
+
         return [
             'id' => $profile->id,
             'name' => $profile->name,
@@ -111,7 +120,155 @@ class OrganizationProfileService
                 ['label' => 'Instagram', 'value' => $profile->impact_instagram],
                 ['label' => 'YouTube', 'value' => $profile->impact_youtube],
             ],
+            'impact_history' => $profile->metricSnapshots()
+                ->orderBy('captured_at')
+                ->get()
+                ->map(fn (OrganizationMetricSnapshot $snapshot) => $this->mapMetricSnapshot($snapshot))
+                ->values()
+                ->all(),
+            'impact_mix' => array_values(array_filter([
+                $this->mapBreakdownItem('digital', 'Digital Impact', $profile->impact_digital, '#dc2626'),
+                $this->mapBreakdownItem('physical', 'Physical Impact', $profile->impact_physical, '#ea580c'),
+            ])),
+            'impact_channel_breakdown' => array_values(array_filter([
+                $this->mapBreakdownItem('website', 'Website', $profile->impact_website, '#0f766e'),
+                $this->mapBreakdownItem('walkins', 'Walk-ins', $profile->impact_walkins, '#0284c7'),
+                $this->mapBreakdownItem('facebook', 'Facebook', $profile->impact_facebook, '#2563eb'),
+                $this->mapBreakdownItem('x', 'X / Twitter', $profile->impact_x, '#475569'),
+                $this->mapBreakdownItem('linkedin', 'LinkedIn', $profile->impact_linkedin, '#1d4ed8'),
+                $this->mapBreakdownItem('livestreaming', 'Livestreaming', $profile->impact_livestreaming, '#7c3aed'),
+                $this->mapBreakdownItem('instagram', 'Instagram', $profile->impact_instagram, '#db2777'),
+                $this->mapBreakdownItem('youtube', 'YouTube', $profile->impact_youtube, '#b91c1c'),
+            ])),
             'updated_at' => $profile->updated_at?->toDateTimeString(),
+        ];
+    }
+
+    protected function backfillMetricSnapshotIfMissing(OrganizationProfile $profile): void
+    {
+        if (! $profile->exists || ! $this->profileHasMetrics($profile) || $profile->metricSnapshots()->exists()) {
+            return;
+        }
+
+        OrganizationMetricSnapshot::query()->create($this->snapshotPayload(
+            $profile,
+            $profile->updated_at ?? $profile->created_at ?? now()
+        ));
+    }
+
+    protected function recordMetricSnapshotIfNeeded(OrganizationProfile $profile, ?OrganizationProfile $original, array $data): void
+    {
+        $statColumns = $this->statColumns();
+        $includesStatInput = collect($statColumns)->contains(fn (string $column) => array_key_exists($column, $data));
+
+        if (! $includesStatInput || ! $this->profileHasMetrics($profile)) {
+            return;
+        }
+
+        $shouldSnapshot = ! $original;
+
+        if ($original) {
+            foreach ($statColumns as $column) {
+                if (! array_key_exists($column, $data)) {
+                    continue;
+                }
+
+                if ($this->normalizeMetricValue($original->{$column}) !== $this->normalizeMetricValue($profile->{$column})) {
+                    $shouldSnapshot = true;
+                    break;
+                }
+            }
+        }
+
+        if (! $shouldSnapshot) {
+            return;
+        }
+
+        OrganizationMetricSnapshot::query()->create($this->snapshotPayload($profile, now()));
+    }
+
+    protected function snapshotPayload(OrganizationProfile $profile, CarbonInterface $capturedAt): array
+    {
+        return [
+            'organization_profile_id' => $profile->id,
+            'captured_at' => $capturedAt,
+            'impact_total' => $profile->impact_total,
+            'impact_digital' => $profile->impact_digital,
+            'impact_physical' => $profile->impact_physical,
+            'trainings_conducted' => $profile->trainings_conducted,
+            'impact_website' => $profile->impact_website,
+            'impact_walkins' => $profile->impact_walkins,
+            'impact_facebook' => $profile->impact_facebook,
+            'impact_x' => $profile->impact_x,
+            'impact_linkedin' => $profile->impact_linkedin,
+            'impact_livestreaming' => $profile->impact_livestreaming,
+            'impact_instagram' => $profile->impact_instagram,
+            'impact_youtube' => $profile->impact_youtube,
+        ];
+    }
+
+    protected function mapMetricSnapshot(OrganizationMetricSnapshot $snapshot): array
+    {
+        $capturedAt = $snapshot->captured_at ?? Carbon::now();
+
+        return [
+            'captured_at' => $capturedAt->toDateTimeString(),
+            'label' => $capturedAt->format('d M H:i'),
+            'total' => $snapshot->impact_total ?? 0,
+            'digital' => $snapshot->impact_digital ?? 0,
+            'physical' => $snapshot->impact_physical ?? 0,
+            'trainings' => $snapshot->trainings_conducted ?? 0,
+        ];
+    }
+
+    protected function mapBreakdownItem(string $key, string $label, ?int $value, string $fill): ?array
+    {
+        if ($value === null || $value < 1) {
+            return null;
+        }
+
+        return [
+            'key' => $key,
+            'label' => $label,
+            'value' => $value,
+            'fill' => $fill,
+        ];
+    }
+
+    protected function profileHasMetrics(OrganizationProfile $profile): bool
+    {
+        foreach ($this->statColumns() as $column) {
+            if (($profile->{$column} ?? null) !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function normalizeMetricValue(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function statColumns(): array
+    {
+        return [
+            'impact_total',
+            'impact_digital',
+            'impact_physical',
+            'trainings_conducted',
+            'impact_website',
+            'impact_walkins',
+            'impact_facebook',
+            'impact_x',
+            'impact_linkedin',
+            'impact_livestreaming',
+            'impact_instagram',
+            'impact_youtube',
         ];
     }
 

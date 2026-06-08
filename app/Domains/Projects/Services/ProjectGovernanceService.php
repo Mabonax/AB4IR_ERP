@@ -133,6 +133,7 @@ class ProjectGovernanceService
             $evidence = ProjectClosureEvidence::query()->create([
                 'project_id' => $project->id,
                 'project_closure_id' => $project->closure?->id,
+                'category' => $data['category'] ?? 'evidence',
                 'title' => $data['title'],
                 'file_name' => $file->getClientOriginalName(),
                 'disk' => 'local',
@@ -217,6 +218,7 @@ class ProjectGovernanceService
     {
         return [
             'id' => $evidence->id,
+            'category' => $evidence->category,
             'title' => $evidence->title,
             'file_name' => $evidence->file_name,
             'mime_type' => $evidence->mime_type,

@@ -20,6 +20,7 @@ return [
         'leave',
         'events',
         'settings',
+        'attendance',
     ],
 
     'department_domain_map' => [

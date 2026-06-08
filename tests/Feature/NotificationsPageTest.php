@@ -85,3 +85,23 @@ test('opening a notification without a target page redirects to the notification
 
     expect($notification->read_at)->not->toBeNull();
 });
+
+test('organization document notifications open the vault page', function () {
+    $user = User::factory()->create();
+
+    $user->notifications()->create([
+        'id' => (string) str()->uuid(),
+        'type' => 'App\\Domains\\Organization\\Notifications\\OrganizationDocumentPublishedNotification',
+        'data' => [
+            'title' => 'New organization document available',
+            'message' => 'A new email signature is ready for download.',
+            'url' => '/organization/documents',
+        ],
+    ]);
+
+    $notificationId = $user->notifications()->firstOrFail()->id;
+
+    $this->actingAs($user)
+        ->get(route('notifications.open', $notificationId))
+        ->assertRedirect('/organization/documents');
+});

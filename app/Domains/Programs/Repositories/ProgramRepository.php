@@ -10,12 +10,18 @@ class ProgramRepository implements ProgramRepositoryInterface
 {
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return Program::latest()->paginate($perPage);
+        return Program::query()
+            ->withCount('projects')
+            ->latest()
+            ->paginate($perPage);
     }
 
     public function all(): Collection
     {
-        return Program::latest()->get();
+        return Program::query()
+            ->withCount('projects')
+            ->latest()
+            ->get();
     }
 
     public function find(int $id): ?Program

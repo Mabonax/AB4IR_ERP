@@ -2,6 +2,7 @@
 
 namespace App\Domains\Programs\Models;
 
+use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,5 +23,10 @@ class Program extends Model
     public function milestoneTemplates(): HasMany
     {
         return $this->hasMany(ProgramMilestoneTemplate::class, 'program_id');
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class, 'program_id');
     }
 }

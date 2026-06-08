@@ -15,6 +15,7 @@ class ProjectClosureEvidence extends Model
     protected $fillable = [
         'project_id',
         'project_closure_id',
+        'category',
         'title',
         'file_name',
         'disk',

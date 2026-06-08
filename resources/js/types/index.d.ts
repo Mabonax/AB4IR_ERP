@@ -67,6 +67,50 @@ export interface SharedData {
     notifications?: {
         unread_count: number;
     };
+    attendancePrompt?: {
+        timezone: string;
+        date: string;
+        clock_in_cutoff: string;
+        clock_out_prompt_at: string;
+        auto_clock_out_time: string;
+        record: {
+            id: number;
+            attendance_date: string;
+            clock_in_at: string | null;
+            clock_out_at: string | null;
+            clock_in_status: string;
+            clock_in_status_label: string;
+            clock_in_source: string;
+            clock_out_source: string | null;
+            hours_worked: string | null;
+            late_override_reason: string | null;
+            late_override_opened_by: string | null;
+        } | null;
+        active_override?: {
+            id: number;
+            reason: string;
+            request_reason?: string | null;
+            status?: string;
+            requested_by_name?: string | null;
+            opened_by_name: string | null;
+            approved_at?: string | null;
+            used_at: string | null;
+        } | null;
+        pending_request?: {
+            id: number;
+            reason: string | null;
+            request_reason: string | null;
+            status: string;
+            requested_by_name: string | null;
+            opened_by_name: string | null;
+            approved_at: string | null;
+            used_at: string | null;
+        } | null;
+        can_clock_in: boolean;
+        clock_in_message: string;
+        can_clock_out: boolean;
+        staff_name: string;
+    } | null;
     flash?: {
         success?: string | null;
         error?: string | null;

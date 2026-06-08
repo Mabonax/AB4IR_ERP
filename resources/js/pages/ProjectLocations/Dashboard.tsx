@@ -1,6 +1,10 @@
 import { Head } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
+import {
+  HorizontalBarChart,
+  StackedCompositionChart,
+} from "@/components/charts/dashboard-charts";
 import { DomainNav } from "@/components/domain-nav";
 import { projectNavItems } from "@/config/domain-nav/projects";
 import {
@@ -104,6 +108,42 @@ export default function ProjectLocationsDashboard({
               {stats.total_assessments}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.35fr,1fr]">
+          <HorizontalBarChart
+            title="Assessment Completion by Location"
+            description="Shows which locations are furthest along in completing the expected assessment workload."
+            items={locations
+              .map((location) => ({
+                label: `${location.project_name ?? "Project"} • ${location.province ?? "Location"}`,
+                value: location.total_assessments > 0
+                  ? Math.round((location.completed_assessments / location.total_assessments) * 100)
+                  : 0,
+                hint: `${location.completed_assessments}/${location.total_assessments} assessments`,
+                colorClass: "bg-red-500",
+              }))
+              .sort((a, b) => b.value - a.value)}
+            emptyMessage="No assessment workload is available for charting yet."
+          />
+
+          <StackedCompositionChart
+            title="Assessment Coverage"
+            description="Overall view of completed versus remaining expected assessments across the visible facilitator scope."
+            segments={[
+              {
+                label: "Completed",
+                value: stats.completed_assessments,
+                colorClass: "bg-emerald-500",
+              },
+              {
+                label: "Remaining",
+                value: Math.max(stats.total_assessments - stats.completed_assessments, 0),
+                colorClass: "bg-slate-300",
+              },
+            ]}
+            emptyMessage="No assessment totals are available yet."
+          />
         </div>
 
         <CustomTable

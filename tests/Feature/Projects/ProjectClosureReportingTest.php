@@ -239,6 +239,7 @@ test('project manager can upload closure evidence and it is recorded in project 
     grantPermissions($graph['managerUser'], ['domain.projects.view']);
 
     $response = $this->actingAs($graph['managerUser'])->post(route('projects.closure-evidence.store', $graph['project']->id), [
+        'category' => 'registers',
         'title' => 'Attendance Export',
         'notes' => 'Final attendance evidence.',
         'file' => UploadedFile::fake()->create('attendance-export.pdf', 120, 'application/pdf'),
@@ -249,6 +250,7 @@ test('project manager can upload closure evidence and it is recorded in project 
 
     $this->assertDatabaseHas('project_closure_evidence', [
         'project_id' => $graph['project']->id,
+        'category' => 'registers',
         'title' => 'Attendance Export',
     ]);
     $this->assertDatabaseHas('project_history', [

@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\StaffAttendance\Controllers\StaffAttendanceController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
@@ -22,6 +23,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('settings/leave', [ProfileController::class, 'leave'])
         ->middleware('permission:domain.leave.view|domain.leave.manage')
         ->name('profile.leave');
+
+    Route::get('settings/attendance', [StaffAttendanceController::class, 'self'])
+        ->name('profile.attendance');
+    Route::post('settings/attendance/clock-in', [StaffAttendanceController::class, 'clockIn'])
+        ->name('profile.attendance.clock-in');
+    Route::post('settings/attendance/late-request', [StaffAttendanceController::class, 'requestLateClockIn'])
+        ->name('profile.attendance.late-request');
+    Route::post('settings/attendance/clock-out', [StaffAttendanceController::class, 'clockOut'])
+        ->name('profile.attendance.clock-out');
 
     Route::get('settings/password', [PasswordController::class, 'edit'])
         ->middleware('permission:domain.settings.view|domain.settings.manage|project-activities.view|project-activities.manage')

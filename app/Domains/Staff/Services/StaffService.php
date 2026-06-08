@@ -2,6 +2,7 @@
 
 namespace App\Domains\Staff\Services;
 
+use App\Domains\Staff\Events\StaffMemberCreated;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Staff\Repositories\StaffRepositoryInterface;
 use App\Models\User;
@@ -44,6 +45,10 @@ class StaffService
             $this->repository->createNextOfKin($staff, $data['next_of_kin']);
 
             $user->forceFill(['staff_id' => $staff->id])->save();
+
+            DB::afterCommit(function () use ($staff, $user) {
+                event(new StaffMemberCreated($staff, $user));
+            });
 
             return $this->repository->find($staff->id) ?? $staff;
         });

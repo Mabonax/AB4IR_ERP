@@ -7,6 +7,10 @@ use App\Domains\Marketing\Models\MarketingJob;
 use App\Domains\Marketing\Models\MarketingJobDocument;
 use App\Domains\Marketing\Resources\MarketingJobResource;
 use App\Domains\Marketing\Services\MarketingService;
+use App\Domains\Organization\Enums\OrganizationDocumentType;
+use App\Domains\Organization\Enums\OrganizationDocumentSlot;
+use App\Domains\Organization\Models\OrganizationDocument;
+use App\Domains\Organization\Services\OrganizationDocumentVaultService;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Marketing\ReassignMarketingJobRequest;
@@ -19,6 +23,7 @@ use App\Http\Requests\Marketing\UploadMarketingJobDocumentRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -27,6 +32,7 @@ class MarketingController extends Controller
 {
     public function __construct(
         protected MarketingService $service,
+        protected OrganizationDocumentVaultService $vaultService,
     ) {}
 
     public function dashboard(Request $request): Response
@@ -115,6 +121,11 @@ class MarketingController extends Controller
                     'email' => $user->email,
                 ]),
             'departments' => StaffDepartment::query()->orderBy('name')->get(['id', 'name']),
+            'users' => User::query()->orderBy('name')->get(['id', 'name', 'email']),
+            'documentTypes' => OrganizationDocumentType::options(),
+            'slotOptions' => OrganizationDocumentSlot::options(),
+            'defaultDocumentType' => OrganizationDocumentType::defaultForMarketingJobType($job->job_type)->value,
+            'canManageVault' => $request->user()?->can('create', OrganizationDocument::class) ?? false,
         ]);
     }
 
@@ -211,5 +222,33 @@ class MarketingController extends Controller
         abort_unless((int) $document->marketing_job_id === (int) $job->id, 404);
 
         return $this->service->downloadDocument($document);
+    }
+
+    public function publishToVault(Request $request, MarketingJob $job): RedirectResponse
+    {
+        $this->authorize('create', OrganizationDocument::class);
+        $this->authorize('view', $job);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'document_type' => ['required', Rule::in(OrganizationDocumentType::values())],
+            'description' => ['nullable', 'string', 'max:4000'],
+            'audience_scope' => ['required', 'in:all_staff,department,selected_users'],
+            'department_id' => ['nullable', 'integer', 'exists:staff_departments,id'],
+            'slot_key' => ['nullable', Rule::in(OrganizationDocumentSlot::values())],
+            'replace_existing' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'selected_user_ids' => ['nullable', 'array'],
+            'selected_user_ids.*' => ['integer', 'exists:users,id'],
+            'source_kind' => ['required', 'in:proof,document'],
+            'document_id' => ['nullable', 'integer'],
+        ]);
+
+        $this->vaultService->publishFromMarketingJob($job, $data, $request->user());
+
+        return redirect()->route('marketing.jobs.show', $job)
+            ->with('success', 'Approved marketing output published to the organization vault.');
     }
 }

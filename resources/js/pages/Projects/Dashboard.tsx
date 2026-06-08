@@ -1,5 +1,9 @@
 import { Head, Link, router } from "@inertiajs/react";
 
+import {
+  ComparisonBarsChart,
+  HorizontalBarChart,
+} from "@/components/charts/dashboard-charts";
 import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
 import { projectNavItems } from "@/config/domain-nav/projects";
@@ -158,6 +162,50 @@ export default function ProjectsDashboard({
               {portfolio.stats.blocked_locations}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.65fr,1fr]">
+          <ComparisonBarsChart
+            title="Portfolio Delivery Comparison"
+            description="Visual comparison of milestone delivery, beneficiary completion, and attendance rate across tracked projects."
+            rows={portfolio.projects}
+            rowLabel={(project) => project.name}
+            metrics={[
+              {
+                label: "Milestones",
+                colorClass: "bg-red-500",
+                value: (project) => project.milestone_completion_rate,
+              },
+              {
+                label: "Completion",
+                colorClass: "bg-amber-500",
+                value: (project) => project.beneficiary_completion_rate,
+              },
+              {
+                label: "Attendance",
+                colorClass: "bg-sky-500",
+                value: (project) => project.attendance_rate,
+              },
+            ]}
+            emptyMessage="No project comparison data is available yet."
+            maxRows={8}
+          />
+
+          <HorizontalBarChart
+            title="Blocked Locations by Project"
+            description="Projects with the highest number of blocked delivery sites should usually be reviewed first."
+            items={portfolio.projects
+              .filter((project) => project.blocked_locations > 0)
+              .sort((a, b) => b.blocked_locations - a.blocked_locations)
+              .slice(0, 8)
+              .map((project) => ({
+                label: project.name,
+                value: project.blocked_locations,
+                hint: `${project.project_manager_name ?? "No PM"} • ${project.attendance_rate}% attendance`,
+                colorClass: "bg-amber-500",
+              }))}
+            emptyMessage="No blocked project locations are currently flagged."
+          />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[2fr,1fr]">

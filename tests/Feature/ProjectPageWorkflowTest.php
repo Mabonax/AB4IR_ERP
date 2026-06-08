@@ -101,6 +101,43 @@ test('authorized user can open the project edit page', function () {
         );
 });
 
+test('authorized user can open the project finalization page from the project route space', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'projects');
+    $fixture = makeProjectPageWorkflowFixture();
+
+    $this->actingAs($user)
+        ->get("/projects/{$fixture['project']->id}/finalization")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects/Finalization')
+            ->where('project.data.id', $fixture['project']->id)
+            ->where('project.data.name', 'Cohort Delivery 2026')
+            ->has('closureEvidence', 0)
+            ->has('reports', 0)
+        );
+});
+
+test('project show page exposes finalization entrypoint instead of embedded governance workflow props', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'projects');
+    $fixture = makeProjectPageWorkflowFixture();
+
+    $this->actingAs($user)
+        ->get("/projects/{$fixture['project']->id}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Projects/Show')
+            ->where('project.data.id', $fixture['project']->id)
+            ->has('finalization')
+            ->where('finalization.href', route('projects.finalization', $fixture['project']->id))
+            ->missing('closure')
+            ->missing('closureEvidence')
+            ->missing('reports')
+            ->missing('canManageGovernance')
+        );
+});
+
 test('creating a project from the page redirects to the project file', function () {
     $user = User::factory()->create();
     grantDomainAccess($user, 'projects');

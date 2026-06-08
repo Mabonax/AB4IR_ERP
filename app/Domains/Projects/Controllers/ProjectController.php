@@ -112,23 +112,7 @@ class ProjectController extends Controller
 
     public function show(Request $request, int $project)
     {
-        $model = Project::with([
-            'program',
-            'sponsor',
-            'partners',
-            'projectManager',
-            'closure.requestedBy',
-            'closure.concludedBy',
-            'closure.evidence.uploadedBy',
-            'closureEvidence.uploadedBy',
-            'history.actor',
-            'reports.createdBy',
-            'locations.facilitator',
-            'locations.province',
-            'locations.enrollments.beneficiary',
-            'milestones',
-        ])
-            ->findOrFail($project);
+        $model = $this->loadProjectWorkspace($project);
 
         $this->authorize('view', $model);
 
@@ -143,10 +127,32 @@ class ProjectController extends Controller
             'milestones' => $milestones,
             'progress' => $progress,
             'locations' => $progress['locations'],
+            'attendanceTrend' => $this->attendanceTrend($model),
+            'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
+            'canManageProjects' => (bool) $request->user()?->can('update', $model),
+            'finalization' => [
+                'href' => route('projects.finalization', $model->id),
+                'is_concluded' => (bool) $model->closure,
+                'closure_date' => $model->closure?->closure_date?->format('Y-m-d'),
+                'evidence_count' => $model->closureEvidence->count(),
+                'report_count' => $model->reports->count(),
+                'can_manage' => (bool) $request->user()?->can('createReport', $model),
+            ],
+        ]);
+    }
+
+    public function finalization(Request $request, int $project)
+    {
+        $model = $this->loadProjectWorkspace($project);
+
+        $this->authorize('view', $model);
+
+        return Inertia::render('Projects/Finalization', [
+            'project' => new ProjectResource($model),
             'closure' => $this->governanceService->mapClosure($model->closure),
             'closureEvidence' => $model->closureEvidence->map(fn (ProjectClosureEvidence $evidence) => $this->governanceService->mapEvidence($evidence))->values(),
-            'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
             'reports' => $model->reports->map(fn (ProjectReport $report) => $this->governanceService->mapReport($report))->values(),
+            'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
             'canManageProjects' => (bool) $request->user()?->can('update', $model),
             'canManageGovernance' => (bool) $request->user()?->can('createReport', $model),
         ]);
@@ -288,6 +294,7 @@ class ProjectController extends Controller
         $this->authorize('conclude', $projectModel);
 
         $data = $request->validate([
+            'category' => 'nullable|in:evidence,registers',
             'title' => 'required|string|max:255',
             'notes' => 'nullable|string|max:2000',
             'file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg,xlsx,csv|max:10240',
@@ -346,5 +353,57 @@ class ProjectController extends Controller
                     'name' => trim($staff->first_name.' '.$staff->last_name),
                 ]),
         ];
+    }
+
+    protected function loadProjectWorkspace(int $project): Project
+    {
+        return Project::with([
+            'program',
+            'sponsor',
+            'partners',
+            'projectManager',
+            'closure.requestedBy',
+            'closure.concludedBy',
+            'closure.evidence.uploadedBy',
+            'closureEvidence.uploadedBy',
+            'history.actor',
+            'reports.createdBy',
+            'locations.facilitator',
+            'locations.province',
+            'locations.enrollments.beneficiary',
+            'locations.attendanceRegisters.entries',
+            'milestones',
+        ])->findOrFail($project);
+    }
+
+    protected function attendanceTrend(Project $project): array
+    {
+        return $project->locations
+            ->flatMap(fn (ProjectLocation $location) => $location->attendanceRegisters ?? collect())
+            ->filter(fn ($register) => ! $register->is_holiday && $register->attendance_date)
+            ->groupBy(fn ($register) => $register->attendance_date->format('Y-m-d'))
+            ->sortKeys()
+            ->map(function ($registers, string $date) {
+                $totalEntries = 0;
+                $attendedEntries = 0;
+
+                foreach ($registers as $register) {
+                    $totalEntries += $register->entries->count();
+                    $attendedEntries += $register->entries
+                        ->whereIn('status', ['present', 'excused'])
+                        ->count();
+                }
+
+                $rate = $totalEntries > 0
+                    ? round(($attendedEntries / $totalEntries) * 100, 2)
+                    : 0;
+
+                return [
+                    'date' => $date,
+                    'attendance_rate' => $rate,
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

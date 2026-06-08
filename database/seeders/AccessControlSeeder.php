@@ -69,6 +69,16 @@ class AccessControlSeeder extends Seeder
             'travel-claims.submit',
         ];
 
+        $marketingWorkflowPermissions = [
+            'marketing.requests.create',
+            'marketing.deliverables.assign',
+            'marketing.deliverables.approve',
+            'marketing.publications.manage',
+            'marketing.metrics.import',
+            'marketing.assets.archive',
+            'marketing.dashboard.performance.view',
+        ];
+
         $allPermissions = array_values(array_unique([
             ...$allDomainPermissions,
             ...$accessControlPermissions,
@@ -77,6 +87,7 @@ class AccessControlSeeder extends Seeder
             ...$businessDevelopmentWorkflowPermissions,
             ...$technicalTicketPermissions,
             ...$travelClaimPermissions,
+            ...$marketingWorkflowPermissions,
         ]));
 
         foreach ($allPermissions as $permissionName) {
@@ -112,6 +123,7 @@ class AccessControlSeeder extends Seeder
             ...$viewPermissions,
             'domain.settings.view',
             'domain.leave.view',
+            'attendance.view',
         ])));
 
         $facilitatorRole = Role::firstOrCreate([
@@ -130,6 +142,60 @@ class AccessControlSeeder extends Seeder
         $technicalResponderRole->syncPermissions([
             'domain.task-management.view',
             'technical-tickets.respond',
+        ]);
+
+        Role::firstOrCreate([
+            'name' => 'marketing_staff',
+            'guard_name' => $guard,
+        ])->syncPermissions([
+            'domain.marketing.view',
+        ]);
+
+        Role::firstOrCreate([
+            'name' => 'graphics_staff',
+            'guard_name' => $guard,
+        ])->syncPermissions([
+            'domain.marketing.view',
+        ]);
+
+        Role::firstOrCreate([
+            'name' => 'marketing_manager',
+            'guard_name' => $guard,
+        ])->syncPermissions([
+            'domain.marketing.view',
+            'domain.marketing.manage',
+            'marketing.requests.create',
+            'marketing.deliverables.assign',
+            'marketing.deliverables.approve',
+            'marketing.publications.manage',
+            'marketing.metrics.import',
+            'marketing.assets.archive',
+            'marketing.dashboard.performance.view',
+        ]);
+
+        Role::firstOrCreate([
+            'name' => 'communications_manager',
+            'guard_name' => $guard,
+        ])->syncPermissions([
+            'domain.marketing.view',
+            'domain.marketing.manage',
+            'marketing.requests.create',
+            'marketing.deliverables.assign',
+            'marketing.deliverables.approve',
+            'marketing.publications.manage',
+            'marketing.metrics.import',
+            'marketing.assets.archive',
+            'marketing.dashboard.performance.view',
+        ]);
+
+        Role::firstOrCreate([
+            'name' => 'executive_approver',
+            'guard_name' => $guard,
+        ])->syncPermissions([
+            'domain.marketing.view',
+            'domain.marketing.manage',
+            'marketing.deliverables.approve',
+            'marketing.dashboard.performance.view',
         ]);
 
         $departmentMap = config('access_control.department_domain_map', []);
@@ -168,10 +234,13 @@ class AccessControlSeeder extends Seeder
             $departmentManagerPermissions[] = 'domain.human-resources.view';
             $departmentManagerPermissions[] = 'domain.settings.view';
             $departmentManagerPermissions[] = 'domain.staff.view';
+            $departmentManagerPermissions[] = 'attendance.view';
+            $departmentManagerPermissions[] = 'attendance.manage';
             $departmentManagerPermissions[] = 'travel-claims.submit';
 
             $departmentUserPermissions[] = 'domain.leave.view';
             $departmentUserPermissions[] = 'domain.settings.view';
+            $departmentUserPermissions[] = 'attendance.view';
 
             $domainAdminRole = Role::firstOrCreate([
                 'name' => "domain-admin-{$departmentSlug}",

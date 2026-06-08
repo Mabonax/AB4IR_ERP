@@ -1,6 +1,16 @@
 import { Link } from "@inertiajs/react";
 import { route } from "ziggy-js";
-import * as LucideIcons from "lucide-react";
+import {
+  CalendarCheck2,
+  CheckCircle,
+  ClipboardCheck,
+  Eye,
+  Pencil,
+  Send,
+  Trash2,
+  Undo2,
+  XCircle,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -15,7 +25,7 @@ interface TableColumn<T extends RowData = RowData> {
 }
 
 interface TableAction {
-  icon: keyof typeof LucideIcons | LucideIcon;
+  icon: keyof typeof tableActionIcons | LucideIcon;
   label?: string;
   onClick?: (row: any) => void;
   route?: string;
@@ -31,6 +41,19 @@ interface CustomTableProps<T extends RowData = RowData> {
   data?: T[];
 }
 
+const tableActionIcons = {
+  CalendarCheck2,
+  CheckCircle,
+  ClipboardCheck,
+  Eye,
+  Pencil,
+  PencilIcon: Pencil,
+  Send,
+  Trash2,
+  Undo2,
+  XCircle,
+} satisfies Record<string, LucideIcon>;
+
 export const CustomTable = <T extends RowData>({
   columns,
   actions = [],
@@ -43,9 +66,9 @@ export const CustomTable = <T extends RowData>({
           return null;
         }
 
-        const Icon =
+        const Icon: LucideIcon | undefined =
           typeof action.icon === "string"
-            ? (LucideIcons[action.icon as keyof typeof LucideIcons] as LucideIcon | undefined)
+            ? tableActionIcons[action.icon as keyof typeof tableActionIcons]
             : action.icon;
         const label = action.label ?? (typeof action.icon === "string" ? action.icon : "Action");
         const baseClassName = `inline-flex items-center justify-center rounded-md border p-2 transition

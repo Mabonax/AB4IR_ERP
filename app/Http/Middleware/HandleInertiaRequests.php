@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Domains\Organization\Services\OrganizationProfileService;
+use App\Domains\StaffAttendance\Services\StaffAttendanceService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -50,6 +51,10 @@ class HandleInertiaRequests extends Middleware
 
             'organization' => fn () => app(OrganizationProfileService::class)->mapProfile(
                 app(OrganizationProfileService::class)->getProfile()
+            ),
+
+            'attendancePrompt' => fn () => app(StaffAttendanceService::class)->sharedPromptPayload(
+                $request->user()
             ),
 
             'sidebarOpen' => ! $request->hasCookie('sidebar_state')

@@ -34,11 +34,21 @@ use App\Domains\Facilitators\Repositories\FacilitatorRepository;
 use App\Domains\Facilitators\Repositories\FacilitatorRepositoryInterface;
 use App\Domains\Finance\Models\TravelClaim;
 use App\Domains\Finance\Policies\TravelClaimPolicy;
+use App\Domains\Marketing\Models\MarketingAsset;
+use App\Domains\Marketing\Models\MarketingDeliverable;
 use App\Domains\Marketing\Models\MarketingJob;
+use App\Domains\Marketing\Models\MarketingRequest;
+use App\Domains\Marketing\Policies\MarketingAssetPolicy;
+use App\Domains\Marketing\Policies\MarketingDeliverablePolicy;
 use App\Domains\Marketing\Policies\MarketingJobPolicy;
+use App\Domains\Marketing\Policies\MarketingRequestPolicy;
 use App\Domains\Marketing\Repositories\MarketingJobRepository;
 use App\Domains\Marketing\Repositories\MarketingJobRepositoryInterface;
+use App\Domains\Marketing\Repositories\MarketingRequestRepository;
+use App\Domains\Marketing\Repositories\MarketingRequestRepositoryInterface;
 use App\Domains\Organization\Models\OrganizationProfile;
+use App\Domains\Organization\Models\OrganizationDocument;
+use App\Domains\Organization\Policies\OrganizationDocumentPolicy;
 use App\Domains\Organization\Policies\OrganizationProfilePolicy;
 use App\Domains\Organization\Repositories\OrganizationProfileRepository;
 use App\Domains\Organization\Repositories\OrganizationProfileRepositoryInterface;
@@ -56,10 +66,16 @@ use App\Domains\Projects\Repositories\ProjectLocationRepository;
 use App\Domains\Projects\Repositories\ProjectLocationRepositoryInterface;
 use App\Domains\Projects\Repositories\ProjectRepository;
 use App\Domains\Projects\Repositories\ProjectRepositoryInterface;
+use App\Domains\Staff\Events\StaffMemberCreated;
+use App\Domains\Staff\Listeners\SendStaffSystemAccessEmail;
 use App\Domains\Staff\Repositories\StaffDepartmentRepository;
 use App\Domains\Staff\Repositories\StaffDepartmentRepositoryInterface;
 use App\Domains\Staff\Repositories\StaffRepository;
 use App\Domains\Staff\Repositories\StaffRepositoryInterface;
+use App\Domains\StaffAttendance\Models\StaffAttendanceRecord;
+use App\Domains\StaffAttendance\Policies\StaffAttendanceRecordPolicy;
+use App\Domains\StaffAttendance\Repositories\StaffAttendanceRepository;
+use App\Domains\StaffAttendance\Repositories\StaffAttendanceRepositoryInterface;
 use App\Domains\Stakeholders\Repositories\StakeholderRepository;
 use App\Domains\Stakeholders\Repositories\StakeholderRepositoryInterface;
 use App\Domains\TaskManagement\Models\SupportTicket;
@@ -73,6 +89,7 @@ use App\Domains\TaskManagement\Repositories\WorkTaskRepositoryInterface;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event as EventFacade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -137,6 +154,11 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            StaffAttendanceRepositoryInterface::class,
+            StaffAttendanceRepository::class
+        );
+
+        $this->app->bind(
             BdsApplicationRepositoryInterface::class,
             BdsApplicationRepository::class
         );
@@ -167,6 +189,11 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            MarketingRequestRepositoryInterface::class,
+            MarketingRequestRepository::class
+        );
+
+        $this->app->bind(
             OrganizationProfileRepositoryInterface::class,
             OrganizationProfileRepository::class
         );
@@ -184,6 +211,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Beneficiary::class, BeneficiaryPolicy::class);
         Gate::policy(Facilitator::class, FacilitatorPolicy::class);
         Gate::policy(OrganizationProfile::class, OrganizationProfilePolicy::class);
+        Gate::policy(OrganizationDocument::class, OrganizationDocumentPolicy::class);
         Gate::policy(Event::class, EventPolicy::class);
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(BdsApplication::class, BdsApplicationPolicy::class);
@@ -195,7 +223,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WorkTask::class, WorkTaskPolicy::class);
         Gate::policy(SupportTicket::class, SupportTicketPolicy::class);
         Gate::policy(MarketingJob::class, MarketingJobPolicy::class);
+        Gate::policy(MarketingRequest::class, MarketingRequestPolicy::class);
+        Gate::policy(MarketingDeliverable::class, MarketingDeliverablePolicy::class);
+        Gate::policy(MarketingAsset::class, MarketingAssetPolicy::class);
         Gate::policy(TravelClaim::class, TravelClaimPolicy::class);
+        Gate::policy(StaffAttendanceRecord::class, StaffAttendanceRecordPolicy::class);
+
+        EventFacade::listen(StaffMemberCreated::class, SendStaffSystemAccessEmail::class);
 
         Gate::before(function ($user, string $ability) {
             return method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['super-admin', 'super admin'])

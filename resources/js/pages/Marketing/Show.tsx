@@ -1,5 +1,5 @@
 import { Head, router, usePage } from "@inertiajs/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { marketingNavItems } from "@/config/domain-nav/marketing";
@@ -102,10 +102,20 @@ export default function MarketingShow({
   job,
   assignees,
   departments,
+  users,
+  documentTypes,
+  slotOptions,
+  defaultDocumentType,
+  canManageVault,
 }: {
   job: JobDetail;
   assignees: Array<{ id: number; name: string; email: string }>;
   departments: Array<{ id: number; name: string }>;
+  users: Array<{ id: number; name: string; email: string }>;
+  documentTypes: Array<{ value: string; label: string }>;
+  slotOptions: Array<{ value: string; label: string; document_type: string }>;
+  defaultDocumentType: string;
+  canManageVault: boolean;
 }) {
   const { props } = usePage<SharedData>();
   const flash = (props.flash ?? {}) as Record<string, unknown>;
@@ -113,6 +123,11 @@ export default function MarketingShow({
   const documents = Array.isArray(job.documents) ? job.documents : (job.documents.data ?? []);
   const comments = Array.isArray(job.comments) ? job.comments : (job.comments.data ?? []);
   const history = Array.isArray(job.history) ? job.history : (job.history.data ?? []);
+  const [vaultDocumentType, setVaultDocumentType] = useState(defaultDocumentType);
+  const filteredVaultSlots = useMemo(
+    () => slotOptions.filter((slot) => slot.document_type === vaultDocumentType),
+    [slotOptions, vaultDocumentType],
+  );
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Marketing", href: "/marketing" },
@@ -350,6 +365,79 @@ export default function MarketingShow({
                       <div className="font-medium">Delivery notes</div>
                       <div className="mt-1 text-muted-foreground">{job.delivery_notes ?? "No delivery notes captured yet."}</div>
                     </div>
+                    {canManageVault && job.status === "approved" ? (
+                      <form
+                        className="grid gap-3 rounded-lg border border-dashed p-3"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          router.post(`/marketing/jobs/${job.id}/publish-to-vault`, new FormData(e.currentTarget), {
+                            preserveScroll: true,
+                          });
+                        }}
+                      >
+                        <div className="font-medium">Publish Approved Output To Organization Vault</div>
+                        <input name="title" defaultValue={job.title} className="rounded-md border bg-background px-3 py-2 text-sm" />
+                        <select
+                          name="document_type"
+                          value={vaultDocumentType}
+                          onChange={(event) => setVaultDocumentType(event.target.value)}
+                          className="rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          {documentTypes.map((documentType) => (
+                            <option key={documentType.value} value={documentType.value}>{documentType.label}</option>
+                          ))}
+                        </select>
+                        <select name="source_kind" defaultValue={job.has_proof_file ? "proof" : "document"} className="rounded-md border bg-background px-3 py-2 text-sm">
+                          {job.has_proof_file ? <option value="proof">Approved proof file</option> : null}
+                          {documents.length > 0 ? <option value="document">Uploaded marketing document</option> : null}
+                        </select>
+                        <select name="document_id" defaultValue={documents[0]?.id ? String(documents[0].id) : ""} className="rounded-md border bg-background px-3 py-2 text-sm">
+                          <option value="">Choose uploaded document</option>
+                          {documents.map((document) => (
+                            <option key={document.id} value={document.id}>{document.title}</option>
+                          ))}
+                        </select>
+                        <select name="audience_scope" defaultValue="all_staff" className="rounded-md border bg-background px-3 py-2 text-sm">
+                          <option value="all_staff">All staff</option>
+                          <option value="department">Department</option>
+                          <option value="selected_users">Selected users</option>
+                        </select>
+                        <select name="department_id" defaultValue="" className="rounded-md border bg-background px-3 py-2 text-sm">
+                          <option value="">No department target</option>
+                          {departments.map((department) => (
+                            <option key={department.id} value={department.id}>{department.name}</option>
+                          ))}
+                        </select>
+                        <select name="slot_key" defaultValue="" className="rounded-md border bg-background px-3 py-2 text-sm">
+                          <option value="">No replacement slot</option>
+                          {filteredVaultSlots.map((slot) => (
+                            <option key={slot.value} value={slot.value}>{slot.label}</option>
+                          ))}
+                        </select>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <input type="checkbox" name="replace_existing" value="1" />
+                          Replace current organization file in this slot
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <input type="checkbox" name="is_active" value="1" defaultChecked />
+                          Active immediately
+                        </label>
+                        <input name="effective_from" type="date" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                        <input name="effective_until" type="date" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                        <textarea name="description" rows={3} placeholder="What users should use this for." className="rounded-md border bg-background px-3 py-2 text-sm" />
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {users.map((user) => (
+                            <label key={user.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <input type="checkbox" name="selected_user_ids[]" value={user.id} />
+                              <span>{user.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800">
+                          Publish To Vault
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 </div>
               </div>

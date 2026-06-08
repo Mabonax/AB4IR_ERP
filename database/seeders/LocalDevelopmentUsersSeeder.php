@@ -112,7 +112,7 @@ class LocalDevelopmentUsersSeeder extends Seeder
                 'manager_id' => $ceo->id,
                 'is_manager' => true,
             ],
-            roleName: 'admin',
+            roleName: 'department-manager-admin',
             guard: $guard,
         );
 
@@ -126,7 +126,7 @@ class LocalDevelopmentUsersSeeder extends Seeder
             staffOverrides: [
                 'manager_id' => $adminManager->id,
             ],
-            roleName: 'admin',
+            roleName: 'department-user-admin',
             guard: $guard,
         );
 

@@ -3,6 +3,10 @@ import { Head, Link, router, usePage } from "@inertiajs/react";
 import { Upload } from "lucide-react";
 
 import AppLayout from "@/layouts/app-layout";
+import {
+  HorizontalBarChart,
+  StackedCompositionChart,
+} from "@/components/charts/dashboard-charts";
 import { CustomTable } from "@/components/custom-table";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { Button } from "@/components/ui/button";
@@ -58,6 +62,36 @@ export default function BeneficiaryIndex({
   const [importLocationId, setImportLocationId] = useState<string>(selectedProjectLocations[0] ? String(selectedProjectLocations[0].id) : "");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const importErrors = Array.isArray(flash?.import_errors) ? (flash.import_errors as string[]) : [];
+  const statusChartData = useMemo(() => {
+    const counts = beneficiary.data.reduce((carry: Record<string, number>, item: any) => {
+      const key = item.attendance_status ?? "unknown";
+      carry[key] = (carry[key] ?? 0) + 1;
+
+      return carry;
+    }, {});
+
+    return {
+      active: counts.active ?? 0,
+      dropout: counts.dropout ?? 0,
+      unknown: counts.unknown ?? 0,
+    };
+  }, [beneficiary.data]);
+  const locationChartData = useMemo(() => {
+    const counts = beneficiary.data.reduce((carry: Record<string, number>, item: any) => {
+      const key = item.project_location ?? "Unassigned location";
+      carry[key] = (carry[key] ?? 0) + 1;
+
+      return carry;
+    }, {});
+
+    return Object.entries(counts)
+      .map(([label, value]) => ({
+        label,
+        value,
+        colorClass: "bg-red-500",
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [beneficiary.data]);
 
   const columns = useMemo(
     () => [
@@ -224,6 +258,40 @@ export default function BeneficiaryIndex({
             Select a program, then choose a project iteration to see that project&apos;s beneficiaries.
           </div>
         )}
+
+        {selectedProjectSummary ? (
+          <div className="grid gap-6 xl:grid-cols-[1.2fr,1fr]">
+            <StackedCompositionChart
+              title="Beneficiary Attendance Status"
+              description="Visual split of the selected project cohort by current attendance status."
+              segments={[
+                {
+                  label: "Active",
+                  value: statusChartData.active,
+                  colorClass: "bg-emerald-500",
+                },
+                {
+                  label: "Dropout",
+                  value: statusChartData.dropout,
+                  colorClass: "bg-amber-500",
+                },
+                {
+                  label: "Unknown",
+                  value: statusChartData.unknown,
+                  colorClass: "bg-slate-300",
+                },
+              ]}
+              emptyMessage="No beneficiary status data is available for this cohort yet."
+            />
+
+            <HorizontalBarChart
+              title="Beneficiaries by Location"
+              description="Shows where the selected project cohort is concentrated across delivery locations."
+              items={locationChartData}
+              emptyMessage="No beneficiary location data is available for this cohort yet."
+            />
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap justify-between gap-3">
           <Link

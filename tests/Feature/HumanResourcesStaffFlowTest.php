@@ -2,9 +2,11 @@
 
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\Staff\Notifications\StaffSystemAccessNotification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -104,6 +106,8 @@ test('staff resource exposes internship details and derived duration', function 
 
 test('staff onboarding provisions a linked user with the configured default password', function () {
     config()->set('staff.default_password', 'TempPass123!');
+    config()->set('staff.send_welcome_notification', true);
+    Notification::fake();
 
     $user = User::factory()->create();
     grantDomainAccess($user, 'staff');
@@ -136,6 +140,7 @@ test('staff onboarding provisions a linked user with the configured default pass
     expect($staff->user_id)->toBe($linkedUser->id);
     expect($linkedUser->staff_id)->toBe($staff->id);
     expect(Hash::check('TempPass123!', $linkedUser->password))->toBeTrue();
+    Notification::assertSentTo($linkedUser, StaffSystemAccessNotification::class);
 });
 
 test('human resources dashboard filters the staff directory by department', function () {

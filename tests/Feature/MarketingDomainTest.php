@@ -2,6 +2,8 @@
 
 use App\Domains\Events\Models\Event;
 use App\Domains\Marketing\Models\MarketingJob;
+use App\Domains\Organization\Models\OrganizationDocument;
+use App\Domains\Programs\Models\Program;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Marketing\Notifications\MarketingJobActivityNotification;
@@ -23,6 +25,15 @@ beforeEach(function () {
     foreach ([
         'domain.marketing.view',
         'domain.marketing.manage',
+        'domain.organization.view',
+        'domain.organization.manage',
+        'marketing.requests.create',
+        'marketing.deliverables.assign',
+        'marketing.deliverables.approve',
+        'marketing.publications.manage',
+        'marketing.metrics.import',
+        'marketing.assets.archive',
+        'marketing.dashboard.performance.view',
     ] as $permission) {
         Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
     }
@@ -59,7 +70,19 @@ function makeMarketingUser(StaffDepartment $department, string $email, bool $asM
     ]);
 
     $user->staffMember()->save($staff);
-    $user->givePermissionTo($asManager ? ['domain.marketing.view', 'domain.marketing.manage'] : ['domain.marketing.view']);
+    $user->givePermissionTo($asManager
+        ? [
+            'domain.marketing.view',
+            'domain.marketing.manage',
+            'marketing.requests.create',
+            'marketing.deliverables.assign',
+            'marketing.deliverables.approve',
+            'marketing.publications.manage',
+            'marketing.metrics.import',
+            'marketing.assets.archive',
+            'marketing.dashboard.performance.view',
+        ]
+        : ['domain.marketing.view']);
 
     return [$user->refresh(), $staff->refresh()];
 }
@@ -317,6 +340,141 @@ test('marketing pages expose the dedicated workflow payload and document downloa
         ->assertOk();
 });
 
+test('approved marketing jobs can publish replacement-based signature files into the organization vault', function () {
+    Storage::fake('local');
+    Storage::fake('public');
+
+    $marketing = makeMarketingDepartment('Marketing');
+    [$manager] = makeMarketingUser($marketing, 'vault.manager@example.test', asManager: true);
+    $manager->givePermissionTo(['domain.organization.manage', 'domain.organization.view']);
+
+    $proof = UploadedFile::fake()->image('signature-v1.png');
+    $proofPath = $proof->store('marketing-job-proof/1', 'local');
+
+    $job = MarketingJob::query()->create([
+        'title' => 'Company email signature',
+        'job_type' => 'email_signature',
+        'status' => 'approved',
+        'priority' => 'high',
+        'creator_user_id' => $manager->id,
+        'creator_department_id' => $marketing->id,
+        'assigned_department_id' => $marketing->id,
+        'proof_disk' => 'local',
+        'proof_path' => $proofPath,
+        'proof_file_name' => 'signature-v1.png',
+        'proof_mime_type' => 'image/png',
+        'proof_file_size' => $proof->getSize(),
+        'approved_at' => now(),
+        'closed_at' => now(),
+        'closed_by_user_id' => $manager->id,
+    ]);
+
+    $this->actingAs($manager)->post(route('marketing.jobs.publish-to-vault', $job), [
+        'title' => 'Company email signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'all_staff',
+        'slot_key' => 'company_default_signature',
+        'replace_existing' => true,
+        'source_kind' => 'proof',
+    ])->assertRedirect(route('marketing.jobs.show', $job));
+
+    $document = OrganizationDocument::query()->firstOrFail();
+    $firstPath = $document->path;
+
+    Storage::disk('public')->assertExists($firstPath);
+
+    $proofV2 = UploadedFile::fake()->image('signature-v2.png');
+    $proofPathV2 = $proofV2->store('marketing-job-proof/1', 'local');
+    $job->forceFill([
+        'proof_path' => $proofPathV2,
+        'proof_file_name' => 'signature-v2.png',
+        'proof_file_size' => $proofV2->getSize(),
+    ])->save();
+
+    $this->actingAs($manager)->post(route('marketing.jobs.publish-to-vault', $job), [
+        'title' => 'Company email signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'all_staff',
+        'slot_key' => 'company_default_signature',
+        'replace_existing' => true,
+        'source_kind' => 'proof',
+    ])->assertRedirect(route('marketing.jobs.show', $job));
+
+    expect(OrganizationDocument::query()->count())->toBe(1);
+    Storage::disk('public')->assertMissing($firstPath);
+});
+
+test('approved marketing deliverable assets can be published into the organization vault', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+
+    $marketing = makeMarketingDepartment('Marketing');
+    [$manager] = makeMarketingUser($marketing, 'vault.asset.manager@example.test', asManager: true);
+    $manager->givePermissionTo(['domain.organization.manage', 'domain.organization.view']);
+
+    $requestRecord = \App\Domains\Marketing\Models\MarketingRequest::query()->create([
+        'title' => 'Organization concept pack',
+        'requester_user_id' => $manager->id,
+        'owner_department_id' => $marketing->id,
+        'priority' => 'high',
+        'status' => 'completed',
+    ]);
+
+    $workPackage = $requestRecord->workPackages()->create([
+        'assigned_unit' => 'graphics',
+        'workload_status' => 'completed',
+    ]);
+
+    $deliverable = $requestRecord->deliverables()->create([
+        'work_package_id' => $workPackage->id,
+        'title' => 'Concept document master',
+        'deliverable_type' => 'concept_document',
+        'assigned_unit' => 'graphics',
+        'status' => 'approved',
+        'approved_at' => now(),
+    ]);
+
+    $assetFile = UploadedFile::fake()->create('concept-pack.pdf', 80, 'application/pdf');
+    $assetPath = $assetFile->store('marketing-deliverables/1', 'local');
+    $version = $deliverable->versions()->create([
+        'version_number' => 1,
+        'uploaded_by_user_id' => $manager->id,
+        'asset_disk' => 'local',
+        'asset_path' => $assetPath,
+        'asset_file_name' => 'concept-pack.pdf',
+        'asset_mime_type' => 'application/pdf',
+        'asset_file_size' => $assetFile->getSize(),
+        'approval_status' => 'approved',
+        'approved_by_user_id' => $manager->id,
+        'approved_at' => now(),
+    ]);
+
+    $asset = $deliverable->assets()->create([
+        'deliverable_version_id' => $version->id,
+        'asset_type' => 'concept_document',
+        'asset_disk' => 'local',
+        'asset_path' => $assetPath,
+        'asset_file_name' => 'concept-pack.pdf',
+        'asset_mime_type' => 'application/pdf',
+        'asset_file_size' => $assetFile->getSize(),
+        'reusable' => true,
+    ]);
+
+    $this->actingAs($manager)->post(route('marketing.assets.publish-to-vault', $asset), [
+        'title' => 'Concept document master',
+        'document_type' => 'concept_document',
+        'audience_scope' => 'all_staff',
+        'slot_key' => 'concept_document_master',
+        'replace_existing' => true,
+    ])->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $this->assertDatabaseHas('organization_documents', [
+        'document_type' => 'concept_document',
+        'source_type' => \App\Domains\Marketing\Models\MarketingAsset::class,
+        'source_id' => $asset->id,
+    ]);
+});
+
 test('marketing department staff can view all department marketing jobs while only managers can manage them', function () {
     $marketing = makeMarketingDepartment('Marketing');
     $technical = makeMarketingDepartment('Technical');
@@ -385,5 +543,301 @@ test('marketing department staff can view all department marketing jobs while on
             ->where('job.id', $job->id)
             ->where('job.can.approve', true)
             ->where('job.can.reassign', true)
+        );
+});
+
+test('marketing manager can create request deliverables approve a version and publish an approved asset', function () {
+    Storage::fake('local');
+
+    $marketing = makeMarketingDepartment('Marketing');
+    [$manager, $managerStaff] = makeMarketingUser($marketing, 'ops.manager@example.test', asManager: true);
+    [$designer] = makeMarketingUser($marketing, 'ops.designer@example.test', manager: $managerStaff);
+
+    $this->actingAs($manager)
+        ->post(route('marketing.requests.store'), [
+            'title' => 'Project launch communications pack',
+            'objective' => 'Create the initial launch package.',
+            'description' => 'This request should produce multiple outputs.',
+            'campaign_goal' => 'Launch awareness',
+            'priority' => 'high',
+            'owner_department_id' => $marketing->id,
+            'work_package' => [
+                'assigned_unit' => 'graphics',
+                'operational_owner_user_id' => $manager->id,
+            ],
+            'deliverables' => [
+                [
+                    'title' => 'Main poster',
+                    'deliverable_type' => 'poster',
+                    'assigned_to_user_id' => $designer->id,
+                    'assigned_unit' => 'graphics',
+                ],
+                [
+                    'title' => 'Email signature pack',
+                    'deliverable_type' => 'email_signature',
+                    'assigned_to_user_id' => $designer->id,
+                    'assigned_unit' => 'graphics',
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $requestRecord = \App\Domains\Marketing\Models\MarketingRequest::query()->firstOrFail();
+    $deliverable = $requestRecord->deliverables()->where('title', 'Main poster')->firstOrFail();
+
+    $this->actingAs($designer)
+        ->post(route('marketing.deliverables.versions.store', $deliverable), [
+            'change_notes' => 'First full poster revision uploaded.',
+            'asset_file' => UploadedFile::fake()->create('poster-v1.pdf', 100, 'application/pdf'),
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $deliverable->refresh();
+    expect($deliverable->status)->toBe('internal_review');
+
+    $this->actingAs($manager)
+        ->post(route('marketing.deliverables.approve', $deliverable), [
+            'review_notes' => 'Approved for initial rollout.',
+            'reusable' => true,
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $asset = $deliverable->assets()->firstOrFail();
+
+    $this->actingAs($manager)
+        ->post(route('marketing.assets.publish', $asset), [
+            'publication_channel' => 'Facebook',
+            'published_at' => now()->toDateTimeString(),
+            'external_reference' => 'https://facebook.example.test/post/launch',
+            'publication_notes' => 'Launch poster published.',
+            'metrics' => [
+                'metric_date' => now()->toDateString(),
+                'reach' => 1000,
+                'impressions' => 1500,
+                'engagements' => 140,
+            ],
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $this->assertDatabaseHas('marketing_requests', [
+        'id' => $requestRecord->id,
+        'title' => 'Project launch communications pack',
+    ]);
+    $this->assertDatabaseHas('marketing_deliverables', [
+        'id' => $deliverable->id,
+        'status' => 'published',
+    ]);
+    $this->assertDatabaseHas('marketing_assets', [
+        'id' => $asset->id,
+        'reusable' => 1,
+    ]);
+    $this->assertDatabaseHas('marketing_publication_records', [
+        'marketing_asset_id' => $asset->id,
+        'publication_channel' => 'Facebook',
+    ]);
+    $this->assertDatabaseHas('marketing_metric_snapshots', [
+        'reach' => 1000,
+        'impressions' => 1500,
+    ]);
+
+    $this->actingAs($manager)
+        ->post(route('marketing.assets.archive', $asset))
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $this->assertDatabaseHas('marketing_assets', [
+        'id' => $asset->id,
+    ]);
+    expect($asset->fresh()->archived_at)->not->toBeNull();
+});
+
+test('marketing operations screens render new request and dashboard surfaces', function () {
+    $marketing = makeMarketingDepartment('Marketing');
+    [$manager] = makeMarketingUser($marketing, 'ops.screen.manager@example.test', asManager: true);
+    $program = Program::query()->create([
+        'title' => 'Enterprise Growth Programme',
+        'description' => 'Programme context for marketing requests.',
+        'slug' => 'enterprise-growth-programme',
+    ]);
+
+    $this->actingAs($manager)
+        ->get(route('marketing.dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Marketing/Dashboard')
+            ->has('dashboard.operations')
+            ->has('dashboard.performance')
+        );
+
+    $this->actingAs($manager)
+        ->get(route('marketing.requests.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Marketing/Requests/Index')
+            ->has('requests.data')
+        );
+
+    $this->actingAs($manager)
+        ->get(route('marketing.requests.create'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Marketing/Requests/Create')
+            ->where('programs.0.title', $program->title)
+            ->has('deliverableTypes')
+            ->has('units')
+        );
+});
+
+test('marketing request workspace supports replanning comments documents and metric imports', function () {
+    Storage::fake('local');
+
+    $marketing = makeMarketingDepartment('Marketing');
+    [$manager, $managerStaff] = makeMarketingUser($marketing, 'ops.workspace.manager@example.test', asManager: true);
+    [$designer] = makeMarketingUser($marketing, 'ops.workspace.designer@example.test', manager: $managerStaff);
+
+    $this->actingAs($manager)
+        ->post(route('marketing.requests.store'), [
+            'title' => 'Campaign launch pack',
+            'objective' => 'Initial campaign assets',
+            'description' => 'Coordinate the launch package.',
+            'campaign_goal' => 'Awareness',
+            'priority' => 'medium',
+            'owner_department_id' => $marketing->id,
+            'work_package' => [
+                'assigned_unit' => 'graphics',
+                'operational_owner_user_id' => $manager->id,
+                'planned_start_date' => now()->toDateString(),
+            ],
+            'deliverables' => [
+                [
+                    'title' => 'Launch poster',
+                    'deliverable_type' => 'poster',
+                    'assigned_to_user_id' => $designer->id,
+                    'assigned_unit' => 'graphics',
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    /** @var \App\Domains\Marketing\Models\MarketingRequest $requestRecord */
+    $requestRecord = \App\Domains\Marketing\Models\MarketingRequest::query()->firstOrFail();
+    $deliverable = $requestRecord->deliverables()->firstOrFail();
+
+    $this->actingAs($manager)
+        ->put(route('marketing.requests.update', $requestRecord), [
+            'title' => 'Campaign launch pack updated',
+            'objective' => 'Updated campaign assets',
+            'description' => 'Replanned launch package.',
+            'target_audience' => 'Community partners',
+            'campaign_goal' => 'Engagement',
+            'approver_user_id' => $manager->id,
+            'owner_department_id' => $marketing->id,
+            'priority' => 'high',
+            'due_date' => now()->addDays(10)->toDateString(),
+            'status' => 'planned',
+            'work_package' => [
+                'assigned_unit' => 'digital',
+                'operational_owner_user_id' => $manager->id,
+                'planned_start_date' => now()->addDay()->toDateString(),
+                'planned_end_date' => now()->addDays(9)->toDateString(),
+            ],
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $requestRecord->refresh();
+    $deliverable->refresh();
+
+    expect($requestRecord->title)->toBe('Campaign launch pack updated')
+        ->and($requestRecord->status)->toBe('planned')
+        ->and($requestRecord->priority)->toBe('high')
+        ->and($requestRecord->target_audience)->toBe('Community partners')
+        ->and($requestRecord->workPackages()->firstOrFail()->assigned_unit)->toBe('digital')
+        ->and($deliverable->due_date?->toDateString())->toBe(now()->addDays(10)->toDateString());
+
+    $this->actingAs($designer)
+        ->post(route('marketing.requests.comment', $requestRecord), [
+            'message' => 'Poster draft is in progress and awaiting image selection.',
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $this->assertDatabaseHas('marketing_request_comments', [
+        'marketing_request_id' => $requestRecord->id,
+        'user_id' => $designer->id,
+        'message' => 'Poster draft is in progress and awaiting image selection.',
+    ]);
+
+    $this->actingAs($designer)
+        ->post(route('marketing.requests.documents.store', $requestRecord), [
+            'title' => 'Creative brief',
+            'document_kind' => 'brief',
+            'notes' => 'Updated brief for the launch pack.',
+            'file' => UploadedFile::fake()->create('creative-brief.pdf', 60, 'application/pdf'),
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $document = $requestRecord->documents()->firstOrFail();
+    Storage::disk('local')->assertExists($document->path);
+
+    $this->actingAs($manager)
+        ->get(route('marketing.requests.documents.download', [$requestRecord, $document]))
+        ->assertOk();
+
+    $this->actingAs($designer)
+        ->post(route('marketing.deliverables.versions.store', $deliverable), [
+            'change_notes' => 'Poster draft ready for review.',
+            'asset_file' => UploadedFile::fake()->create('poster-v1.pdf', 100, 'application/pdf'),
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $this->actingAs($manager)
+        ->post(route('marketing.deliverables.approve', $deliverable), [
+            'review_notes' => 'Approved for social rollout.',
+            'reusable' => true,
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $asset = $deliverable->fresh()->assets()->firstOrFail();
+
+    $this->actingAs($manager)
+        ->post(route('marketing.assets.publish', $asset), [
+            'publication_channel' => 'Facebook',
+            'published_at' => now()->toDateTimeString(),
+            'external_reference' => 'https://facebook.example.test/post/campaign-launch',
+            'metrics' => [
+                'metric_date' => now()->toDateString(),
+                'reach' => 150,
+            ],
+        ])
+        ->assertRedirect(route('marketing.requests.show', $requestRecord));
+
+    $publication = $asset->fresh()->publications()->firstOrFail();
+
+    $csv = implode("\n", [
+        'publication_record_id,metric_date,impressions,reach,engagements,clicks,sessions,conversions,followers',
+        sprintf('%d,%s,2000,1200,220,40,25,5,12', $publication->id, now()->toDateString()),
+    ]);
+
+    $this->actingAs($manager)
+        ->post(route('marketing.publications.import-metrics'), [
+            'file' => UploadedFile::fake()->createWithContent('marketing-metrics.csv', $csv),
+        ])
+        ->assertRedirect(route('marketing.publications.index'));
+
+    $snapshot = $publication->fresh()->metricSnapshots()->firstOrFail();
+
+    expect($snapshot->metric_date?->toDateString())->toBe(now()->toDateString())
+        ->and($snapshot->impressions)->toBe(2000)
+        ->and($snapshot->reach)->toBe(1200)
+        ->and($snapshot->engagements)->toBe(220)
+        ->and($snapshot->clicks)->toBe(40)
+        ->and($snapshot->sessions)->toBe(25)
+        ->and($snapshot->conversions)->toBe(5)
+        ->and($snapshot->followers)->toBe(12);
+
+    $this->actingAs($designer)
+        ->get(route('marketing.requests.show', $requestRecord))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Marketing/Requests/Show')
+            ->where('requestRecord.can.update', false)
+            ->where('requestRecord.can.comment', true)
+            ->where('requestRecord.can.upload_document', true)
+            ->has('requestRecord.comments.data', 1)
+            ->has('requestRecord.documents.data', 1)
         );
 });

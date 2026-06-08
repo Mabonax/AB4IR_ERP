@@ -5,6 +5,7 @@ namespace App\Domains\Organization\Models;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrganizationProfile extends Model
 {
@@ -60,5 +61,10 @@ class OrganizationProfile extends Model
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    public function metricSnapshots(): HasMany
+    {
+        return $this->hasMany(OrganizationMetricSnapshot::class, 'organization_profile_id')->orderBy('captured_at');
     }
 }

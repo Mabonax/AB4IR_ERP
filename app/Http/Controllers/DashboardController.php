@@ -10,6 +10,7 @@ use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectEnrollment;
 use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\StaffAttendance\Services\StaffAttendanceService;
 use App\Domains\TaskManagement\Services\SupportTicketService;
 use App\Domains\TaskManagement\Services\TaskWorkflowGovernance;
 use App\Domains\TaskManagement\Services\WorkTaskService;
@@ -27,6 +28,7 @@ class DashboardController extends Controller
         protected TaskWorkflowGovernance $governance,
         protected LeaveManagementService $leaveManagementService,
         protected AssetService $assetService,
+        protected StaffAttendanceService $staffAttendanceService,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -98,6 +100,7 @@ class DashboardController extends Controller
             $this->projectsWidget($user),
             $this->assetsWidget($user),
             $this->staffWidget($user),
+            $this->attendanceWidget($user),
         ])->filter()->values()->all();
     }
 
@@ -252,5 +255,10 @@ class DashboardController extends Controller
                 : StaffMember::query()->where('status', 'active')->count().' active staff are in the organisation.',
             'href' => route('staff.dashboard'),
         ];
+    }
+
+    protected function attendanceWidget(User $user): ?array
+    {
+        return $this->staffAttendanceService->dashboardWidget($user);
     }
 }

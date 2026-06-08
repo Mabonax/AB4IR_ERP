@@ -1,8 +1,9 @@
 import { type ReactNode } from 'react';
 
+import FlashMessages from '@/components/flash-messages';
+import { StaffAttendancePrompt } from '@/components/staff-attendance-prompt';
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
 import { type BreadcrumbItem } from '@/types';
-import FlashMessages from '@/components/flash-messages';
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -11,8 +12,9 @@ interface AppLayoutProps {
 
 export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => (
     <AppLayoutTemplate breadcrumbs={breadcrumbs} {...props}>
-                {/* universal flash area */}
+        {/* universal flash area */}
         <FlashMessages />
+        <StaffAttendancePrompt />
         {children}
     </AppLayoutTemplate>
 );

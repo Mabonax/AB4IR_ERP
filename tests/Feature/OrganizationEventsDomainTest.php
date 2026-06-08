@@ -3,6 +3,7 @@
 use App\Domains\Events\Models\Event;
 use App\Domains\Events\Models\EventTask;
 use App\Domains\Events\Models\EventWorkstream;
+use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
@@ -97,6 +98,45 @@ test('organization profile can be updated and viewed as a shared institutional s
     $show->assertSee('Catalysing incubation and enterprise growth');
 });
 
+test('organization impact updates create snapshot history for charts', function () {
+    $user = makeOrganizationManager();
+
+    $this->actingAs($user)->put(route('organization.update'), [
+        'name' => 'AB4IR Enterprise Development Centre',
+        'impact_total' => 1000,
+        'impact_digital' => 650,
+        'impact_physical' => 350,
+        'trainings_conducted' => 12,
+        'impact_website' => 200,
+        'impact_walkins' => 120,
+        'impact_facebook' => 80,
+    ])->assertRedirect();
+
+    $this->actingAs($user)->put(route('organization.update'), [
+        'name' => 'AB4IR Enterprise Development Centre',
+        'impact_total' => 1400,
+        'impact_digital' => 900,
+        'impact_physical' => 500,
+        'trainings_conducted' => 18,
+        'impact_website' => 260,
+        'impact_walkins' => 150,
+        'impact_facebook' => 110,
+    ])->assertRedirect();
+
+    $this->assertDatabaseCount('organization_metric_snapshots', 2);
+
+    $show = $this->actingAs($user)->get(route('organization.show'));
+    $show->assertOk();
+    $show->assertInertia(fn (Assert $page) => $page
+        ->component('Organization/Show')
+        ->has('profile.impact_history', 2)
+        ->where('profile.impact_history.0.total', 1000)
+        ->where('profile.impact_history.1.total', 1400)
+        ->where('profile.impact_mix.0.value', 900)
+        ->has('profile.impact_channel_breakdown', 3)
+    );
+});
+
 test('organization logos can be uploaded for multiple approved brand versions', function () {
     Storage::fake('public');
 
@@ -123,6 +163,174 @@ test('organization logos can be uploaded for multiple approved brand versions', 
     Storage::disk('public')->assertExists($profile->light_logo_path);
     Storage::disk('public')->assertExists($profile->dark_logo_path);
     Storage::disk('public')->assertExists($profile->icon_logo_path);
+});
+
+test('organization document vault replaces same-slot files and enforces targeted downloads', function () {
+    Storage::fake('public');
+
+    $manager = makeOrganizationManager();
+    $allowedUser = User::factory()->create();
+    $blockedUser = User::factory()->create();
+
+    $first = $this->actingAs($manager)->post(route('organization.documents.store'), [
+        'title' => 'Company signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'selected_users',
+        'slot_key' => 'company_default_signature',
+        'replace_existing' => true,
+        'selected_user_ids' => [$allowedUser->id],
+        'file' => UploadedFile::fake()->image('signature-v1.png'),
+    ]);
+
+    $first->assertRedirect(route('organization.documents.index'));
+
+    $document = OrganizationDocument::query()->firstOrFail();
+    $firstPath = $document->path;
+
+    Storage::disk('public')->assertExists($firstPath);
+
+    $this->actingAs($allowedUser)
+        ->get(route('organization.documents.download', $document))
+        ->assertOk();
+
+    $this->actingAs($blockedUser)
+        ->get(route('organization.documents.download', $document))
+        ->assertForbidden();
+
+    $this->actingAs($manager)->post(route('organization.documents.store'), [
+        'title' => 'Company signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'selected_users',
+        'slot_key' => 'company_default_signature',
+        'replace_existing' => true,
+        'selected_user_ids' => [$allowedUser->id],
+        'file' => UploadedFile::fake()->image('signature-v2.png'),
+    ])->assertRedirect(route('organization.documents.index'));
+
+    expect(OrganizationDocument::query()->count())->toBe(1);
+
+    Storage::disk('public')->assertMissing($firstPath);
+    expect($allowedUser->fresh()->notifications()->count())->toBe(2);
+    expect(data_get($allowedUser->fresh()->notifications()->latest()->first()?->data, 'url'))->toBe('/organization/documents');
+    expect($blockedUser->fresh()->notifications()->count())->toBe(0);
+});
+
+test('organization document vault rejects slot presets that do not match the selected document type', function () {
+    Storage::fake('public');
+
+    $manager = makeOrganizationManager();
+
+    $response = $this->actingAs($manager)->post(route('organization.documents.store'), [
+        'title' => 'Wrong slot combination',
+        'document_type' => 'poster',
+        'audience_scope' => 'all_staff',
+        'slot_key' => 'company_default_signature',
+        'replace_existing' => true,
+        'file' => UploadedFile::fake()->image('poster.png'),
+    ]);
+
+    $response->assertSessionHasErrors(['slot_key']);
+});
+
+test('organization document vault only shows active in-window documents to ordinary users', function () {
+    Storage::fake('public');
+
+    $manager = makeOrganizationManager();
+    $user = User::factory()->create();
+
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+
+    OrganizationDocument::query()->create([
+        'organization_profile_id' => $profile->id,
+        'title' => 'Current signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'all_staff',
+        'replace_existing' => false,
+        'is_active' => true,
+        'effective_from' => now()->subDay(),
+        'effective_until' => now()->addDay(),
+        'disk' => 'public',
+        'path' => 'organization/documents/email_signature/current-signature.png',
+        'file_name' => 'current-signature.png',
+    ]);
+
+    OrganizationDocument::query()->create([
+        'organization_profile_id' => $profile->id,
+        'title' => 'Future signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'all_staff',
+        'replace_existing' => false,
+        'is_active' => true,
+        'effective_from' => now()->addDay(),
+        'effective_until' => now()->addDays(3),
+        'disk' => 'public',
+        'path' => 'organization/documents/email_signature/future-signature.png',
+        'file_name' => 'future-signature.png',
+    ]);
+
+    OrganizationDocument::query()->create([
+        'organization_profile_id' => $profile->id,
+        'title' => 'Inactive signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'all_staff',
+        'replace_existing' => false,
+        'is_active' => false,
+        'disk' => 'public',
+        'path' => 'organization/documents/email_signature/inactive-signature.png',
+        'file_name' => 'inactive-signature.png',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('organization.documents.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Organization/Documents/Index')
+            ->has('documents.data', 1)
+            ->where('documents.data.0.title', 'Current signature')
+        );
+
+    $this->actingAs($manager)
+        ->get(route('organization.documents.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Organization/Documents/Index')
+            ->has('documents.data', 3)
+        );
+});
+
+test('organization managers can deactivate reactivate and retire vault documents', function () {
+    $manager = makeOrganizationManager();
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+
+    $document = OrganizationDocument::query()->create([
+        'organization_profile_id' => $profile->id,
+        'title' => 'Lifecycle signature',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'all_staff',
+        'replace_existing' => false,
+        'is_active' => true,
+        'effective_from' => now()->subDay(),
+        'disk' => 'public',
+        'path' => 'organization/documents/email_signature/lifecycle-signature.png',
+        'file_name' => 'lifecycle-signature.png',
+    ]);
+
+    $this->actingAs($manager)
+        ->post(route('organization.documents.lifecycle', $document), ['action' => 'deactivate'])
+        ->assertRedirect(route('organization.documents.index'));
+
+    expect($document->fresh()->is_active)->toBeFalse();
+
+    $this->actingAs($manager)
+        ->post(route('organization.documents.lifecycle', $document), ['action' => 'activate'])
+        ->assertRedirect(route('organization.documents.index'));
+
+    expect($document->fresh()->is_active)->toBeTrue();
+
+    $this->actingAs($manager)
+        ->post(route('organization.documents.lifecycle', $document), ['action' => 'retire_now'])
+        ->assertRedirect(route('organization.documents.index'));
+
+    expect($document->fresh()->is_active)->toBeFalse();
+    expect($document->fresh()->effective_until)->not->toBeNull();
 });
 
 test('event managers can create annual events and manage broader event participants', function () {

@@ -19,7 +19,9 @@ use App\Domains\Finance\Controllers\TravelClaimController;
 use App\Domains\HumanResources\Controllers\HumanResourcesController;
 use App\Domains\Leave\Controllers\LeaveRequestController;
 use App\Domains\Marketing\Controllers\MarketingController;
+use App\Domains\Marketing\Controllers\MarketingOperationsController;
 use App\Domains\Organization\Controllers\OrganizationProfileController;
+use App\Domains\Organization\Controllers\OrganizationDocumentController;
 use App\Domains\Programs\Controllers\ProgramController;
 use App\Domains\Projects\Controllers\MilestoneTemplateController;
 use App\Domains\Projects\Controllers\ProjectAttendanceController;
@@ -29,6 +31,7 @@ use App\Domains\Projects\Controllers\ProjectLocationController;
 use App\Domains\Projects\Controllers\ProjectMilestoneAssessmentController;
 use App\Domains\Staff\Controllers\StaffController;
 use App\Domains\Staff\Controllers\StaffDepartmentController;
+use App\Domains\StaffAttendance\Controllers\StaffAttendanceController;
 use App\Domains\Stakeholders\Controllers\StakeholderController;
 use App\Domains\TaskManagement\Controllers\SupportTicketController;
 use App\Domains\TaskManagement\Controllers\WorkTaskController;
@@ -47,7 +50,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     $adjudicationManagePermission = 'permission:domain.business-development.manage|business-development.adjudications.score';
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
-
     Route::get('notifications', [NotificationController::class, 'index'])
         ->name('notifications.index');
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
@@ -105,9 +107,78 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.finance.view|domain.finance.manage')
         ->whereNumber('travelClaim')
         ->name('finance.travel-claims.reject');
-    Route::get('marketing', [MarketingController::class, 'dashboard'])
+    Route::get('marketing', [MarketingOperationsController::class, 'dashboard'])
         ->middleware('permission:domain.marketing.view|domain.marketing.manage')
         ->name('marketing.dashboard');
+    Route::get('marketing/requests', [MarketingOperationsController::class, 'requestsIndex'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.requests.index');
+    Route::get('marketing/requests/create', [MarketingOperationsController::class, 'createRequest'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.requests.create');
+    Route::post('marketing/requests', [MarketingOperationsController::class, 'storeRequest'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.requests.store');
+    Route::get('marketing/requests/{marketingRequest}', [MarketingOperationsController::class, 'showRequest'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('marketingRequest')
+        ->name('marketing.requests.show');
+    Route::put('marketing/requests/{marketingRequest}', [MarketingOperationsController::class, 'updateRequest'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('marketingRequest')
+        ->name('marketing.requests.update');
+    Route::post('marketing/requests/{marketingRequest}/comment', [MarketingOperationsController::class, 'comment'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('marketingRequest')
+        ->name('marketing.requests.comment');
+    Route::post('marketing/requests/{marketingRequest}/documents', [MarketingOperationsController::class, 'uploadDocument'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('marketingRequest')
+        ->name('marketing.requests.documents.store');
+    Route::get('marketing/requests/{marketingRequest}/documents/{document}', [MarketingOperationsController::class, 'downloadDocument'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('marketingRequest')
+        ->whereNumber('document')
+        ->name('marketing.requests.documents.download');
+    Route::get('marketing/deliverables/workspace', [MarketingOperationsController::class, 'workspace'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.deliverables.workspace');
+    Route::get('marketing/approvals', [MarketingOperationsController::class, 'approvals'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.approvals.index');
+    Route::get('marketing/assets', [MarketingOperationsController::class, 'assets'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.assets.index');
+    Route::get('marketing/publications', [MarketingOperationsController::class, 'publications'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.publications.index');
+    Route::post('marketing/publications/import-metrics', [MarketingOperationsController::class, 'importMetrics'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->name('marketing.publications.import-metrics');
+    Route::post('marketing/deliverables/{deliverable}/versions', [MarketingOperationsController::class, 'storeVersion'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('deliverable')
+        ->name('marketing.deliverables.versions.store');
+    Route::post('marketing/deliverables/{deliverable}/approve', [MarketingOperationsController::class, 'approveDeliverable'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('deliverable')
+        ->name('marketing.deliverables.approve');
+    Route::post('marketing/deliverables/{deliverable}/request-changes', [MarketingOperationsController::class, 'requestDeliverableChanges'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('deliverable')
+        ->name('marketing.deliverables.request-changes');
+    Route::post('marketing/assets/{asset}/publish', [MarketingOperationsController::class, 'publishAsset'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('asset')
+        ->name('marketing.assets.publish');
+    Route::post('marketing/assets/{asset}/archive', [MarketingOperationsController::class, 'archiveAsset'])
+        ->middleware('permission:domain.marketing.view|domain.marketing.manage')
+        ->whereNumber('asset')
+        ->name('marketing.assets.archive');
+    Route::post('marketing/assets/{asset}/publish-to-vault', [MarketingOperationsController::class, 'publishAssetToVault'])
+        ->middleware('auth')
+        ->whereNumber('asset')
+        ->name('marketing.assets.publish-to-vault');
     Route::get('marketing/jobs', [MarketingController::class, 'index'])
         ->middleware('permission:domain.marketing.view|domain.marketing.manage')
         ->name('marketing.jobs.index');
@@ -158,6 +229,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('job')
         ->whereNumber('document')
         ->name('marketing.jobs.documents.download');
+    Route::post('marketing/jobs/{job}/publish-to-vault', [MarketingController::class, 'publishToVault'])
+        ->middleware('auth')
+        ->whereNumber('job')
+        ->name('marketing.jobs.publish-to-vault');
     Route::get('task-management/tasks', [WorkTaskController::class, 'index'])
         ->middleware('permission:domain.task-management.view|domain.task-management.manage')
         ->name('task-management.tasks.index');
@@ -314,6 +389,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('organization/logos/{variant}', [OrganizationProfileController::class, 'showLogo'])
         ->middleware($viewPermission('organization'))
         ->name('organization.logos.show');
+    Route::get('organization/documents', [OrganizationDocumentController::class, 'index'])
+        ->middleware('auth')
+        ->name('organization.documents.index');
+    Route::post('organization/documents', [OrganizationDocumentController::class, 'store'])
+        ->middleware('auth')
+        ->name('organization.documents.store');
+    Route::get('organization/documents/{document}', [OrganizationDocumentController::class, 'download'])
+        ->middleware('auth')
+        ->whereNumber('document')
+        ->name('organization.documents.download');
+    Route::post('organization/documents/{document}/lifecycle', [OrganizationDocumentController::class, 'updateLifecycle'])
+        ->middleware('auth')
+        ->whereNumber('document')
+        ->name('organization.documents.lifecycle');
     Route::get('events/series/{seriesKey}', [EventController::class, 'series'])
         ->middleware($viewPermission('events'))
         ->name('events.series.show');
@@ -450,6 +539,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middlewareFor(['index', 'show'], $viewPermission('facilitators'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('facilitators'));
 
+    Route::get('programs/list', [ProgramController::class, 'list'])
+        ->middleware($viewPermission('programs'))
+        ->name('programs.list');
+
     Route::resource('programs', ProgramController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('programs'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('programs'));
@@ -457,6 +550,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('human-resources', [HumanResourcesController::class, 'dashboard'])
         ->middleware('permission:domain.human-resources.view|domain.human-resources.manage')
         ->name('human-resources.dashboard');
+    Route::get('human-resources/attendance', [StaffAttendanceController::class, 'management'])
+        ->middleware('permission:domain.human-resources.view|domain.human-resources.manage|domain.staff.view|domain.staff.manage')
+        ->name('human-resources.attendance');
+    Route::post('human-resources/attendance/late-overrides', [StaffAttendanceController::class, 'approveLateClockInRequest'])
+        ->middleware('permission:domain.human-resources.manage|domain.staff.manage|domain.leave.manage')
+        ->name('human-resources.attendance.late-overrides.store');
+    Route::get('human-resources/attendance/report/pdf', [StaffAttendanceController::class, 'exportReportPdf'])
+        ->middleware('permission:domain.human-resources.view|domain.human-resources.manage|domain.staff.view|domain.staff.manage')
+        ->name('human-resources.attendance.report.pdf');
 
     Route::get('leave-requests', [LeaveRequestController::class, 'index'])
         ->middleware('permission:domain.leave.view|domain.leave.manage|domain.staff.view|domain.staff.manage')
@@ -566,6 +668,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('project')
         ->middlewareFor('show', $viewPermission('projects'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('projects'));
+    Route::get('projects/{project}/finalization', [ProjectController::class, 'finalization'])
+        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.finalization');
     Route::post('projects/{project}/milestones', [ProjectController::class, 'addMilestone'])
         ->middleware('permission:domain.projects.manage')
         ->whereNumber('project')

@@ -2,6 +2,9 @@
 
 namespace App\Domains\Staff\Models;
 
+use App\Domains\StaffAttendance\Models\StaffAttendanceActivity;
+use App\Domains\StaffAttendance\Models\StaffAttendanceOverride;
+use App\Domains\StaffAttendance\Models\StaffAttendanceRecord;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -65,5 +68,20 @@ class StaffMember extends Model
     public function nextOfKin()
     {
         return $this->hasOne(StaffNextOfKin::class);
+    }
+
+    public function attendanceRecords()
+    {
+        return $this->hasMany(StaffAttendanceRecord::class, 'staff_member_id');
+    }
+
+    public function attendanceOverrides()
+    {
+        return $this->hasMany(StaffAttendanceOverride::class, 'staff_member_id');
+    }
+
+    public function attendanceActivities()
+    {
+        return $this->hasMany(StaffAttendanceActivity::class, 'staff_member_id');
     }
 }

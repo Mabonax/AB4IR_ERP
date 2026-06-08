@@ -4,8 +4,10 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Domains\Facilitators\Models\Facilitator;
+use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Staff\Models\StaffMember;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -67,5 +69,10 @@ class User extends Authenticatable
     public function facilitator()
     {
         return $this->hasOne(Facilitator::class, 'user_id');
+    }
+
+    public function organizationDocuments(): BelongsToMany
+    {
+        return $this->belongsToMany(OrganizationDocument::class, 'organization_document_user')->withTimestamps();
     }
 }

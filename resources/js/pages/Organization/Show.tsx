@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { Head, useForm, usePage } from "@inertiajs/react";
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
 import { organizationNavItems } from "@/config/domain-nav/organization";
 import { type BreadcrumbItem, type SharedData } from "@/types";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -42,6 +51,26 @@ type OrganizationProfile = {
     trainings_conducted?: number | null;
   };
   impact_channels?: Array<{ label: string; value?: number | null }>;
+  impact_history?: Array<{
+    captured_at: string;
+    label: string;
+    total: number;
+    digital: number;
+    physical: number;
+    trainings: number;
+  }>;
+  impact_mix?: Array<{
+    key: string;
+    label: string;
+    value: number;
+    fill: string;
+  }>;
+  impact_channel_breakdown?: Array<{
+    key: string;
+    label: string;
+    value: number;
+    fill: string;
+  }>;
   updated_at?: string | null;
 };
 
@@ -58,6 +87,29 @@ const splitLines = (value?: string | null) =>
     .split(/\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
+
+const impactTrendConfig = {
+  total: { label: "Total Impact", color: "#b91c1c" },
+  digital: { label: "Digital Impact", color: "#ea580c" },
+  physical: { label: "Physical Impact", color: "#0f766e" },
+  trainings: { label: "Trainings", color: "#2563eb" },
+} satisfies ChartConfig;
+
+const impactMixConfig = {
+  digital: { label: "Digital Impact", color: "#dc2626" },
+  physical: { label: "Physical Impact", color: "#ea580c" },
+} satisfies ChartConfig;
+
+const impactChannelConfig = {
+  website: { label: "Website", color: "#0f766e" },
+  walkins: { label: "Walk-ins", color: "#0284c7" },
+  facebook: { label: "Facebook", color: "#2563eb" },
+  x: { label: "X / Twitter", color: "#475569" },
+  linkedin: { label: "LinkedIn", color: "#1d4ed8" },
+  livestreaming: { label: "Livestreaming", color: "#7c3aed" },
+  instagram: { label: "Instagram", color: "#db2777" },
+  youtube: { label: "YouTube", color: "#b91c1c" },
+} satisfies ChartConfig;
 
 export default function OrganizationShow({
   profile,
@@ -117,6 +169,9 @@ export default function OrganizationShow({
 
   const objectives = splitLines(profile.objectives);
   const focusAreas = splitLines(profile.focus_areas);
+  const impactHistory = profile.impact_history ?? [];
+  const impactMix = profile.impact_mix ?? [];
+  const impactChannels = profile.impact_channel_breakdown ?? [];
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -166,6 +221,110 @@ export default function OrganizationShow({
             </div>
           ))}
         </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.3fr,0.7fr]">
+          <Card>
+            <CardHeader>
+              <CardTitle>Impact Trend Over Time</CardTitle>
+              <CardDescription>
+                Each saved change to the organization impact metrics records a new snapshot for management reporting.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {impactHistory.length ? (
+                <ChartContainer config={impactTrendConfig} className="h-[320px] w-full">
+                  <BarChart accessibilityLayer data={impactHistory} margin={{ left: 12, right: 12 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
+                    <YAxis tickLine={false} axisLine={false} width={72} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar dataKey="total" fill="var(--color-total)" radius={6} />
+                    <Bar dataKey="digital" fill="var(--color-digital)" radius={6} />
+                    <Bar dataKey="physical" fill="var(--color-physical)" radius={6} />
+                    <Bar dataKey="trainings" fill="var(--color-trainings)" radius={6} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Save impact figures to start building the organization trend history.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Delivery Mix</CardTitle>
+              <CardDescription>Current digital versus physical contribution to overall impact.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {impactMix.length ? (
+                <ChartContainer config={impactMixConfig} className="mx-auto h-[320px] max-w-[320px]">
+                  <PieChart>
+                    <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="key" />} />
+                    <Pie data={impactMix} dataKey="value" nameKey="key" innerRadius={70} outerRadius={110} strokeWidth={6} />
+                    <ChartLegend content={<ChartLegendContent nameKey="key" />} />
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Enter digital and physical impact values to render the delivery mix.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Reach by Channel</CardTitle>
+            <CardDescription>Current organization reach split by channel and touchpoint.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {impactChannels.length ? (
+              <ChartContainer config={impactChannelConfig} className="h-[360px] w-full">
+                <BarChart accessibilityLayer data={impactChannels} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis
+                    dataKey="label"
+                    type="category"
+                    tickLine={false}
+                    axisLine={false}
+                    width={96}
+                    tickMargin={8}
+                  />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="key" />} />
+                  <Bar dataKey="value" radius={10}>
+                    {impactChannels.map((entry) => (
+                      <Cell key={entry.key} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Add channel totals to show where the organization reach is coming from.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Our Impact</CardTitle>
+            <CardDescription>Public-facing impact channels and audience reach.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {(profile.impact_channels ?? []).map((item) => (
+              <div key={item.label} className="rounded-lg border p-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{item.label}</div>
+                <div className="mt-2 text-xl font-semibold">{formatMetric(item.value)}</div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
           <div className="space-y-6">
@@ -249,21 +408,6 @@ export default function OrganizationShow({
                 ) : (
                   <p className="text-sm text-muted-foreground">No focus areas recorded yet.</p>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Our Impact</CardTitle>
-                <CardDescription>Public-facing impact channels and audience reach.</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {(profile.impact_channels ?? []).map((item) => (
-                  <div key={item.label} className="rounded-lg border p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{item.label}</div>
-                    <div className="mt-2 text-xl font-semibold">{formatMetric(item.value)}</div>
-                  </div>
-                ))}
               </CardContent>
             </Card>
 

@@ -24,4 +24,24 @@ export default defineConfig({
     esbuild: {
         jsx: 'automatic',
     },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (!id.includes('node_modules')) {
+                        return;
+                    }
+
+                    if (id.includes('@radix-ui') || id.includes('@headlessui') || id.includes('input-otp')) {
+                        return 'ui-primitives';
+                    }
+
+                    if (id.includes('@inertiajs') || id.includes('ziggy-js')) {
+                        return 'inertia-stack';
+                    }
+
+                },
+            },
+        },
+    },
 });
