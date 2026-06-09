@@ -232,6 +232,34 @@ test('organization document vault rejects slot presets that do not match the sel
     $response->assertSessionHasErrors(['slot_key']);
 });
 
+test('organization document vault can stream pdf previews inline', function () {
+    Storage::fake('public');
+
+    $manager = makeOrganizationManager();
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+
+    Storage::disk('public')->put('organization/documents/other/preview.pdf', '%PDF-1.4 preview');
+
+    $document = OrganizationDocument::query()->create([
+        'organization_profile_id' => $profile->id,
+        'title' => 'Preview PDF',
+        'document_type' => 'other',
+        'audience_scope' => 'all_staff',
+        'replace_existing' => false,
+        'is_active' => true,
+        'disk' => 'public',
+        'path' => 'organization/documents/other/preview.pdf',
+        'file_name' => 'preview.pdf',
+        'mime_type' => 'application/pdf',
+        'published_by_user_id' => $manager->id,
+    ]);
+
+    $this->actingAs($manager)
+        ->get(route('organization.documents.preview', $document))
+        ->assertOk()
+        ->assertHeader('content-disposition', 'inline; filename="preview.pdf"');
+});
+
 test('organization document vault only shows active in-window documents to ordinary users', function () {
     Storage::fake('public');
 
@@ -331,6 +359,37 @@ test('organization managers can deactivate reactivate and retire vault documents
 
     expect($document->fresh()->is_active)->toBeFalse();
     expect($document->fresh()->effective_until)->not->toBeNull();
+});
+
+test('organization managers can delete vault documents and remove stored files', function () {
+    Storage::fake('public');
+
+    $manager = makeOrganizationManager();
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+
+    Storage::disk('public')->put('organization/documents/email_signature/delete-me.png', 'signature');
+
+    $document = OrganizationDocument::query()->create([
+        'organization_profile_id' => $profile->id,
+        'title' => 'Delete me',
+        'document_type' => 'email_signature',
+        'audience_scope' => 'all_staff',
+        'replace_existing' => false,
+        'is_active' => true,
+        'disk' => 'public',
+        'path' => 'organization/documents/email_signature/delete-me.png',
+        'file_name' => 'delete-me.png',
+    ]);
+
+    $this->actingAs($manager)
+        ->delete(route('organization.documents.destroy', $document))
+        ->assertRedirect(route('organization.documents.index'))
+        ->assertSessionHas('success', 'Organization document deleted.');
+
+    $this->assertDatabaseMissing('organization_documents', [
+        'id' => $document->id,
+    ]);
+    Storage::disk('public')->assertMissing('organization/documents/email_signature/delete-me.png');
 });
 
 test('event managers can create annual events and manage broader event participants', function () {

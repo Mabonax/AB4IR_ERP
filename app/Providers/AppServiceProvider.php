@@ -24,6 +24,14 @@ use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepository;
 use App\Domains\BusinessDevelopment\Repositories\BdsApplicationRepositoryInterface;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepository;
 use App\Domains\BusinessDevelopment\Repositories\BdsIncubateeRepositoryInterface;
+use App\Domains\Documents\Models\DocumentFile;
+use App\Domains\Documents\Models\DocumentFolder;
+use App\Domains\Documents\Policies\DocumentFilePolicy;
+use App\Domains\Documents\Policies\DocumentFolderPolicy;
+use App\Domains\Documents\Repositories\DocumentFileRepository;
+use App\Domains\Documents\Repositories\DocumentFileRepositoryInterface;
+use App\Domains\Documents\Repositories\DocumentFolderRepository;
+use App\Domains\Documents\Repositories\DocumentFolderRepositoryInterface;
 use App\Domains\Events\Models\Event;
 use App\Domains\Events\Policies\EventPolicy;
 use App\Domains\Events\Repositories\EventRepository;
@@ -202,6 +210,16 @@ class AppServiceProvider extends ServiceProvider
             EventRepositoryInterface::class,
             EventRepository::class
         );
+
+        $this->app->bind(
+            DocumentFolderRepositoryInterface::class,
+            DocumentFolderRepository::class
+        );
+
+        $this->app->bind(
+            DocumentFileRepositoryInterface::class,
+            DocumentFileRepository::class
+        );
     }
 
     public function boot(): void
@@ -228,6 +246,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MarketingAsset::class, MarketingAssetPolicy::class);
         Gate::policy(TravelClaim::class, TravelClaimPolicy::class);
         Gate::policy(StaffAttendanceRecord::class, StaffAttendanceRecordPolicy::class);
+        Gate::policy(DocumentFolder::class, DocumentFolderPolicy::class);
+        Gate::policy(DocumentFile::class, DocumentFilePolicy::class);
 
         EventFacade::listen(StaffMemberCreated::class, SendStaffSystemAccessEmail::class);
 

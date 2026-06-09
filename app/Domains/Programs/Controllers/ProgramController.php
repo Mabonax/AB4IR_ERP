@@ -33,7 +33,7 @@ class ProgramController extends Controller
 
     public function store(StoreProgramRequest $request)
     {
-        $this->service->create($request->validated());
+        $this->service->create($request->validated(), $request->user());
 
         return redirect()->back()->with('success', 'Program created');
     }

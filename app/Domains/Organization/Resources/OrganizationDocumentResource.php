@@ -33,6 +33,8 @@ class OrganizationDocumentResource extends JsonResource
             'source_id' => $this->source_id,
             'created_at' => $this->created_at?->toDateTimeString(),
             'download_url' => route('organization.documents.download', $this->resource),
+            'preview_url' => route('organization.documents.preview', $this->resource),
+            'can_preview' => str($this->mime_type ?? '')->contains('pdf') || str($this->file_name ?? '')->lower()->endsWith('.pdf'),
             'can' => [
                 'download' => $user?->can('view', $this->resource) ?? false,
                 'manage' => $user?->can('update', $this->resource) ?? false,

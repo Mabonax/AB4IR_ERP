@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, Download, LayoutGrid, LifeBuoy, Megaphone, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
+import { Bell, BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, Download, FolderTree, LayoutGrid, LifeBuoy, Megaphone, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -108,9 +108,29 @@ const mainNavItems: NavItem[] = [
         icon: Bell,
     },
     {
-        title: 'My Downloads',
+        title: 'Document Library',
+        href: '/organization/document-library',
+        icon: FolderTree,
+        requiredPermissions: [
+            'domain.organization.view',
+            'domain.organization.manage',
+            'domain.programs.view',
+            'domain.programs.manage',
+            'domain.projects.view',
+            'domain.projects.manage',
+            'domain.beneficiaries.view',
+            'domain.beneficiaries.manage',
+            'domain.stakeholders.view',
+            'domain.stakeholders.manage',
+            'domain.human-resources.view',
+            'domain.human-resources.manage',
+        ],
+    },
+    {
+        title: 'Official Vault',
         href: '/organization/documents',
         icon: Download,
+        requiredPermissions: ['domain.organization.view', 'domain.organization.manage'],
     },
     {
         title: 'Facilitator Activities',

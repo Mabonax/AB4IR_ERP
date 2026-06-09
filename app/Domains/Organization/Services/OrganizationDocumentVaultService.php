@@ -2,6 +2,7 @@
 
 namespace App\Domains\Organization\Services;
 
+use App\Domains\Documents\Models\DocumentFile;
 use App\Domains\Marketing\Models\MarketingAsset;
 use App\Domains\Marketing\Models\MarketingJob;
 use App\Domains\Marketing\Models\MarketingJobDocument;
@@ -140,9 +141,57 @@ class OrganizationDocumentVaultService
         });
     }
 
+    public function publishFromDocumentFile(DocumentFile $file, array $data, User $actor): OrganizationDocument
+    {
+        return DB::transaction(function () use ($file, $data, $actor) {
+            if (! Storage::disk($file->disk)->exists($file->file_path)) {
+                throw ValidationException::withMessages([
+                    'file' => ['The source file could not be found.'],
+                ]);
+            }
+
+            $this->validateAudience($data);
+            $this->removeExistingInSlotIfNeeded($data);
+
+            $document = OrganizationDocument::query()->create([
+                'organization_profile_id' => $this->profileService->getProfile()->id,
+                'title' => $data['title'],
+                'document_type' => $data['document_type'],
+                'description' => $data['description'] ?? null,
+                'audience_scope' => $data['audience_scope'],
+                'department_id' => $data['department_id'] ?? null,
+                'slot_key' => $data['slot_key'] ?? null,
+                'replace_existing' => (bool) ($data['replace_existing'] ?? false),
+                'is_active' => (bool) ($data['is_active'] ?? true),
+                'effective_from' => filled($data['effective_from'] ?? null) ? Carbon::parse((string) $data['effective_from'])->startOfDay() : null,
+                'effective_until' => filled($data['effective_until'] ?? null) ? Carbon::parse((string) $data['effective_until'])->endOfDay() : null,
+                'disk' => $file->disk,
+                'path' => $file->file_path,
+                'file_name' => $file->original_name,
+                'mime_type' => $file->mime_type,
+                'file_size' => $file->size_bytes,
+                'source_type' => DocumentFile::class,
+                'source_id' => $file->id,
+                'published_by_user_id' => $actor->id,
+            ]);
+
+            $document->targetUsers()->sync($this->targetUserIds($data));
+            $this->notifyRecipients($document, $actor);
+
+            return $document->load(['department:id,name', 'publishedBy:id,name', 'targetUsers:id,name']);
+        });
+    }
+
     public function download(OrganizationDocument $document)
     {
         return Storage::disk($document->disk)->download($document->path, $document->file_name);
+    }
+
+    public function preview(OrganizationDocument $document)
+    {
+        return Storage::disk($document->disk)->response($document->path, $document->file_name, [
+            'Content-Disposition' => 'inline; filename="'.$document->file_name.'"',
+        ]);
     }
 
     public function updateLifecycle(OrganizationDocument $document, string $action): OrganizationDocument
@@ -163,6 +212,15 @@ class OrganizationDocumentVaultService
                 'action' => ['Choose a valid lifecycle action.'],
             ]),
         };
+    }
+
+    public function deleteDocument(OrganizationDocument $document): void
+    {
+        if ($document->path) {
+            Storage::disk($document->disk)->delete($document->path);
+        }
+
+        $document->delete();
     }
 
     protected function persistPublishedDocument(
@@ -303,7 +361,9 @@ class OrganizationDocumentVaultService
             ->get();
 
         foreach ($documents as $document) {
-            Storage::disk($document->disk)->delete($document->path);
+            if ($document->source_type !== DocumentFile::class) {
+                Storage::disk($document->disk)->delete($document->path);
+            }
             $document->delete();
         }
     }

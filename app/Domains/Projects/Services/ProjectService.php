@@ -2,6 +2,7 @@
 
 namespace App\Domains\Projects\Services;
 
+use App\Domains\Documents\Services\DocumentFolderService;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectEnrollment;
@@ -33,7 +34,8 @@ class ProjectService
 
     public function __construct(
         protected ProjectRepositoryInterface $repository,
-        protected ProjectHistoryService $historyService
+        protected ProjectHistoryService $historyService,
+        protected DocumentFolderService $documentFolderService,
     ) {}
 
     public function paginateProjects(): LengthAwarePaginator
@@ -61,6 +63,7 @@ class ProjectService
 
             $project = $this->repository->create($projectData);
             $project->partners()->sync($partnerIds);
+            $this->documentFolderService->createDefaultProjectFolders($project, $actor);
 
             $this->syncProgramMilestones($project);
             $this->assertProjectStatusReadiness($project, null, $data);

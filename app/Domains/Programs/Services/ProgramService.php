@@ -4,8 +4,10 @@ namespace App\Domains\Programs\Services;
 
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Services\ProjectProgressService;
+use App\Domains\Documents\Services\DocumentFolderService;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Programs\Repositories\ProgramRepositoryInterface;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
@@ -15,7 +17,8 @@ class ProgramService
 {
     public function __construct(
         protected ProgramRepositoryInterface $repository,
-        protected ProjectProgressService $progressService
+        protected ProjectProgressService $progressService,
+        protected DocumentFolderService $documentFolderService,
     ) {}
 
     public function list(): Collection
@@ -176,10 +179,13 @@ class ProgramService
         ];
     }
 
-    public function create(array $data): Program
+    public function create(array $data, ?User $actor = null): Program
     {
-        return DB::transaction(function () use ($data) {
-            return $this->repository->create($data);
+        return DB::transaction(function () use ($data, $actor) {
+            $program = $this->repository->create($data);
+            $this->documentFolderService->createDefaultProgramFolders($program, $actor);
+
+            return $program;
         });
     }
 

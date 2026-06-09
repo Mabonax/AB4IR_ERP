@@ -71,6 +71,13 @@ class OrganizationDocumentController extends Controller
         return $this->service->download($document);
     }
 
+    public function preview(Request $request, OrganizationDocument $document): HttpResponse
+    {
+        $this->authorize('view', $document);
+
+        return $this->service->preview($document);
+    }
+
     public function updateLifecycle(Request $request, OrganizationDocument $document)
     {
         $this->authorize('update', $document);
@@ -83,5 +90,15 @@ class OrganizationDocumentController extends Controller
 
         return redirect()->route('organization.documents.index')
             ->with('success', 'Organization document lifecycle updated.');
+    }
+
+    public function destroy(Request $request, OrganizationDocument $document)
+    {
+        $this->authorize('delete', $document);
+
+        $this->service->deleteDocument($document);
+
+        return redirect()->route('organization.documents.index')
+            ->with('success', 'Organization document deleted.');
     }
 }

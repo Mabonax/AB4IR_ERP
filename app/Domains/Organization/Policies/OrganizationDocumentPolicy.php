@@ -38,6 +38,11 @@ class OrganizationDocumentPolicy
         return $this->canManageVault($user);
     }
 
+    public function delete(User $user, OrganizationDocument $document): bool
+    {
+        return $this->canManageVault($user);
+    }
+
     protected function canManageVault(User $user): bool
     {
         if ($this->canManageDomain($user, 'organization')) {

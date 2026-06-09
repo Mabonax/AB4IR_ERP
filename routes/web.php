@@ -13,6 +13,7 @@ use App\Domains\BusinessDevelopment\Controllers\BdsDashboardController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeKpiController;
 use App\Domains\BusinessDevelopment\Controllers\BdsPitchSessionController;
+use App\Domains\Documents\Controllers\DocumentLibraryController;
 use App\Domains\Events\Controllers\EventController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\Finance\Controllers\TravelClaimController;
@@ -395,6 +396,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('organization/documents', [OrganizationDocumentController::class, 'store'])
         ->middleware('auth')
         ->name('organization.documents.store');
+    Route::get('organization/documents/{document}/preview', [OrganizationDocumentController::class, 'preview'])
+        ->middleware('auth')
+        ->whereNumber('document')
+        ->name('organization.documents.preview');
     Route::get('organization/documents/{document}', [OrganizationDocumentController::class, 'download'])
         ->middleware('auth')
         ->whereNumber('document')
@@ -403,6 +408,54 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('auth')
         ->whereNumber('document')
         ->name('organization.documents.lifecycle');
+    Route::get('organization/document-library', [DocumentLibraryController::class, 'index'])
+        ->middleware('auth')
+        ->name('organization.document-library.index');
+    Route::post('organization/document-library/folders', [DocumentLibraryController::class, 'storeFolder'])
+        ->middleware('auth')
+        ->name('organization.document-library.folders.store');
+    Route::post('organization/document-library/root-folders', [DocumentLibraryController::class, 'storeRootFolder'])
+        ->middleware('auth')
+        ->name('organization.document-library.root-folders.store');
+    Route::post('organization/document-library/folders/{folder}/rename', [DocumentLibraryController::class, 'renameFolder'])
+        ->middleware('auth')
+        ->whereNumber('folder')
+        ->name('organization.document-library.folders.rename');
+    Route::post('organization/document-library/folders/{folder}/move', [DocumentLibraryController::class, 'moveFolder'])
+        ->middleware('auth')
+        ->whereNumber('folder')
+        ->name('organization.document-library.folders.move');
+    Route::delete('organization/document-library/folders/{folder}', [DocumentLibraryController::class, 'destroyFolder'])
+        ->middleware('auth')
+        ->whereNumber('folder')
+        ->name('organization.document-library.folders.destroy');
+    Route::post('organization/document-library/files', [DocumentLibraryController::class, 'storeFile'])
+        ->middleware('auth')
+        ->name('organization.document-library.files.store');
+    Route::post('organization/document-library/files/{file}/rename', [DocumentLibraryController::class, 'renameFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.rename');
+    Route::post('organization/document-library/files/{file}/move', [DocumentLibraryController::class, 'moveFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.move');
+    Route::delete('organization/document-library/files/{file}', [DocumentLibraryController::class, 'destroyFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.destroy');
+    Route::get('organization/document-library/files/{file}/download', [DocumentLibraryController::class, 'downloadFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.download');
+    Route::post('organization/document-library/files/{file}/publish-to-vault', [DocumentLibraryController::class, 'publishToVault'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.publish-to-vault');
+    Route::delete('organization/documents/{document}', [OrganizationDocumentController::class, 'destroy'])
+        ->middleware('auth')
+        ->whereNumber('document')
+        ->name('organization.documents.destroy');
     Route::get('events/series/{seriesKey}', [EventController::class, 'series'])
         ->middleware($viewPermission('events'))
         ->name('events.series.show');

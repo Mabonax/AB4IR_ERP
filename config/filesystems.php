@@ -38,6 +38,13 @@ return [
             'report' => false,
         ],
 
+        'document_library' => [
+            'driver' => 'local',
+            'root' => env('DOCUMENT_LIBRARY_ROOT', storage_path('app/private/document-library')),
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
