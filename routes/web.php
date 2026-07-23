@@ -63,6 +63,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('beneficiaries/import', [BeneficiaryController::class, 'import'])
         ->middleware($managePermission('beneficiaries'))
         ->name('beneficiaries.import');
+    Route::post('beneficiaries/{beneficiary}/suspend', [BeneficiaryController::class, 'suspend'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.suspend');
+    Route::post('beneficiaries/{beneficiary}/reinstate', [BeneficiaryController::class, 'reinstate'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.reinstate');
+    Route::post('beneficiaries/{beneficiary}/graduate', [BeneficiaryController::class, 'graduate'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.graduate');
+    Route::post('beneficiaries/{beneficiary}/exit', [BeneficiaryController::class, 'exit'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.exit');
+    Route::post('beneficiaries/{beneficiary}/transfer', [BeneficiaryController::class, 'transfer'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.transfer');
+    Route::post('beneficiaries/{beneficiary}/archive', [BeneficiaryController::class, 'archive'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.archive');
     Route::resource('beneficiaries', BeneficiaryController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('beneficiaries'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('beneficiaries'));
@@ -425,13 +449,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('auth')
         ->whereNumber('folder')
         ->name('organization.document-library.folders.move');
+    Route::post('organization/document-library/folders/{folder}/apply-template', [DocumentLibraryController::class, 'applyTemplate'])
+        ->middleware('auth')
+        ->whereNumber('folder')
+        ->name('organization.document-library.folders.apply-template');
     Route::delete('organization/document-library/folders/{folder}', [DocumentLibraryController::class, 'destroyFolder'])
         ->middleware('auth')
         ->whereNumber('folder')
         ->name('organization.document-library.folders.destroy');
+    Route::post('organization/document-library/templates', [DocumentLibraryController::class, 'storeTemplate'])
+        ->middleware('auth')
+        ->name('organization.document-library.templates.store');
     Route::post('organization/document-library/files', [DocumentLibraryController::class, 'storeFile'])
         ->middleware('auth')
         ->name('organization.document-library.files.store');
+    Route::get('organization/document-library/files/{file}/preview', [DocumentLibraryController::class, 'previewFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.preview');
+    Route::post('organization/document-library/files/{file}/versions', [DocumentLibraryController::class, 'uploadVersion'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.versions.store');
+    Route::post('organization/document-library/files/{file}/versions/{version}/restore', [DocumentLibraryController::class, 'restoreVersion'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->whereNumber('version')
+        ->name('organization.document-library.files.versions.restore');
     Route::post('organization/document-library/files/{file}/rename', [DocumentLibraryController::class, 'renameFile'])
         ->middleware('auth')
         ->whereNumber('file')
@@ -440,6 +484,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('auth')
         ->whereNumber('file')
         ->name('organization.document-library.files.move');
+    Route::post('organization/document-library/files/{file}/checkout', [DocumentLibraryController::class, 'checkOutFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.checkout');
+    Route::post('organization/document-library/files/{file}/checkin', [DocumentLibraryController::class, 'checkInFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.checkin');
+    Route::post('organization/document-library/files/{file}/force-release', [DocumentLibraryController::class, 'forceReleaseFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.force-release');
+    Route::post('organization/document-library/files/{file}/submit-review', [DocumentLibraryController::class, 'submitForReview'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.submit-review');
+    Route::post('organization/document-library/files/{file}/approve', [DocumentLibraryController::class, 'approveFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.approve');
+    Route::post('organization/document-library/files/{file}/reject', [DocumentLibraryController::class, 'rejectFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.reject');
+    Route::post('organization/document-library/files/{file}/archive', [DocumentLibraryController::class, 'archiveFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.archive');
+    Route::post('organization/document-library/files/{file}/links', [DocumentLibraryController::class, 'linkFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->name('organization.document-library.files.links.store');
+    Route::delete('organization/document-library/files/{file}/links/{link}', [DocumentLibraryController::class, 'unlinkFile'])
+        ->middleware('auth')
+        ->whereNumber('file')
+        ->whereNumber('link')
+        ->name('organization.document-library.files.links.destroy');
     Route::delete('organization/document-library/files/{file}', [DocumentLibraryController::class, 'destroyFile'])
         ->middleware('auth')
         ->whereNumber('file')
@@ -554,6 +635,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware($managePermission('events'))
         ->whereNumber('event')
         ->name('events.outcome-report.upsert');
+    Route::post('events/{event}/open-registration', [EventController::class, 'openRegistration'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.open-registration');
+    Route::post('events/{event}/close-registration', [EventController::class, 'closeRegistration'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.close-registration');
+    Route::post('events/{event}/start', [EventController::class, 'startLifecycle'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.start');
+    Route::post('events/{event}/complete', [EventController::class, 'complete'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.complete');
+    Route::post('events/{event}/cancel', [EventController::class, 'cancelLifecycle'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.cancel');
+    Route::post('events/{event}/postpone', [EventController::class, 'postpone'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.postpone');
+    Route::post('events/{event}/archive', [EventController::class, 'archive'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.archive');
+    Route::post('events/{event}/closure-assets', [EventController::class, 'uploadClosureAsset'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->name('events.closure-assets.store');
+    Route::get('events/{event}/closure-assets/{asset}', [EventController::class, 'downloadClosureAsset'])
+        ->middleware($viewPermission('events'))
+        ->whereNumber('event')
+        ->whereNumber('asset')
+        ->name('events.closure-assets.download');
     Route::post('events/{event}/workstreams', [EventController::class, 'storeWorkstream'])
         ->middleware($managePermission('events'))
         ->whereNumber('event')
@@ -635,6 +753,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.leave.view|domain.leave.manage')
         ->whereNumber('leave_request')
         ->name('leave-requests.revoke');
+    Route::post('leave-requests/{leave_request}/documents', [LeaveRequestController::class, 'uploadDocument'])
+        ->middleware('permission:domain.leave.view|domain.leave.manage|domain.human-resources.view|domain.human-resources.manage')
+        ->whereNumber('leave_request')
+        ->name('leave-requests.documents.store');
+    Route::get('leave-requests/{leave_request}/documents/{document}', [LeaveRequestController::class, 'downloadDocument'])
+        ->middleware('permission:domain.leave.view|domain.leave.manage|domain.human-resources.view|domain.human-resources.manage')
+        ->whereNumber('leave_request')
+        ->whereNumber('document')
+        ->name('leave-requests.documents.download');
+    Route::delete('leave-requests/{leave_request}/documents/{document}', [LeaveRequestController::class, 'deleteDocument'])
+        ->middleware('permission:domain.leave.view|domain.leave.manage|domain.human-resources.manage')
+        ->whereNumber('leave_request')
+        ->whereNumber('document')
+        ->name('leave-requests.documents.destroy');
     Route::post('leave-requests/{leave_request}/hr-approve', [LeaveRequestController::class, 'hrApprove'])
         ->middleware('permission:domain.human-resources.manage')
         ->whereNumber('leave_request')

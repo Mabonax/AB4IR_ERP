@@ -30,6 +30,7 @@ The project has progressed beyond an experimental starter. It already contains m
 - [Domain Inventory](./domain-inventory.md)
 - [Architecture Findings](./architecture-findings.md)
 - [Execution Backlog](./execution-backlog.md)
+- [Transaction Endpoints Audit](./transaction-endpoints.md)
 
 ## Recommended Starting Order
 

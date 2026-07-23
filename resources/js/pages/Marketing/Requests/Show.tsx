@@ -212,6 +212,17 @@ export default function MarketingRequestShow({
   const selectedProgramId = String(programs.find((program) => program.title === requestRecord.program_name)?.id ?? "");
   const selectedEventId = String(events.find((eventItem) => eventItem.title === requestRecord.event_name)?.id ?? "");
   const selectedOperationalOwnerId = String(assignees.find((assignee) => assignee.name === workPackage?.operational_owner_name)?.id ?? "");
+  const deliverableVersionCount = deliverables.reduce((total, deliverable) => {
+    const versions = Array.isArray(deliverable.versions) ? deliverable.versions : (deliverable.versions.data ?? []);
+
+    return total + versions.length;
+  }, 0);
+  const approvedAssetCount = deliverables.reduce((total, deliverable) => {
+    const assets = Array.isArray(deliverable.assets) ? deliverable.assets : (deliverable.assets.data ?? []);
+
+    return total + assets.length;
+  }, 0);
+  const pendingApprovalCount = deliverables.filter((deliverable) => !deliverable.approved_at && deliverable.can.approve).length;
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Marketing", href: "/marketing" },
@@ -223,12 +234,12 @@ export default function MarketingRequestShow({
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title={requestRecord.title} />
 
-      <div className="space-y-5 p-4">
+      <div className="space-y-6 bg-slate-50 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold">{requestRecord.title}</h1>
             <p className="text-sm text-muted-foreground">
-              Multi-deliverable request workspace with work package routing, version history, approvals, assets, publication records, and metrics.
+              Content request workspace. Each workflow below is separate, but remains tied to this request and its work package.
             </p>
           </div>
           <DomainNav items={marketingNavItems} />
@@ -236,10 +247,73 @@ export default function MarketingRequestShow({
 
         {flash.success ? <div className="rounded-md border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800">{String(flash.success)}</div> : null}
 
-        <section className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-          <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Request Brief</h2>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current job/task context</div>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium capitalize text-white">{requestRecord.status.replaceAll("_", " ")}</span>
+                <span className="rounded-full border border-slate-200 px-3 py-1 text-xs capitalize text-slate-700">{requestRecord.priority} priority</span>
+                <span className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">Due {requestRecord.due_date ?? "not set"}</span>
+                {requestRecord.source_marketing_job_id ? <span className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">Job #{requestRecord.source_marketing_job_id}</span> : null}
+              </div>
+            </div>
+            <div className="grid gap-1 text-right text-xs text-slate-500">
+              <span>Requester: {requestRecord.requester_name ?? "-"}</span>
+              <span>Approver: {requestRecord.approver_name ?? "-"}</span>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl bg-slate-50 p-3">
+              <div className="text-xs text-slate-500">Owner department</div>
+              <div className="mt-1 text-sm font-medium">{requestRecord.owner_department_name ?? "-"}</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <div className="text-xs text-slate-500">Project</div>
+              <div className="mt-1 text-sm font-medium">{requestRecord.project_name ?? "-"}</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <div className="text-xs text-slate-500">Program</div>
+              <div className="mt-1 text-sm font-medium">{requestRecord.program_name ?? "-"}</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <div className="text-xs text-slate-500">Event</div>
+              <div className="mt-1 text-sm font-medium">{requestRecord.event_name ?? "-"}</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border-l-4 border-l-sky-500 bg-white p-4 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Content request</div>
+            <div className="mt-2 text-2xl font-semibold">{requestRecord.work_packages.length}</div>
+            <div className="text-xs text-muted-foreground">work package{requestRecord.work_packages.length === 1 ? "" : "s"} scoped to this task</div>
+          </div>
+          <div className="rounded-xl border-l-4 border-l-indigo-500 bg-white p-4 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Content uploads</div>
+            <div className="mt-2 text-2xl font-semibold">{documents.length + deliverableVersionCount}</div>
+            <div className="text-xs text-muted-foreground">brief files and deliverable versions</div>
+          </div>
+          <div className="rounded-xl border-l-4 border-l-amber-500 bg-white p-4 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Reviews</div>
+            <div className="mt-2 text-2xl font-semibold">{comments.length}</div>
+            <div className="text-xs text-muted-foreground">request comments and review notes</div>
+          </div>
+          <div className="rounded-xl border-l-4 border-l-emerald-500 bg-white p-4 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Approvals</div>
+            <div className="mt-2 text-2xl font-semibold">{approvedAssetCount}</div>
+            <div className="text-xs text-muted-foreground">{pendingApprovalCount} deliverable{pendingApprovalCount === 1 ? "" : "s"} awaiting your approval</div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-sky-200 bg-white shadow-sm">
+          <div className="border-b border-sky-100 bg-sky-50 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Workflow 1</div>
+            <h2 className="text-lg font-semibold text-slate-950">Content Request</h2>
+            <p className="text-sm text-slate-600">The brief, audience, campaign goal, and assigned production work package.</p>
+          </div>
+          <div className="grid gap-4 p-4 xl:grid-cols-[1.4fr_1fr]">
+            <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-lg border p-3">
                 <div className="text-xs text-muted-foreground">Objective</div>
                 <div className="mt-1 text-sm">{requestRecord.objective ?? "No objective captured."}</div>
@@ -253,36 +327,35 @@ export default function MarketingRequestShow({
                 <div className="mt-1 text-sm">{requestRecord.description ?? "No description captured."}</div>
               </div>
               <div className="rounded-lg border p-3">
-                <div className="text-xs text-muted-foreground">Target Audience</div>
+                <div className="text-xs text-muted-foreground">Target audience</div>
                 <div className="mt-1 text-sm">{requestRecord.target_audience ?? "Not specified."}</div>
               </div>
               <div className="rounded-lg border p-3">
-                <div className="text-xs text-muted-foreground">Campaign Goal</div>
+                <div className="text-xs text-muted-foreground">Campaign goal</div>
                 <div className="mt-1 text-sm">{requestRecord.campaign_goal ?? "Not specified."}</div>
               </div>
             </div>
-          </div>
-
-          <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Context</h2>
-            <div className="mt-3 space-y-3 text-sm">
-              <div>Requester: {requestRecord.requester_name ?? "-"}</div>
-              <div>Approver: {requestRecord.approver_name ?? "-"}</div>
-              <div>Department: {requestRecord.owner_department_name ?? "-"}</div>
-              <div>Project: {requestRecord.project_name ?? "-"}</div>
-              <div>Program: {requestRecord.program_name ?? "-"}</div>
-              <div>Event: {requestRecord.event_name ?? "-"}</div>
-              <div>Due date: {requestRecord.due_date ?? "Not set"}</div>
-              {requestRecord.source_marketing_job_id ? <div>Legacy job link: #{requestRecord.source_marketing_job_id}</div> : null}
+            <div className="space-y-3">
+              <div className="text-sm font-semibold">Work package</div>
+              {requestRecord.work_packages.length === 0 ? <div className="rounded-lg border p-3 text-sm text-muted-foreground">No work package assigned yet.</div> : requestRecord.work_packages.map((workPackage) => (
+                <div key={workPackage.id} className="rounded-lg border p-3">
+                  <div className="font-medium capitalize">{workPackage.assigned_unit.replaceAll("_", " ")}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Owner {workPackage.operational_owner_name ?? "-"} | {workPackage.workload_status.replaceAll("_", " ")}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Planned {workPackage.planned_start_date ?? "-"} to {workPackage.planned_end_date ?? "-"}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </section>
 
         {requestRecord.can.update ? (
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Replan Request</h2>
+          <details className="border-t border-sky-100">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-sky-800">Edit request plan</summary>
             <form
-              className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+              className="grid gap-3 p-4 pt-1 md:grid-cols-2 xl:grid-cols-4"
               onSubmit={(event) => {
                 event.preventDefault();
                 const formData = new FormData(event.currentTarget);
@@ -364,35 +437,67 @@ export default function MarketingRequestShow({
                 <button type="submit" className="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900">Save Request Plan</button>
               </div>
             </form>
-          </section>
+          </details>
         ) : null}
-
-        <section className="rounded-xl border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-semibold">Work Package</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {requestRecord.work_packages.map((workPackage) => (
-              <div key={workPackage.id} className="rounded-lg border p-3">
-                <div className="font-medium capitalize">{workPackage.assigned_unit.replaceAll("_", " ")}</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Owner {workPackage.operational_owner_name ?? "-"} | {workPackage.workload_status.replaceAll("_", " ")}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Planned {workPackage.planned_start_date ?? "-"} to {workPackage.planned_end_date ?? "-"}
-                </div>
-              </div>
-            ))}
-          </div>
         </section>
 
-        <section className="rounded-xl border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-semibold">Deliverables Workspace</h2>
-          <div className="mt-4 space-y-4">
+        <section className="rounded-2xl border border-indigo-200 bg-white shadow-sm">
+          <div className="border-b border-indigo-100 bg-indigo-50 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Workflow 2</div>
+            <h2 className="text-lg font-semibold text-slate-950">Content Uploads</h2>
+            <p className="text-sm text-slate-600">Upload request references and production versions here. These are working files for this task.</p>
+          </div>
+          <div className="grid gap-4 p-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-xl border p-4">
+              <h3 className="text-base font-semibold">Request files</h3>
+              {requestRecord.can.upload_document ? (
+                <form
+                  className="mt-4 grid gap-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const formData = new FormData(event.currentTarget);
+                    router.post(`/marketing/requests/${requestRecord.id}/documents`, formData, {
+                      forceFormData: true,
+                      preserveScroll: true,
+                    });
+                    event.currentTarget.reset();
+                  }}
+                >
+                  <input name="title" placeholder="Document title" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                  <select name="document_kind" defaultValue="supporting" className="rounded-md border bg-background px-3 py-2 text-sm">
+                    <option value="supporting">Supporting</option>
+                    <option value="brief">Brief</option>
+                    <option value="brand_reference">Brand reference</option>
+                    <option value="approval_reference">Approval reference</option>
+                    <option value="publication_reference">Publication reference</option>
+                  </select>
+                  <textarea name="notes" rows={3} placeholder="What is this file for?" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                  <input name="file" type="file" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                  <button type="submit" className="rounded-md bg-indigo-700 px-4 py-2 text-sm text-white hover:bg-indigo-800">Upload Request File</button>
+                </form>
+              ) : null}
+              <div className="mt-4 space-y-3">
+                {documents.length === 0 ? <div className="text-sm text-muted-foreground">No request documents uploaded yet.</div> : documents.map((document) => (
+                  <div key={document.id} className="rounded-md border p-3">
+                    <div className="font-medium">{document.title}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {document.document_kind.replaceAll("_", " ")} | {document.uploaded_by_name ?? "-"} | {document.created_at ?? "-"}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{document.file_name}</div>
+                    {document.notes ? <div className="mt-2 text-sm text-muted-foreground">{document.notes}</div> : null}
+                    <a href={`/marketing/requests/${requestRecord.id}/documents/${document.id}`} className="mt-2 inline-block text-sm text-blue-700 underline">
+                      Download
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
             {deliverables.map((deliverable) => {
               const versions = Array.isArray(deliverable.versions) ? deliverable.versions : (deliverable.versions.data ?? []);
-              const assets = Array.isArray(deliverable.assets) ? deliverable.assets : (deliverable.assets.data ?? []);
 
               return (
-                <div key={deliverable.id} className="rounded-lg border p-4">
+                <div key={deliverable.id} className="rounded-xl border p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -407,44 +512,133 @@ export default function MarketingRequestShow({
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-4 xl:grid-cols-2">
-                    <div className="rounded-lg border p-3">
-                      <div className="font-medium">Version History</div>
-                      <div className="mt-3 space-y-3">
-                        {versions.length === 0 ? <div className="text-sm text-muted-foreground">No versions uploaded yet.</div> : versions.map((version) => (
-                          <div key={version.id} className="rounded-md border p-3">
-                            <div className="text-sm font-medium">Version {version.version_number}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {version.approval_status.replaceAll("_", " ")} | {version.uploaded_by_name ?? "-"} | {version.created_at ?? "-"}
-                            </div>
-                            <div className="mt-1 text-xs text-muted-foreground">{version.asset_file_name ?? version.external_reference ?? "No file linked"}</div>
-                            {version.change_notes ? <div className="mt-2 text-sm text-muted-foreground">{version.change_notes}</div> : null}
+                  {deliverable.can.upload_version ? (
+                    <form
+                      className="mt-4 grid gap-3"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const formData = new FormData(event.currentTarget);
+                        router.post(`/marketing/deliverables/${deliverable.id}/versions`, formData, {
+                          forceFormData: true,
+                          preserveScroll: true,
+                        });
+                      }}
+                    >
+                      <textarea name="change_notes" rows={3} placeholder="What changed in this revision?" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                      <input name="external_reference" type="url" placeholder="Optional external proof link" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                      <input name="asset_file" type="file" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                      <button type="submit" className="rounded-md bg-indigo-700 px-4 py-2 text-sm text-white hover:bg-indigo-800">Upload Deliverable Version</button>
+                    </form>
+                  ) : null}
+                  <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-muted-foreground">
+                    {versions.length} version{versions.length === 1 ? "" : "s"} uploaded for this deliverable.
+                  </div>
+                </div>
+              );
+            })}
+            {deliverables.length === 0 ? <div className="rounded-xl border p-4 text-sm text-muted-foreground">No deliverables have been created for this request yet.</div> : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-amber-200 bg-white shadow-sm">
+          <div className="border-b border-amber-100 bg-amber-50 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Workflow 3</div>
+            <h2 className="text-lg font-semibold text-slate-950">Reviews</h2>
+            <p className="text-sm text-slate-600">Use this area for feedback, version review history, and coordination notes before approval.</p>
+          </div>
+          <div className="grid gap-4 p-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-xl border p-4">
+              <h3 className="text-base font-semibold">Review conversation</h3>
+              {requestRecord.can.comment ? (
+                <form
+                  className="mt-4 grid gap-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const formData = new FormData(event.currentTarget);
+                    router.post(`/marketing/requests/${requestRecord.id}/comment`, {
+                      message: formData.get("message"),
+                    }, { preserveScroll: true });
+                    event.currentTarget.reset();
+                  }}
+                >
+                  <textarea name="message" rows={4} placeholder="Add clarification, feedback, or review guidance." className="rounded-md border bg-background px-3 py-2 text-sm" />
+                  <button type="submit" className="rounded-md bg-amber-700 px-4 py-2 text-sm text-white hover:bg-amber-800">Post Review Note</button>
+                </form>
+              ) : null}
+              <div className="mt-4 space-y-3">
+                {comments.length === 0 ? <div className="text-sm text-muted-foreground">No review comments recorded yet.</div> : comments.map((comment) => (
+                  <div key={comment.id} className="rounded-md border p-3">
+                    <div className="text-xs text-muted-foreground">{comment.user_name ?? "-"} | {comment.created_at ?? "-"}</div>
+                    <div className="mt-1 text-sm">{comment.message}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-4">
+              {deliverables.map((deliverable) => {
+                const versions = Array.isArray(deliverable.versions) ? deliverable.versions : (deliverable.versions.data ?? []);
+
+                return (
+                  <div key={deliverable.id} className="rounded-xl border p-4">
+                    <div className="font-medium">{deliverable.title}</div>
+                    <div className="mt-3 space-y-3">
+                      {versions.length === 0 ? <div className="text-sm text-muted-foreground">No versions available for review yet.</div> : versions.map((version) => (
+                        <div key={version.id} className="rounded-md border p-3">
+                          <div className="text-sm font-medium">Version {version.version_number}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {version.approval_status.replaceAll("_", " ")} | {version.uploaded_by_name ?? "-"} | {version.created_at ?? "-"}
                           </div>
-                        ))}
-                      </div>
-
-                      {deliverable.can.upload_version ? (
-                        <form
-                          className="mt-4 grid gap-3"
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            const formData = new FormData(event.currentTarget);
-                            router.post(`/marketing/deliverables/${deliverable.id}/versions`, formData, {
-                              forceFormData: true,
-                              preserveScroll: true,
-                            });
-                          }}
-                        >
-                          <textarea name="change_notes" rows={3} placeholder="What changed in this revision?" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                          <input name="external_reference" type="url" placeholder="Optional external proof link" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                          <input name="asset_file" type="file" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                          <button type="submit" className="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900">Upload New Version</button>
-                        </form>
-                      ) : null}
+                          <div className="mt-1 text-xs text-muted-foreground">{version.asset_file_name ?? version.external_reference ?? "No file linked"}</div>
+                          {version.change_notes ? <div className="mt-2 text-sm text-muted-foreground">{version.change_notes}</div> : null}
+                        </div>
+                      ))}
                     </div>
+                  </div>
+                );
+              })}
+              <details className="rounded-xl border p-4">
+                <summary className="cursor-pointer text-sm font-medium">Activity history</summary>
+                <div className="mt-4 space-y-3">
+                  {activities.length === 0 ? <div className="text-sm text-muted-foreground">No activity history recorded yet.</div> : activities.map((activity) => (
+                    <div key={activity.id} className="rounded-md border p-3">
+                      <div className="text-xs text-muted-foreground">{activity.actor_name ?? "System"} | {activity.created_at ?? "-"}</div>
+                      <div className="mt-1 text-sm">{activity.summary}</div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </div>
+          </div>
+        </section>
 
+        <section className="rounded-2xl border border-emerald-200 bg-white shadow-sm">
+          <div className="border-b border-emerald-100 bg-emerald-50 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Workflow 4</div>
+            <h2 className="text-lg font-semibold text-slate-950">Content Approvals</h2>
+            <p className="text-sm text-slate-600">Approve final deliverables, publish approved assets, and optionally send approved assets to the organization vault.</p>
+          </div>
+          <div className="space-y-4 p-4">
+            {deliverables.map((deliverable) => {
+              const assets = Array.isArray(deliverable.assets) ? deliverable.assets : (deliverable.assets.data ?? []);
+
+              return (
+                <div key={deliverable.id} className="rounded-xl border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-semibold">{deliverable.title}</h3>
+                        <span className="rounded-full border px-2 py-1 text-xs capitalize">{deliverable.status.replaceAll("_", " ")}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {deliverable.deliverable_type.replaceAll("_", " ")} | {deliverable.assigned_unit.replaceAll("_", " ")} | {deliverable.assignee_name ?? "Unassigned"}
+                        {deliverable.due_date ? ` | Due ${deliverable.due_date}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
                     <div className="rounded-lg border p-3">
-                      <div className="font-medium">Approvals, Assets, And Publication</div>
+                      <div className="font-medium">Approval decision</div>
                       <div className="mt-3 space-y-3">
                         {deliverable.can.approve ? (
                           <div className="grid gap-3">
@@ -480,8 +674,13 @@ export default function MarketingRequestShow({
                               <button type="submit" className="rounded-md bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700">Request Changes</button>
                             </form>
                           </div>
-                        ) : null}
+                        ) : <div className="text-sm text-muted-foreground">You do not have approval rights for this deliverable.</div>}
+                      </div>
+                    </div>
 
+                    <div className="rounded-lg border p-3">
+                      <div className="font-medium">Approved assets and publishing</div>
+                      <div className="mt-3 space-y-3">
                         {assets.length === 0 ? <div className="text-sm text-muted-foreground">No approved assets available yet.</div> : assets.map((asset) => (
                           <div key={asset.id} className="rounded-md border p-3">
                             <div className="font-medium">{asset.asset_type.replaceAll("_", " ")}</div>
@@ -555,14 +754,17 @@ export default function MarketingRequestShow({
                             ) : null}
 
                             {canManageVault && asset.can.publish_to_vault ? (
-                              <PublishAssetToVaultForm
-                                asset={asset}
-                                deliverableTitle={deliverable.title}
-                                departments={departments}
-                                users={users}
-                                documentTypes={documentTypes}
-                                slotOptions={slotOptions}
-                              />
+                              <details className="mt-3 rounded-md border border-dashed p-3">
+                                <summary className="cursor-pointer text-sm font-medium">Publish approved asset to Organization Vault</summary>
+                                <PublishAssetToVaultForm
+                                  asset={asset}
+                                  deliverableTitle={deliverable.title}
+                                  departments={departments}
+                                  users={users}
+                                  documentTypes={documentTypes}
+                                  slotOptions={slotOptions}
+                                />
+                              </details>
                             ) : null}
 
                             {(Array.isArray(asset.publications) ? asset.publications : asset.publications.data ?? []).length ? (
@@ -582,93 +784,7 @@ export default function MarketingRequestShow({
                 </div>
               );
             })}
-          </div>
-        </section>
-
-        <section className="rounded-xl border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-semibold">Activity History</h2>
-          <div className="mt-4 space-y-3">
-            {activities.length === 0 ? <div className="text-sm text-muted-foreground">No activity history recorded yet.</div> : activities.map((activity) => (
-              <div key={activity.id} className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">{activity.actor_name ?? "System"} | {activity.created_at ?? "-"}</div>
-                <div className="mt-1 text-sm">{activity.summary}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Request Comments</h2>
-            {requestRecord.can.comment ? (
-              <form
-                className="mt-4 grid gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
-                  router.post(`/marketing/requests/${requestRecord.id}/comment`, {
-                    message: formData.get("message"),
-                  }, { preserveScroll: true });
-                  event.currentTarget.reset();
-                }}
-              >
-                <textarea name="message" rows={4} placeholder="Add coordination notes, clarification, or review guidance." className="rounded-md border bg-background px-3 py-2 text-sm" />
-                <button type="submit" className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700">Post Comment</button>
-              </form>
-            ) : null}
-            <div className="mt-4 space-y-3">
-              {comments.length === 0 ? <div className="text-sm text-muted-foreground">No request comments recorded yet.</div> : comments.map((comment) => (
-                <div key={comment.id} className="rounded-md border p-3">
-                  <div className="text-xs text-muted-foreground">{comment.user_name ?? "-"} | {comment.created_at ?? "-"}</div>
-                  <div className="mt-1 text-sm">{comment.message}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Request Documents</h2>
-            {requestRecord.can.upload_document ? (
-              <form
-                className="mt-4 grid gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const formData = new FormData(event.currentTarget);
-                  router.post(`/marketing/requests/${requestRecord.id}/documents`, formData, {
-                    forceFormData: true,
-                    preserveScroll: true,
-                  });
-                  event.currentTarget.reset();
-                }}
-              >
-                <input name="title" placeholder="Document title" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                <select name="document_kind" defaultValue="supporting" className="rounded-md border bg-background px-3 py-2 text-sm">
-                  <option value="supporting">Supporting</option>
-                  <option value="brief">Brief</option>
-                  <option value="brand_reference">Brand reference</option>
-                  <option value="approval_reference">Approval reference</option>
-                  <option value="publication_reference">Publication reference</option>
-                </select>
-                <textarea name="notes" rows={3} placeholder="What is this file for?" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                <input name="file" type="file" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                <button type="submit" className="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900">Upload Document</button>
-              </form>
-            ) : null}
-            <div className="mt-4 space-y-3">
-              {documents.length === 0 ? <div className="text-sm text-muted-foreground">No request documents uploaded yet.</div> : documents.map((document) => (
-                <div key={document.id} className="rounded-md border p-3">
-                  <div className="font-medium">{document.title}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {document.document_kind.replaceAll("_", " ")} | {document.uploaded_by_name ?? "-"} | {document.created_at ?? "-"}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">{document.file_name}</div>
-                  {document.notes ? <div className="mt-2 text-sm text-muted-foreground">{document.notes}</div> : null}
-                  <a href={`/marketing/requests/${requestRecord.id}/documents/${document.id}`} className="mt-2 inline-block text-sm text-blue-700 underline">
-                    Download
-                  </a>
-                </div>
-              ))}
-            </div>
+            {deliverables.length === 0 ? <div className="rounded-xl border p-4 text-sm text-muted-foreground">No deliverables are available for approval yet.</div> : null}
           </div>
         </section>
       </div>

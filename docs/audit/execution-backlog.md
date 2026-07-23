@@ -51,6 +51,10 @@ Expected outcome:
 - Keep this audit pack updated as each domain is hardened.
 - Add state diagrams and transaction notes as workflows are clarified.
 
+Status:
+
+- Expanded. `docs/audit/transaction-endpoints.md` now maps implemented transactions to their terminal states and calls out the domains that still stop at CRUD.
+
 ## Phase 2: Projects + Beneficiaries
 
 Goal: harden the operational core.
