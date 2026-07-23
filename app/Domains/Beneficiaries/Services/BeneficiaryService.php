@@ -72,6 +72,7 @@ class BeneficiaryService
                 'postal_code' => $this->nullableString($data['postal_code'] ?? null),
                 'highest_qualification' => $this->nullableString($data['highest_qualification'] ?? null),
                 'attendance_status' => $attendanceStatus,
+                'status' => 'enrolled',
                 'next_of_kin_id' => $nextOfKin?->id,
                 'created_by' => auth()->id(),
             ]);

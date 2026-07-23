@@ -15,6 +15,11 @@ class BeneficiaryRepository implements BeneficiaryRepositoryInterface
             'project.program',
             'projectEnrollments.project.program',
             'projectEnrollments.location.province',
+            'history.actor',
+            'outcomes.project',
+            'outcomes.program',
+            'outcomes.recordedBy',
+            'latestOutcome.recordedBy',
         ])->latest();
     }
 

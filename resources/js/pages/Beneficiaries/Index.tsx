@@ -5,7 +5,6 @@ import { Upload } from "lucide-react";
 import AppLayout from "@/layouts/app-layout";
 import {
   HorizontalBarChart,
-  StackedCompositionChart,
 } from "@/components/charts/dashboard-charts";
 import { CustomTable } from "@/components/custom-table";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
@@ -44,6 +43,7 @@ export default function BeneficiaryIndex({
   filterProjects,
   selectedProjectLocations,
   selectedProjectSummary,
+  lifecycleMetrics,
 }: {
   beneficiary: { data: any[] };
   programs: { id: number; title: string }[];
@@ -52,6 +52,13 @@ export default function BeneficiaryIndex({
   filterProjects: { id: number; name: string; program_id: number; start_date: string | null; end_date: string | null; status: string | null }[];
   selectedProjectLocations: { id: number; name: string }[];
   selectedProjectSummary: { id: number; name: string; start_date: string | null; end_date: string | null; status: string | null } | null;
+  lifecycleMetrics: {
+    graduated_beneficiaries: number;
+    exited_beneficiaries: number;
+    employment_outcomes: number;
+    further_education_outcomes: number;
+    unknown_outcomes: number;
+  } | null;
 }) {
   const { flash } = usePage<SharedData>().props;
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -62,20 +69,6 @@ export default function BeneficiaryIndex({
   const [importLocationId, setImportLocationId] = useState<string>(selectedProjectLocations[0] ? String(selectedProjectLocations[0].id) : "");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const importErrors = Array.isArray(flash?.import_errors) ? (flash.import_errors as string[]) : [];
-  const statusChartData = useMemo(() => {
-    const counts = beneficiary.data.reduce((carry: Record<string, number>, item: any) => {
-      const key = item.attendance_status ?? "unknown";
-      carry[key] = (carry[key] ?? 0) + 1;
-
-      return carry;
-    }, {});
-
-    return {
-      active: counts.active ?? 0,
-      dropout: counts.dropout ?? 0,
-      unknown: counts.unknown ?? 0,
-    };
-  }, [beneficiary.data]);
   const locationChartData = useMemo(() => {
     const counts = beneficiary.data.reduce((carry: Record<string, number>, item: any) => {
       const key = item.project_location ?? "Unassigned location";
@@ -109,6 +102,12 @@ export default function BeneficiaryIndex({
       { label: "Program", key: "program_title", className: "px-4 py-2 text-left" },
       { label: "Project", key: "project_name", className: "px-4 py-2 text-left" },
       { label: "Location", key: "project_location", className: "px-4 py-2 text-left" },
+      {
+        label: "Lifecycle",
+        key: "status",
+        className: "px-4 py-2 text-left",
+        render: (row: any) => <span className="capitalize">{String(row.status ?? "enrolled").replaceAll("_", " ")}</span>,
+      },
       { label: "Actions", key: "actions", isAction: true, className: "px-4 py-2 text-left" },
     ],
     []
@@ -237,7 +236,7 @@ export default function BeneficiaryIndex({
         </div>
 
         {selectedProjectSummary ? (
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-4">
             <div className="rounded-xl border bg-card p-4 shadow-sm">
               <div className="text-sm text-muted-foreground">Selected Project</div>
               <div className="mt-1 text-lg font-semibold">{selectedProjectSummary.name}</div>
@@ -252,6 +251,10 @@ export default function BeneficiaryIndex({
               <div className="text-sm text-muted-foreground">Status</div>
               <div className="mt-1 text-lg font-semibold capitalize">{selectedProjectSummary.status ?? "-"}</div>
             </div>
+            <div className="rounded-xl border bg-card p-4 shadow-sm">
+              <div className="text-sm text-muted-foreground">Tracked Beneficiaries</div>
+              <div className="mt-1 text-lg font-semibold">{beneficiary.data.length}</div>
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">
@@ -260,29 +263,31 @@ export default function BeneficiaryIndex({
         )}
 
         {selectedProjectSummary ? (
-          <div className="grid gap-6 xl:grid-cols-[1.2fr,1fr]">
-            <StackedCompositionChart
-              title="Beneficiary Attendance Status"
-              description="Visual split of the selected project cohort by current attendance status."
-              segments={[
-                {
-                  label: "Active",
-                  value: statusChartData.active,
-                  colorClass: "bg-emerald-500",
-                },
-                {
-                  label: "Dropout",
-                  value: statusChartData.dropout,
-                  colorClass: "bg-amber-500",
-                },
-                {
-                  label: "Unknown",
-                  value: statusChartData.unknown,
-                  colorClass: "bg-slate-300",
-                },
-              ]}
-              emptyMessage="No beneficiary status data is available for this cohort yet."
-            />
+          <div className="grid gap-6">
+            {lifecycleMetrics ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="text-sm text-muted-foreground">Graduated</div>
+                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.graduated_beneficiaries}</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="text-sm text-muted-foreground">Exited</div>
+                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.exited_beneficiaries}</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="text-sm text-muted-foreground">Employment Outcomes</div>
+                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.employment_outcomes}</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="text-sm text-muted-foreground">Further Education</div>
+                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.further_education_outcomes}</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="text-sm text-muted-foreground">Unknown Outcomes</div>
+                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.unknown_outcomes}</div>
+                </div>
+              </div>
+            ) : null}
 
             <HorizontalBarChart
               title="Beneficiaries by Location"

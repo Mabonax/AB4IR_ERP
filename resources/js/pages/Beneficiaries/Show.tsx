@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Head, Link } from "@inertiajs/react";
+import { useMemo, useState } from "react";
+import { Head, Link, router } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
@@ -9,16 +9,71 @@ import { type BreadcrumbItem } from "@/types";
 export default function BeneficiaryShow({
   beneficiary,
   canManageBeneficiary,
+  lifecycleOptions,
 }: {
   beneficiary: any;
   canManageBeneficiary: boolean;
+  lifecycleOptions: {
+    outcomeTypes: Array<{ value: string; label: string }>;
+    projects: Array<{ id: number; name: string; program_id: number; status: string }>;
+    projectLocations: Array<{ id: number; project_id: number; name: string }>;
+  };
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [action, setAction] = useState<null | "suspend" | "reinstate" | "graduate" | "exit" | "transfer" | "archive">(null);
+  const [reason, setReason] = useState("");
+  const [outcomeType, setOutcomeType] = useState("unknown_outcome");
+  const [outcomeNotes, setOutcomeNotes] = useState("");
+  const [transferProjectId, setTransferProjectId] = useState("");
+  const [transferLocationId, setTransferLocationId] = useState("");
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Beneficiaries", href: beneficiaries.index() },
     { title: beneficiary.full_name ?? "Beneficiary File", href: `/beneficiaries/${beneficiary.id}` },
   ];
+  const availableLocations = useMemo(
+    () => lifecycleOptions.projectLocations.filter((location) => String(location.project_id) === transferProjectId),
+    [lifecycleOptions.projectLocations, transferProjectId],
+  );
+  const statusChipClass = beneficiary.status === "graduated"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : beneficiary.status === "suspended"
+      ? "border-amber-200 bg-amber-50 text-amber-700"
+      : beneficiary.status === "exited" || beneficiary.status === "archived"
+        ? "border-rose-200 bg-rose-50 text-rose-700"
+        : "border-sky-200 bg-sky-50 text-sky-700";
+
+  const resetLifecycleForm = () => {
+    setAction(null);
+    setReason("");
+    setOutcomeType("unknown_outcome");
+    setOutcomeNotes("");
+    setTransferProjectId("");
+    setTransferLocationId("");
+  };
+
+  const submitLifecycleAction = () => {
+    if (!action || !reason.trim()) {
+      return;
+    }
+
+    const payload: Record<string, unknown> = { reason };
+
+    if (action === "graduate" || action === "exit") {
+      payload.outcome_type = outcomeType;
+      payload.outcome_notes = outcomeNotes || null;
+    }
+
+    if (action === "transfer") {
+      payload.project_id = transferProjectId;
+      payload.project_location_id = transferLocationId;
+    }
+
+    router.post(`/beneficiaries/${beneficiary.id}/${action}`, payload, {
+      preserveScroll: true,
+      onSuccess: () => resetLifecycleForm(),
+    });
+  };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -73,10 +128,125 @@ export default function BeneficiaryShow({
             <div className="mt-1 text-xl font-semibold">{beneficiary.current_participation?.location_name ?? "-"}</div>
           </section>
           <section className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="text-sm text-muted-foreground">Lifecycle Status</div>
+            <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-medium capitalize ${statusChipClass}`}>
+              {String(beneficiary.status ?? "enrolled").replaceAll("_", " ")}
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">{beneficiary.status_reason ?? "No lifecycle reason recorded yet."}</div>
+          </section>
+          <section className="rounded-xl border bg-card p-4 shadow-sm">
             <div className="text-sm text-muted-foreground">Attendance Status</div>
             <div className="mt-1 text-xl font-semibold capitalize">{beneficiary.attendance_status ?? "-"}</div>
           </section>
         </div>
+
+        {canManageBeneficiary ? (
+          <section className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Lifecycle Actions</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Govern beneficiary transitions through explicit transactions with reason capture and audit history.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="rounded-md border px-3 py-2 text-sm hover:bg-accent" onClick={() => setAction("suspend")}>Suspend</button>
+                <button type="button" className="rounded-md border px-3 py-2 text-sm hover:bg-accent" onClick={() => setAction("reinstate")}>Reinstate</button>
+                <button type="button" className="rounded-md border px-3 py-2 text-sm hover:bg-accent" onClick={() => setAction("transfer")}>Transfer</button>
+                <button type="button" className="rounded-md border px-3 py-2 text-sm hover:bg-accent" onClick={() => setAction("graduate")}>Graduate</button>
+                <button type="button" className="rounded-md border px-3 py-2 text-sm hover:bg-accent" onClick={() => setAction("exit")}>Exit</button>
+                <button type="button" className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 hover:bg-red-50" onClick={() => setAction("archive")}>Archive</button>
+              </div>
+            </div>
+
+            {action ? (
+              <div className="mt-4 grid gap-4 rounded-xl border bg-muted/30 p-4 lg:grid-cols-2">
+                <div className="space-y-2 lg:col-span-2">
+                  <div className="text-sm font-medium capitalize">{action.replaceAll("_", " ")} Beneficiary</div>
+                  <textarea
+                    className="min-h-28 w-full rounded-md border bg-card px-3 py-2 text-sm"
+                    placeholder="Capture the business reason for this transaction."
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                  />
+                </div>
+
+                {(action === "graduate" || action === "exit") ? (
+                  <>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Outcome</label>
+                      <select
+                        className="w-full rounded-md border bg-card px-3 py-2 text-sm"
+                        value={outcomeType}
+                        onChange={(event) => setOutcomeType(event.target.value)}
+                      >
+                        {lifecycleOptions.outcomeTypes.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Outcome Notes</label>
+                      <textarea
+                        className="min-h-24 w-full rounded-md border bg-card px-3 py-2 text-sm"
+                        placeholder="Optional context about the outcome."
+                        value={outcomeNotes}
+                        onChange={(event) => setOutcomeNotes(event.target.value)}
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                {action === "transfer" ? (
+                  <>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Target Project</label>
+                      <select
+                        className="w-full rounded-md border bg-card px-3 py-2 text-sm"
+                        value={transferProjectId}
+                        onChange={(event) => {
+                          setTransferProjectId(event.target.value);
+                          setTransferLocationId("");
+                        }}
+                      >
+                        <option value="">Select project</option>
+                        {lifecycleOptions.projects.map((project) => (
+                          <option key={project.id} value={project.id}>{project.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Target Location</label>
+                      <select
+                        className="w-full rounded-md border bg-card px-3 py-2 text-sm"
+                        value={transferLocationId}
+                        onChange={(event) => setTransferLocationId(event.target.value)}
+                      >
+                        <option value="">{transferProjectId ? "Select location" : "Choose a project first"}</option>
+                        {availableLocations.map((location) => (
+                          <option key={location.id} value={location.id}>{location.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2 lg:col-span-2">
+                  <button
+                    type="button"
+                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={action === "transfer" ? !transferProjectId || !transferLocationId || !reason.trim() : !reason.trim()}
+                    onClick={submitLifecycleAction}
+                  >
+                    Submit Transaction
+                  </button>
+                  <button type="button" className="rounded-md border px-4 py-2 text-sm hover:bg-accent" onClick={resetLifecycleForm}>Cancel</button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="rounded-xl border bg-card p-4 shadow-sm lg:col-span-2">
@@ -121,6 +291,10 @@ export default function BeneficiaryShow({
             <h2 className="text-base font-semibold">Current Placement</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Lifecycle Status</dt>
+                <dd className="capitalize">{String(beneficiary.status ?? "enrolled").replaceAll("_", " ")}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Program</dt>
                 <dd>{beneficiary.current_participation?.program_title ?? "-"}</dd>
               </div>
@@ -144,7 +318,7 @@ export default function BeneficiaryShow({
           </section>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-3">
           <section className="rounded-xl border bg-card p-4 shadow-sm">
             <h2 className="text-base font-semibold">Address and Contact</h2>
             <dl className="mt-3 space-y-2 text-sm">
@@ -192,6 +366,27 @@ export default function BeneficiaryShow({
               </div>
             </dl>
           </section>
+
+          <section className="rounded-xl border bg-card p-4 shadow-sm">
+            <h2 className="text-base font-semibold">Latest Outcome</h2>
+            <dl className="mt-3 space-y-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Outcome</dt>
+                <dd className="capitalize">{String(beneficiary.latest_outcome?.outcome_type ?? "-").replaceAll("_", " ")}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Recorded At</dt>
+                <dd>{beneficiary.latest_outcome?.recorded_at ?? "-"}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Recorded By</dt>
+                <dd>{beneficiary.latest_outcome?.recorded_by_name ?? "-"}</dd>
+              </div>
+              <div className="pt-2 text-sm text-muted-foreground">
+                {beneficiary.latest_outcome?.notes ?? "No beneficiary outcome has been recorded yet."}
+              </div>
+            </dl>
+          </section>
         </div>
 
         <section className="rounded-xl border bg-card p-4 shadow-sm">
@@ -234,6 +429,32 @@ export default function BeneficiaryShow({
                 ) : null}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-card p-4 shadow-sm">
+          <h2 className="text-base font-semibold">Lifecycle Timeline</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Creation, transfers, suspensions, outcomes, and other lifecycle transitions are recorded here.
+          </p>
+
+          <div className="mt-4 space-y-3">
+            {(beneficiary.timeline ?? []).length === 0 ? (
+              <div className="text-sm text-muted-foreground">No lifecycle history has been recorded yet.</div>
+            ) : (
+              beneficiary.timeline.map((item: any) => (
+                <div key={item.id} className="rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-medium">{item.summary}</div>
+                    <div className="text-xs text-muted-foreground">{item.created_at ?? "-"}</div>
+                  </div>
+                  <div className="mt-1 text-sm text-muted-foreground">
+                    {item.actor_name ?? "System"} | {String(item.from_status ?? "new").replaceAll("_", " ")} to {String(item.to_status ?? "-").replaceAll("_", " ")}
+                  </div>
+                  {item.reason ? <div className="mt-2 text-sm">{item.reason}</div> : null}
+                </div>
+              ))
+            )}
           </div>
         </section>
 

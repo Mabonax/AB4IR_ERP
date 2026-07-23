@@ -3,10 +3,13 @@
 namespace App\Domains\Beneficiaries\Controllers;
 
 use App\Domains\Beneficiaries\Models\Beneficiary;
+use App\Domains\Beneficiaries\Requests\BeneficiaryLifecycleActionRequest;
 use App\Domains\Beneficiaries\Requests\ImportBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
+use App\Domains\Beneficiaries\Requests\TransferBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
 use App\Domains\Beneficiaries\Resources\BeneficiaryResource;
+use App\Domains\Beneficiaries\Services\BeneficiaryLifecycleService;
 use App\Domains\Beneficiaries\Services\BeneficiaryService;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
@@ -21,7 +24,8 @@ use Inertia\Response;
 class BeneficiaryController extends Controller
 {
     public function __construct(
-        protected BeneficiaryService $service
+        protected BeneficiaryService $service,
+        protected BeneficiaryLifecycleService $lifecycleService,
     ) {}
 
     public function index(Request $request): Response
@@ -73,6 +77,9 @@ class BeneficiaryController extends Controller
             'selectedProjectLocations' => $selectedProjectLocations,
             'selectedProjectSummary' => $selectedProjectId
                 ? $filterProjects->firstWhere('id', $selectedProjectId)
+                : null,
+            'lifecycleMetrics' => $selectedProjectId
+                ? $this->lifecycleService->cohortMetrics($selectedProjectId)
                 : null,
         ]);
     }
@@ -132,6 +139,35 @@ class BeneficiaryController extends Controller
         return Inertia::render('Beneficiaries/Show', [
             'beneficiary' => $resource->resolve(),
             'canManageBeneficiary' => $request->user()?->can('update', $model) ?? false,
+            'lifecycleOptions' => [
+                'outcomeTypes' => collect(\App\Domains\Beneficiaries\Models\BeneficiaryOutcome::TYPES)
+                    ->map(fn ($type) => [
+                        'value' => $type,
+                        'label' => str($type)->replace('_', ' ')->title()->value(),
+                    ])->values(),
+                'projects' => Project::query()
+                    ->select('id', 'name', 'program_id', 'status')
+                    ->whereIn('status', \App\Domains\Projects\Services\ProjectEnrollmentConsistencyService::BENEFICIARY_ASSIGNABLE_STATUSES)
+                    ->whereKeyNot($model->project_id)
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn ($project) => [
+                        'id' => $project->id,
+                        'name' => $project->name,
+                        'program_id' => $project->program_id,
+                        'status' => $project->status,
+                    ])->values(),
+                'projectLocations' => ProjectLocation::with(['project:id,name', 'province:id,name'])
+                    ->select('id', 'project_id', 'province_id')
+                    ->orderBy('project_id')
+                    ->orderBy('province_id')
+                    ->get()
+                    ->map(fn ($location) => [
+                        'id' => $location->id,
+                        'project_id' => $location->project_id,
+                        'name' => ($location->project?->name ? $location->project->name.' - ' : '').($location->province?->name ?? "Location {$location->id}"),
+                    ])->values(),
+            ],
         ]);
     }
 
@@ -168,6 +204,84 @@ class BeneficiaryController extends Controller
         return redirect()
             ->route('beneficiaries.index')
             ->with('success', 'Beneficiary deleted');
+    }
+
+    public function suspend(BeneficiaryLifecycleActionRequest $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('manageLifecycle', $model);
+
+        $this->lifecycleService->suspendBeneficiary($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Beneficiary suspended.');
+    }
+
+    public function reinstate(BeneficiaryLifecycleActionRequest $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('manageLifecycle', $model);
+
+        $this->lifecycleService->reactivateBeneficiary($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Beneficiary reinstated.');
+    }
+
+    public function graduate(BeneficiaryLifecycleActionRequest $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('manageLifecycle', $model);
+
+        $this->lifecycleService->graduateBeneficiary(
+            $model,
+            $request->user(),
+            $request->string('reason')->toString(),
+            $request->string('outcome_type')->toString() ?: null,
+            $request->string('outcome_notes')->toString() ?: null,
+        );
+
+        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Beneficiary graduated.');
+    }
+
+    public function exit(BeneficiaryLifecycleActionRequest $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('manageLifecycle', $model);
+
+        $this->lifecycleService->exitBeneficiary(
+            $model,
+            $request->user(),
+            $request->string('reason')->toString(),
+            $request->string('outcome_type')->toString() ?: null,
+            $request->string('outcome_notes')->toString() ?: null,
+        );
+
+        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Beneficiary exited.');
+    }
+
+    public function transfer(TransferBeneficiaryRequest $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('manageLifecycle', $model);
+
+        $this->lifecycleService->transferBeneficiary(
+            $model,
+            $request->user(),
+            (int) $request->integer('project_id'),
+            (int) $request->integer('project_location_id'),
+            $request->string('reason')->toString(),
+        );
+
+        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Beneficiary transferred.');
+    }
+
+    public function archive(BeneficiaryLifecycleActionRequest $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('manageLifecycle', $model);
+
+        $this->lifecycleService->archiveBeneficiary($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->route('beneficiaries.index')->with('success', 'Beneficiary archived.');
     }
 
     protected function formOptions(?int $currentProjectId = null): array

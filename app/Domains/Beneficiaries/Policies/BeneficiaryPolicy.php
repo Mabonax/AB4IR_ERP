@@ -34,4 +34,9 @@ class BeneficiaryPolicy
     {
         return $this->canManageDomain($user, 'beneficiaries');
     }
+
+    public function manageLifecycle(User $user, Beneficiary $beneficiary): bool
+    {
+        return $this->canManageDomain($user, 'beneficiaries');
+    }
 }

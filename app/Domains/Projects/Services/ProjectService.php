@@ -122,6 +122,7 @@ class ProjectService
 
             $updated = $this->repository->update($project, $projectData);
             $updated->partners()->sync($partnerIds);
+            $this->documentFolderService->createDefaultProjectFolders($updated, $actor);
 
             if ($programChanged) {
                 $this->replaceProgramMilestones($updated);
@@ -250,7 +251,11 @@ class ProjectService
         ProjectEnrollment::query()
             ->where('project_id', $project->id)
             ->whereIn('status', ['enrolled', 'completed'])
-            ->whereHas('beneficiary', fn ($query) => $query->where('attendance_status', 'active'))
+            ->whereHas('beneficiary', fn ($query) => $query
+                ->where('attendance_status', 'active')
+                ->where(function ($statusQuery) {
+                    $statusQuery->whereNull('status')->orWhere('status', 'enrolled');
+                }))
             ->update([
                 'status' => 'completed',
                 'updated_at' => now(),
@@ -314,7 +319,11 @@ class ProjectService
         $activeEnrollments = ProjectEnrollment::query()
             ->where('project_id', $project->id)
             ->whereIn('status', ['enrolled', 'completed'])
-            ->whereHas('beneficiary', fn ($query) => $query->where('attendance_status', 'active'))
+            ->whereHas('beneficiary', fn ($query) => $query
+                ->where('attendance_status', 'active')
+                ->where(function ($statusQuery) {
+                    $statusQuery->whereNull('status')->orWhere('status', 'enrolled');
+                }))
             ->get(['beneficiary_id', 'project_location_id']);
 
         if ($activeEnrollments->isEmpty()) {

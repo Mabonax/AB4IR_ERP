@@ -114,12 +114,14 @@ class ProjectProgressService
 
         $activeEnrollments = $location->enrollments->filter(function (ProjectEnrollment $enrollment) {
             return in_array($enrollment->status, ['enrolled', 'completed'], true)
-                && $enrollment->beneficiary?->attendance_status === 'active';
+                && $enrollment->beneficiary?->attendance_status === 'active'
+                && $enrollment->beneficiary?->isLifecycleActive();
         })->values();
 
         $droppedBeneficiaries = $location->enrollments->filter(function (ProjectEnrollment $enrollment) {
             return $enrollment->status === 'dropped'
-                || $enrollment->beneficiary?->attendance_status === 'dropout';
+                || $enrollment->beneficiary?->attendance_status === 'dropout'
+                || ! ($enrollment->beneficiary?->isLifecycleActive() ?? true);
         })->count();
 
         $completedBeneficiaries = $activeEnrollments->filter(function (ProjectEnrollment $enrollment) use ($location, $totalMilestones) {

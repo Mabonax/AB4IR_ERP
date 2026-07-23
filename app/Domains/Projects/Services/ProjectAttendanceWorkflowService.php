@@ -142,7 +142,7 @@ class ProjectAttendanceWorkflowService
     {
         return $location->enrollments
             ->map(fn ($enrollment) => $enrollment->beneficiary)
-            ->filter(fn ($beneficiary) => $beneficiary && $beneficiary->attendance_status !== 'dropout')
+            ->filter(fn ($beneficiary) => $beneficiary && $beneficiary->attendance_status !== 'dropout' && $beneficiary->isLifecycleActive())
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->values()

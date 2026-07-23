@@ -100,10 +100,12 @@ test('beneficiary policy mirrors view versus manage domain permissions', functio
     expect(Gate::forUser($viewer)->allows('view', $beneficiary))->toBeTrue();
     expect(Gate::forUser($viewer)->allows('create', Beneficiary::class))->toBeFalse();
     expect(Gate::forUser($viewer)->allows('update', $beneficiary))->toBeFalse();
+    expect(Gate::forUser($viewer)->allows('manageLifecycle', $beneficiary))->toBeFalse();
 
     expect(Gate::forUser($manager)->allows('create', Beneficiary::class))->toBeTrue();
     expect(Gate::forUser($manager)->allows('update', $beneficiary))->toBeTrue();
     expect(Gate::forUser($manager)->allows('delete', $beneficiary))->toBeTrue();
+    expect(Gate::forUser($manager)->allows('manageLifecycle', $beneficiary))->toBeTrue();
 
     expect(Gate::forUser($outsider)->allows('viewAny', Beneficiary::class))->toBeFalse();
     expect(Gate::forUser($outsider)->allows('view', $beneficiary))->toBeFalse();

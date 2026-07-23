@@ -71,7 +71,7 @@ class ProjectAttendanceController extends Controller
 
         $beneficiaries = $location->enrollments
             ->map(fn ($enrollment) => $enrollment->beneficiary)
-            ->filter(fn ($beneficiary) => $beneficiary && $beneficiary->attendance_status !== 'dropout')
+            ->filter(fn ($beneficiary) => $beneficiary && $beneficiary->attendance_status !== 'dropout' && $beneficiary->isLifecycleActive())
             ->map(function ($beneficiary) use ($entriesByBeneficiary) {
                 $entry = $entriesByBeneficiary->get($beneficiary->id);
 
@@ -314,7 +314,7 @@ class ProjectAttendanceController extends Controller
         $excused = $entries->where('status', 'excused')->count();
         $attendanceRate = $total > 0 ? round((($total - $absent) / $total) * 100, 2) : 0;
         $totalStudents = $location->enrollments
-            ->filter(fn ($enrollment) => $enrollment->beneficiary && $enrollment->beneficiary->attendance_status !== 'dropout')
+            ->filter(fn ($enrollment) => $enrollment->beneficiary && $enrollment->beneficiary->attendance_status !== 'dropout' && $enrollment->beneficiary->isLifecycleActive())
             ->count();
         $registerReference = 'REG-'.str_pad((string) $register->id, 6, '0', STR_PAD_LEFT);
 

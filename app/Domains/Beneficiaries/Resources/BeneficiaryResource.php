@@ -48,6 +48,40 @@ class BeneficiaryResource extends JsonResource
             // Education
             'highest_qualification' => $this->highest_qualification,
             'attendance_status' => $this->attendance_status ?? 'active',
+            'status' => $this->status ?? 'enrolled',
+            'status_reason' => $this->status_reason,
+            'graduated_at' => $this->graduated_at?->toDateTimeString(),
+            'exited_at' => $this->exited_at?->toDateTimeString(),
+            'exit_reason' => $this->exit_reason,
+            'suspended_at' => $this->suspended_at?->toDateTimeString(),
+            'reactivated_at' => $this->reactivated_at?->toDateTimeString(),
+            'latest_outcome' => $this->whenLoaded('latestOutcome', function () {
+                if (! $this->latestOutcome) {
+                    return null;
+                }
+
+                return [
+                    'id' => $this->latestOutcome->id,
+                    'outcome_type' => $this->latestOutcome->outcome_type,
+                    'notes' => $this->latestOutcome->notes,
+                    'recorded_at' => $this->latestOutcome->recorded_at?->toDateTimeString(),
+                    'recorded_by_name' => $this->latestOutcome->recordedBy?->name,
+                ];
+            }),
+            'outcomes' => $this->whenLoaded('outcomes', function () {
+                return $this->outcomes->map(fn ($outcome) => [
+                    'id' => $outcome->id,
+                    'outcome_type' => $outcome->outcome_type,
+                    'notes' => $outcome->notes,
+                    'project_name' => $outcome->project?->name,
+                    'program_title' => $outcome->program?->title,
+                    'recorded_at' => $outcome->recorded_at?->toDateTimeString(),
+                    'recorded_by_name' => $outcome->recordedBy?->name,
+                ])->values();
+            }),
+            'timeline' => $this->whenLoaded('history', function () {
+                return $this->history->map(fn ($history) => app(\App\Domains\Beneficiaries\Services\BeneficiaryHistoryService::class)->map($history))->values();
+            }),
 
             // Relations
             'next_of_kin_id' => $this->next_of_kin_id,
@@ -103,6 +137,7 @@ class BeneficiaryResource extends JsonResource
             'updated_by' => $this->updated_by,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
+            'deleted_at' => $this->deleted_at?->toDateTimeString(),
         ];
     }
 
