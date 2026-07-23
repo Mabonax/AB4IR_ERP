@@ -2,6 +2,7 @@
 
 namespace App\Domains\Projects\Controllers;
 
+use App\Domains\Documents\Services\DocumentFolderService;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Models\Project;
@@ -30,7 +31,8 @@ class ProjectController extends Controller
     public function __construct(
         protected ProjectService $service,
         protected ProjectProgressService $progressService,
-        protected ProjectGovernanceService $governanceService
+        protected ProjectGovernanceService $governanceService,
+        protected DocumentFolderService $documentFolderService,
     ) {}
 
     public function index(Request $request)
@@ -121,6 +123,7 @@ class ProjectController extends Controller
             ->orderBy('sort_order')
             ->get();
         $progress = $this->progressService->summarizeProject($model);
+        $repositoryRoot = $this->documentFolderService->findOwnedRootFolder(Project::class, $model->id);
 
         return Inertia::render('Projects/Show', [
             'project' => new ProjectResource($model),
@@ -138,6 +141,10 @@ class ProjectController extends Controller
                 'report_count' => $model->reports->count(),
                 'can_manage' => (bool) $request->user()?->can('createReport', $model),
             ],
+            'documentRepository' => $repositoryRoot ? [
+                'folder_id' => $repositoryRoot->id,
+                'href' => route('organization.document-library.index', ['folder' => $repositoryRoot->id]),
+            ] : null,
         ]);
     }
 

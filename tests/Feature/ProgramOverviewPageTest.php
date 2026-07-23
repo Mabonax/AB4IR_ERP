@@ -153,6 +153,7 @@ test('program show page renders a program-wide overview with associated projects
         ->assertInertia(fn (Assert $page) => $page
             ->component('Programs/Show')
             ->where('program.data.id', $program->id)
+            ->where('documentRepository', null)
             ->where('stats.total_projects', 2)
             ->where('stats.total_locations', 2)
             ->where('stats.unique_beneficiaries', 2)

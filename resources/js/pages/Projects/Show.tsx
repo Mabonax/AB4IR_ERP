@@ -37,6 +37,7 @@ export default function ProjectShow({
     history,
     canManageProjects,
     finalization,
+    documentRepository,
 }: {
     project: any;
     milestones: any[];
@@ -53,6 +54,7 @@ export default function ProjectShow({
         report_count: number;
         can_manage: boolean;
     };
+    documentRepository: { folder_id: number; href: string } | null;
 }) {
     const projectData = project?.data ?? project;
     const statusSummary = projectData.status_summary;
@@ -316,6 +318,37 @@ export default function ProjectShow({
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Project Repository</CardTitle>
+                            <CardDescription>
+                                Working library for posters, brochures, concept
+                                documents, SLAs, reports, and delivery files
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4 text-sm">
+                            <p className="text-slate-700">
+                                This project has a dedicated repository inside
+                                the document library so operational files stay
+                                attached to the project while approved outputs
+                                can still move into the organization vault by
+                                reference.
+                            </p>
+                            {documentRepository ? (
+                                <Link
+                                    href={documentRepository.href}
+                                    className="inline-flex rounded-md border border-emerald-200 px-3 py-2 font-medium text-emerald-700 hover:bg-emerald-50"
+                                >
+                                    Open project repository
+                                </Link>
+                            ) : (
+                                <p className="text-muted-foreground">
+                                    Repository not provisioned.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle>Commercial Structure</CardTitle>

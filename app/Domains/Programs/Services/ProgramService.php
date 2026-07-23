@@ -189,12 +189,15 @@ class ProgramService
         });
     }
 
-    public function update(int $id, array $data): Program
+    public function update(int $id, array $data, ?User $actor = null): Program
     {
-        return DB::transaction(function () use ($id, $data) {
+        return DB::transaction(function () use ($id, $data, $actor) {
             $program = $this->getById($id);
 
-            return $this->repository->update($program, $data);
+            $updated = $this->repository->update($program, $data);
+            $this->documentFolderService->createDefaultProgramFolders($updated, $actor);
+
+            return $updated;
         });
     }
 

@@ -11,7 +11,15 @@ class DocumentFileRepository implements DocumentFileRepositoryInterface
     public function find(int $id): ?DocumentFile
     {
         return DocumentFile::query()
-            ->with(['folder.parent', 'uploader'])
+            ->with([
+                'folder.parent',
+                'uploader',
+                'checkedOutBy',
+                'versions.uploader',
+                'approvals.approver',
+                'links.linkable',
+                'activityLogs.user',
+            ])
             ->find($id);
     }
 
@@ -34,7 +42,14 @@ class DocumentFileRepository implements DocumentFileRepositoryInterface
 
     public function forFolder(DocumentFolder $folder): Collection
     {
-        return $folder->files()->with('uploader')->get();
+        return $folder->files()->with([
+            'uploader',
+            'checkedOutBy',
+            'versions.uploader',
+            'approvals.approver',
+            'links.linkable',
+            'activityLogs.user',
+        ])->get();
     }
 
     public function nextVersion(DocumentFolder $folder, string $title): int

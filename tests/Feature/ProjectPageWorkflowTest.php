@@ -129,6 +129,7 @@ test('project show page exposes finalization entrypoint instead of embedded gove
         ->assertInertia(fn (Assert $page) => $page
             ->component('Projects/Show')
             ->where('project.data.id', $fixture['project']->id)
+            ->where('documentRepository', null)
             ->has('finalization')
             ->where('finalization.href', route('projects.finalization', $fixture['project']->id))
             ->missing('closure')

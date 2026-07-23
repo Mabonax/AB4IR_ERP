@@ -26,4 +26,19 @@ class DocumentFilePolicy
     {
         return $this->accessService->canManageFile($user, $file);
     }
+
+    public function version(User $user, DocumentFile $file): bool
+    {
+        return $this->accessService->canVersionFile($user, $file);
+    }
+
+    public function approve(User $user, DocumentFile $file): bool
+    {
+        return $this->accessService->canApproveFile($user, $file);
+    }
+
+    public function checkout(User $user, DocumentFile $file): bool
+    {
+        return $this->accessService->canCheckoutFile($user, $file);
+    }
 }

@@ -28,6 +28,8 @@ class DocumentFolder extends Model
 
     public const TYPE_PROJECT_ROOT = 'project_root';
 
+    public const TYPE_EVENT_ROOT = 'event_root';
+
     public const TYPE_STANDARD = 'standard';
 
     public function parent(): BelongsTo

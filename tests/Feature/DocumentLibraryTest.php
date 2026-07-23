@@ -2,6 +2,11 @@
 
 use App\Domains\Documents\Models\DocumentFile;
 use App\Domains\Documents\Models\DocumentFolder;
+use App\Domains\Documents\Models\DocumentLink;
+use App\Domains\Documents\Models\DocumentRepositoryTemplate;
+use App\Domains\Documents\Models\DocumentVersion;
+use App\Domains\Documents\Services\DocumentTemplateService;
+use App\Domains\Events\Models\Event;
 use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Programs\Services\ProgramService;
@@ -136,6 +141,27 @@ test('program creation provisions default program owned folders', function () {
 
     $this->assertDatabaseHas('document_folders', [
         'parent_id' => $root->id,
+        'name' => 'Concept Documents',
+        'owner_type' => Program::class,
+        'owner_id' => $program->id,
+    ]);
+
+    $this->assertDatabaseHas('document_folders', [
+        'parent_id' => $root->id,
+        'name' => 'Brochures & Posters',
+        'owner_type' => Program::class,
+        'owner_id' => $program->id,
+    ]);
+
+    $this->assertDatabaseHas('document_folders', [
+        'parent_id' => $root->id,
+        'name' => 'SLAs & Agreements',
+        'owner_type' => Program::class,
+        'owner_id' => $program->id,
+    ]);
+
+    $this->assertDatabaseHas('document_folders', [
+        'parent_id' => $root->id,
         'name' => 'Reports',
         'owner_type' => Program::class,
         'owner_id' => $program->id,
@@ -143,14 +169,7 @@ test('program creation provisions default program owned folders', function () {
 
     $this->assertDatabaseHas('document_folders', [
         'parent_id' => $root->id,
-        'name' => 'Marketing',
-        'owner_type' => Program::class,
-        'owner_id' => $program->id,
-    ]);
-
-    $this->assertDatabaseHas('document_folders', [
-        'parent_id' => $root->id,
-        'name' => 'Deliverables',
+        'name' => 'Working Files',
         'owner_type' => Program::class,
         'owner_id' => $program->id,
     ]);
@@ -171,14 +190,28 @@ test('project creation provisions default project owned folders', function () {
 
     $this->assertDatabaseHas('document_folders', [
         'parent_id' => $root->id,
-        'name' => 'Sponsors',
+        'name' => 'Project Poster',
         'owner_type' => Project::class,
         'owner_id' => $project->id,
     ]);
 
     $this->assertDatabaseHas('document_folders', [
         'parent_id' => $root->id,
-        'name' => 'Attendance',
+        'name' => 'Brochures',
+        'owner_type' => Project::class,
+        'owner_id' => $project->id,
+    ]);
+
+    $this->assertDatabaseHas('document_folders', [
+        'parent_id' => $root->id,
+        'name' => 'Concept Documents',
+        'owner_type' => Project::class,
+        'owner_id' => $project->id,
+    ]);
+
+    $this->assertDatabaseHas('document_folders', [
+        'parent_id' => $root->id,
+        'name' => 'SLAs & Agreements',
         'owner_type' => Project::class,
         'owner_id' => $project->id,
     ]);
@@ -186,6 +219,13 @@ test('project creation provisions default project owned folders', function () {
     $this->assertDatabaseHas('document_folders', [
         'parent_id' => $root->id,
         'name' => 'Reports',
+        'owner_type' => Project::class,
+        'owner_id' => $project->id,
+    ]);
+
+    $this->assertDatabaseHas('document_folders', [
+        'parent_id' => $root->id,
+        'name' => 'Working Files',
         'owner_type' => Project::class,
         'owner_id' => $project->id,
     ]);
@@ -200,7 +240,7 @@ test('authorized users can upload and download document library files', function
     $deliverables = DocumentFolder::query()
         ->where('owner_type', Program::class)
         ->where('owner_id', $program->id)
-        ->where('name', 'Deliverables')
+        ->where('name', 'Working Files')
         ->firstOrFail();
 
     $this->actingAs($user)
@@ -251,7 +291,7 @@ test('project viewers can upload working files to visible project folders', func
     ]);
 });
 
-test('document uploads are limited to office document types', function () {
+test('document uploads accept office image and text document types', function () {
     Storage::fake('document_library');
 
     [$user] = makeDocumentUser(['domain.programs.view', 'domain.programs.manage'], isManager: true, email: 'document-types.docs@example.test');
@@ -263,12 +303,14 @@ test('document uploads are limited to office document types', function () {
         ->where('name', 'Reports')
         ->firstOrFail();
 
-    foreach (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'] as $extension) {
+    foreach (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'png', 'txt', 'csv'] as $extension) {
         $this->actingAs($user)
             ->post(route('organization.document-library.files.store'), [
                 'folder_id' => $reports->id,
                 'title' => strtoupper($extension).' Document',
-                'file' => UploadedFile::fake()->create("allowed.{$extension}", 24),
+                'file' => $extension === 'png'
+                    ? UploadedFile::fake()->image("allowed.{$extension}")
+                    : UploadedFile::fake()->create("allowed.{$extension}", 24),
             ])
             ->assertSessionDoesntHaveErrors();
     }
@@ -276,8 +318,8 @@ test('document uploads are limited to office document types', function () {
     $this->actingAs($user)
         ->post(route('organization.document-library.files.store'), [
             'folder_id' => $reports->id,
-            'title' => 'Image',
-            'file' => UploadedFile::fake()->image('image.png'),
+            'title' => 'Archive',
+            'file' => UploadedFile::fake()->create('archive.zip', 24),
         ])
         ->assertSessionHasErrors('file');
 });
@@ -401,4 +443,241 @@ test('approved files can publish to the organization vault by reference', functi
     expect((int) $document->source_id)->toBe($file->id);
     expect($document->disk)->toBe('document_library');
     expect($document->path)->toBe($file->file_path);
+});
+
+test('document links can connect a single file to multiple records without duplicating storage', function () {
+    Storage::fake('document_library');
+
+    [$user] = makeDocumentUser([
+        'domain.programs.view',
+        'domain.programs.manage',
+        'domain.projects.view',
+        'domain.projects.manage',
+        'domain.events.view',
+        'domain.events.manage',
+    ], isManager: true, email: 'link.docs@example.test');
+
+    $program = makeProgramForDocuments($user);
+    $project = makeProjectForDocuments($user, $program);
+    $event = Event::query()->create([
+        'title' => 'Innovation Summit',
+        'start_date' => now()->toDateString(),
+        'end_date' => now()->addDay()->toDateString(),
+        'status' => 'planned',
+    ]);
+
+    $reports = DocumentFolder::query()
+        ->where('owner_type', Program::class)
+        ->where('owner_id', $program->id)
+        ->where('name', 'Reports')
+        ->firstOrFail();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.store'), [
+        'folder_id' => $reports->id,
+        'title' => 'Funding Agreement',
+        'file' => UploadedFile::fake()->create('funding-agreement.pdf', 24, 'application/pdf'),
+    ])->assertRedirect();
+
+    $file = DocumentFile::query()->firstOrFail();
+    $storedPath = $file->file_path;
+
+    $this->actingAs($user)->post(route('organization.document-library.files.links.store', $file), [
+        'linkable_type' => Project::class,
+        'linkable_id' => $project->id,
+        'relationship_type' => 'contract',
+    ])->assertRedirect();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.links.store', $file), [
+        'linkable_type' => Event::class,
+        'linkable_id' => $event->id,
+        'relationship_type' => 'reference',
+    ])->assertRedirect();
+
+    expect(DocumentLink::query()->where('document_id', $file->id)->count())->toBe(2);
+    expect($file->fresh()->file_path)->toBe($storedPath);
+});
+
+test('document workspace supports version uploads and restoration', function () {
+    Storage::fake('document_library');
+
+    [$user] = makeDocumentUser(['domain.programs.view', 'domain.programs.manage'], isManager: true, email: 'version.docs@example.test');
+    $program = makeProgramForDocuments($user);
+    $reports = DocumentFolder::query()
+        ->where('owner_type', Program::class)
+        ->where('owner_id', $program->id)
+        ->where('name', 'Reports')
+        ->firstOrFail();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.store'), [
+        'folder_id' => $reports->id,
+        'title' => 'Quarterly Report',
+        'file' => UploadedFile::fake()->create('q1.pdf', 24, 'application/pdf'),
+    ])->assertRedirect();
+
+    $file = DocumentFile::query()->firstOrFail();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.versions.store', $file), [
+        'file' => UploadedFile::fake()->create('q1-v2.pdf', 32, 'application/pdf'),
+        'notes' => 'Updated numbers.',
+    ])->assertRedirect();
+
+    $file->refresh();
+
+    expect($file->version)->toBe(2);
+    expect(DocumentVersion::query()->where('document_id', $file->id)->count())->toBe(2);
+
+    $firstVersion = DocumentVersion::query()
+        ->where('document_id', $file->id)
+        ->where('version_number', 1)
+        ->firstOrFail();
+
+    $this->actingAs($user)
+        ->post(route('organization.document-library.files.versions.restore', [$file, $firstVersion]))
+        ->assertRedirect();
+
+    expect($file->fresh()->version)->toBe(3);
+});
+
+test('document approval and check out workflow updates the active file state', function () {
+    Storage::fake('document_library');
+
+    [$user] = makeDocumentUser(['domain.programs.view', 'domain.programs.manage'], isManager: true, email: 'workflow.docs@example.test');
+    $program = makeProgramForDocuments($user);
+    $reports = DocumentFolder::query()
+        ->where('owner_type', Program::class)
+        ->where('owner_id', $program->id)
+        ->where('name', 'Reports')
+        ->firstOrFail();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.store'), [
+        'folder_id' => $reports->id,
+        'title' => 'Board Pack',
+        'file' => UploadedFile::fake()->create('board-pack.pdf', 24, 'application/pdf'),
+    ])->assertRedirect();
+
+    $file = DocumentFile::query()->firstOrFail();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.checkout', $file))
+        ->assertRedirect();
+    expect($file->fresh()->checked_out_by)->toBe($user->id);
+
+    $this->actingAs($user)->post(route('organization.document-library.files.checkin', $file), [
+        'notes' => 'Reviewed locally.',
+    ])->assertRedirect();
+    expect($file->fresh()->checked_out_by)->toBeNull();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.submit-review', $file))
+        ->assertRedirect();
+    expect($file->fresh()->status)->toBe('under_review');
+
+    $this->actingAs($user)->post(route('organization.document-library.files.approve', $file), [
+        'comments' => 'Approved for publication.',
+    ])->assertRedirect();
+    expect($file->fresh()->status)->toBe('approved');
+});
+
+test('repository templates can be applied to an existing workspace and are listed in the document workspace page', function () {
+    [$user] = makeDocumentUser(['domain.programs.view', 'domain.programs.manage'], isManager: true, email: 'template.docs@example.test');
+    $program = makeProgramForDocuments($user);
+
+    app(DocumentTemplateService::class)->ensureDefaults($user);
+
+    $root = DocumentFolder::query()
+        ->where('owner_type', Program::class)
+        ->where('owner_id', $program->id)
+        ->where('folder_type', DocumentFolder::TYPE_PROGRAM_ROOT)
+        ->firstOrFail();
+
+    $template = DocumentRepositoryTemplate::query()->where('slug', 'training-program-template')->firstOrFail();
+
+    $this->actingAs($user)
+        ->post(route('organization.document-library.folders.apply-template', $root), [
+            'template_id' => $template->id,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('document_folders', [
+        'parent_id' => $root->id,
+        'name' => 'Certificates',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('organization.document-library.index', ['folder' => $root->id]))
+        ->assertOk()
+        ->assertSee('Training Program Template');
+});
+
+test('document workspace search returns matching files and writes audit activity for downloads', function () {
+    Storage::fake('document_library');
+
+    [$user] = makeDocumentUser(['domain.programs.view', 'domain.programs.manage'], isManager: true, email: 'search.docs@example.test');
+    $program = makeProgramForDocuments($user);
+    $reports = DocumentFolder::query()
+        ->where('owner_type', Program::class)
+        ->where('owner_id', $program->id)
+        ->where('name', 'Reports')
+        ->firstOrFail();
+
+    $this->actingAs($user)->post(route('organization.document-library.files.store'), [
+        'folder_id' => $reports->id,
+        'title' => 'Quarterly Search Target',
+        'description' => 'Contains the reporting term.',
+        'file' => UploadedFile::fake()->create('search-target.pdf', 24, 'application/pdf'),
+    ])->assertRedirect();
+
+    $file = DocumentFile::query()->firstOrFail();
+
+    $this->actingAs($user)
+        ->get(route('organization.document-library.index', ['folder' => $reports->id, 'search' => 'Search Target']))
+        ->assertOk()
+        ->assertSee('Quarterly Search Target');
+
+    $this->actingAs($user)
+        ->get(route('organization.document-library.files.download', $file))
+        ->assertOk();
+
+    $this->assertDatabaseHas('document_activity_logs', [
+        'document_id' => $file->id,
+        'action' => 'downloaded',
+        'user_id' => $user->id,
+    ]);
+});
+
+test('renaming a program keeps its repository root aligned', function () {
+    [$user] = makeDocumentUser(['domain.programs.view', 'domain.programs.manage'], isManager: true, email: 'program.rename.docs@example.test');
+    $program = makeProgramForDocuments($user);
+
+    app(ProgramService::class)->update($program->id, [
+        'title' => 'Drone Divas Updated',
+        'description' => $program->description,
+        'slug' => 'drone-divas',
+    ], $user);
+
+    $this->assertDatabaseHas('document_folders', [
+        'owner_type' => Program::class,
+        'owner_id' => $program->id,
+        'folder_type' => DocumentFolder::TYPE_PROGRAM_ROOT,
+        'name' => 'Drone Divas Updated',
+    ]);
+});
+
+test('renaming a project keeps its repository root aligned', function () {
+    [$user] = makeDocumentUser(['domain.programs.view', 'domain.programs.manage', 'domain.projects.view', 'domain.projects.manage'], isManager: true, email: 'project.rename.docs@example.test');
+    $program = makeProgramForDocuments($user);
+    $project = makeProjectForDocuments($user, $program);
+
+    app(ProjectService::class)->updateProject($project->id, [
+        'program_id' => $program->id,
+        'name' => 'Digital Youth Festival Updated',
+        'start_date' => $project->start_date?->format('Y-m-d'),
+        'status' => $project->status,
+        'description' => $project->description,
+    ], $user);
+
+    $this->assertDatabaseHas('document_folders', [
+        'owner_type' => Project::class,
+        'owner_id' => $project->id,
+        'folder_type' => DocumentFolder::TYPE_PROJECT_ROOT,
+        'name' => 'Digital Youth Festival Updated',
+    ]);
 });

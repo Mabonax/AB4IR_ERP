@@ -10,7 +10,16 @@ class DocumentFolderRepository implements DocumentFolderRepositoryInterface
     public function all(): Collection
     {
         return DocumentFolder::query()
-            ->with(['children', 'files.uploader', 'parent'])
+            ->with([
+                'children',
+                'files.uploader',
+                'files.checkedOutBy',
+                'files.versions.uploader',
+                'files.approvals.approver',
+                'files.links.linkable',
+                'files.activityLogs.user',
+                'parent',
+            ])
             ->orderBy('parent_id')
             ->orderBy('name')
             ->get();
@@ -19,7 +28,16 @@ class DocumentFolderRepository implements DocumentFolderRepositoryInterface
     public function find(int $id): ?DocumentFolder
     {
         return DocumentFolder::query()
-            ->with(['children', 'files.uploader', 'parent'])
+            ->with([
+                'children',
+                'files.uploader',
+                'files.checkedOutBy',
+                'files.versions.uploader',
+                'files.approvals.approver',
+                'files.links.linkable',
+                'files.activityLogs.user',
+                'parent',
+            ])
             ->find($id);
     }
 

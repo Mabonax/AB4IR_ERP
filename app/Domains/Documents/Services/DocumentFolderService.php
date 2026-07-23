@@ -2,15 +2,19 @@
 
 namespace App\Domains\Documents\Services;
 
+use App\Domains\Assets\Models\Asset;
 use App\Domains\Documents\Models\DocumentFile;
 use App\Domains\Documents\Models\DocumentFolder;
 use App\Domains\Documents\Repositories\DocumentFolderRepositoryInterface;
+use App\Domains\Events\Models\Event;
+use App\Domains\Marketing\Models\MarketingAsset;
 use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Staff\Models\StaffDepartment;
+use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Models\User;
@@ -21,6 +25,34 @@ use Illuminate\Validation\ValidationException;
 
 class DocumentFolderService
 {
+    protected const PROGRAM_DEFAULT_FOLDERS = [
+        'Concept Documents',
+        'Brochures & Posters',
+        'SLAs & Agreements',
+        'Reports',
+        'Working Files',
+        'Linked Assets',
+    ];
+
+    protected const PROJECT_DEFAULT_FOLDERS = [
+        'Project Poster',
+        'Brochures',
+        'Concept Documents',
+        'SLAs & Agreements',
+        'Reports',
+        'Working Files',
+        'Linked Assets',
+    ];
+
+    protected const EVENT_DEFAULT_FOLDERS = [
+        'Posters',
+        'Sponsors',
+        'Registrations',
+        'Reports',
+        'Working Files',
+        'Linked Assets',
+    ];
+
     public function __construct(
         protected DocumentFolderRepositoryInterface $repository,
         protected DocumentAccessService $accessService,
@@ -52,6 +84,7 @@ class DocumentFolderService
             'selected_folder' => $selectedFolder,
             'content_folders' => $contentFolders,
             'content_files' => $contentFiles,
+            'breadcrumbs' => $selectedFolder ? $this->buildBreadcrumbs($selectedFolder, $visibleFolders) : [],
             'move_targets' => $visibleFolders
                 ->filter(fn (DocumentFolder $folder) => $this->accessService->canManageFolder($user, $folder))
                 ->values(),
@@ -192,25 +225,24 @@ class DocumentFolderService
     {
         DB::transaction(function () use ($program, $actor) {
             $programsRoot = $this->ensureLibraryGroup('Programs', $actor);
-            $root = $this->repository->create([
-                'name' => $program->title,
-                'parent_id' => $programsRoot->id,
-                'owner_type' => Program::class,
-                'owner_id' => $program->id,
-                'folder_type' => DocumentFolder::TYPE_PROGRAM_ROOT,
-                'created_by' => $actor?->id,
-            ]);
-
-            foreach (['Reports', 'Marketing', 'Deliverables'] as $name) {
-                $this->repository->create([
-                    'name' => $name,
-                    'parent_id' => $root->id,
+            $root = DocumentFolder::query()->firstOrCreate(
+                [
+                    'parent_id' => $programsRoot->id,
                     'owner_type' => Program::class,
                     'owner_id' => $program->id,
-                    'folder_type' => DocumentFolder::TYPE_STANDARD,
+                    'folder_type' => DocumentFolder::TYPE_PROGRAM_ROOT,
+                ],
+                [
+                    'name' => $program->title,
                     'created_by' => $actor?->id,
-                ]);
+                ]
+            );
+
+            if ($root->name !== $program->title) {
+                $root->update(['name' => $program->title]);
             }
+
+            $this->ensureOwnedChildFolders($root, self::PROGRAM_DEFAULT_FOLDERS, $actor);
         });
     }
 
@@ -218,26 +250,67 @@ class DocumentFolderService
     {
         DB::transaction(function () use ($project, $actor) {
             $projectsRoot = $this->ensureLibraryGroup('Projects', $actor);
-            $root = $this->repository->create([
-                'name' => $project->name,
-                'parent_id' => $projectsRoot->id,
-                'owner_type' => Project::class,
-                'owner_id' => $project->id,
-                'folder_type' => DocumentFolder::TYPE_PROJECT_ROOT,
-                'created_by' => $actor?->id,
-            ]);
-
-            foreach (['Sponsors', 'Attendance', 'Reports'] as $name) {
-                $this->repository->create([
-                    'name' => $name,
-                    'parent_id' => $root->id,
+            $root = DocumentFolder::query()->firstOrCreate(
+                [
+                    'parent_id' => $projectsRoot->id,
                     'owner_type' => Project::class,
                     'owner_id' => $project->id,
-                    'folder_type' => DocumentFolder::TYPE_STANDARD,
+                    'folder_type' => DocumentFolder::TYPE_PROJECT_ROOT,
+                ],
+                [
+                    'name' => $project->name,
                     'created_by' => $actor?->id,
-                ]);
+                ]
+            );
+
+            if ($root->name !== $project->name) {
+                $root->update(['name' => $project->name]);
             }
+
+            $this->ensureOwnedChildFolders($root, self::PROJECT_DEFAULT_FOLDERS, $actor);
         });
+    }
+
+    public function createDefaultEventFolders(Event $event, ?User $actor = null): void
+    {
+        DB::transaction(function () use ($event, $actor) {
+            $eventsRoot = $this->ensureLibraryGroup('Events', $actor);
+            $root = DocumentFolder::query()->firstOrCreate(
+                [
+                    'parent_id' => $eventsRoot->id,
+                    'owner_type' => Event::class,
+                    'owner_id' => $event->id,
+                    'folder_type' => DocumentFolder::TYPE_EVENT_ROOT,
+                ],
+                [
+                    'name' => $event->title,
+                    'created_by' => $actor?->id,
+                ]
+            );
+
+            if ($root->name !== $event->title) {
+                $root->update(['name' => $event->title]);
+            }
+
+            $this->ensureOwnedChildFolders($root, self::EVENT_DEFAULT_FOLDERS, $actor);
+        });
+    }
+
+    public function findOwnedRootFolder(string $ownerType, int $ownerId): ?DocumentFolder
+    {
+        return DocumentFolder::query()
+            ->where('owner_type', $ownerType)
+            ->where('owner_id', $ownerId)
+            ->when(
+                $ownerType === Program::class,
+                fn ($query) => $query->where('folder_type', DocumentFolder::TYPE_PROGRAM_ROOT),
+                fn ($query) => $query->when(
+                    $ownerType === Event::class,
+                    fn ($eventQuery) => $eventQuery->where('folder_type', DocumentFolder::TYPE_EVENT_ROOT),
+                    fn ($defaultQuery) => $defaultQuery->where('folder_type', DocumentFolder::TYPE_PROJECT_ROOT)
+                )
+            )
+            ->first();
     }
 
     protected function ensureLibraryGroup(string $name, ?User $actor = null): DocumentFolder
@@ -256,6 +329,24 @@ class DocumentFolderService
         );
     }
 
+    protected function ensureOwnedChildFolders(DocumentFolder $root, array $names, ?User $actor = null): void
+    {
+        foreach ($names as $name) {
+            DocumentFolder::query()->firstOrCreate(
+                [
+                    'parent_id' => $root->id,
+                    'owner_type' => $root->owner_type,
+                    'owner_id' => $root->owner_id,
+                    'folder_type' => DocumentFolder::TYPE_STANDARD,
+                    'name' => $name,
+                ],
+                [
+                    'created_by' => $actor?->id,
+                ]
+            );
+        }
+    }
+
     protected function resolveOwnerModel(string $ownerType, int $ownerId): object
     {
         $modelClass = match ($ownerType) {
@@ -263,9 +354,13 @@ class DocumentFolderService
             Program::class,
             Project::class,
             ProjectLocation::class,
+            Event::class,
             Beneficiary::class,
             Stakeholder::class,
+            Asset::class,
+            MarketingAsset::class,
             StaffDepartment::class => $ownerType,
+            StaffMember::class => $ownerType,
             default => throw ValidationException::withMessages([
                 'owner_type' => ['Choose a valid workspace owner type.'],
             ]),
@@ -281,9 +376,13 @@ class DocumentFolderService
             Program::class => 'Programs',
             Project::class => 'Projects',
             ProjectLocation::class => 'Project Locations',
+            Event::class => 'Events',
             Beneficiary::class => 'Beneficiaries',
             Stakeholder::class => 'Stakeholders',
+            Asset::class => 'Assets',
+            MarketingAsset::class => 'Marketing',
             StaffDepartment::class => 'HR',
+            StaffMember::class => 'HR',
             default => 'Documents',
         };
     }
@@ -344,5 +443,22 @@ class DocumentFolderService
         }
 
         return $descendants->unique()->values();
+    }
+
+    protected function buildBreadcrumbs(DocumentFolder $folder, Collection $folders): array
+    {
+        $items = [];
+        $current = $folder;
+
+        while ($current) {
+            $items[] = [
+                'id' => $current->id,
+                'name' => $current->name,
+            ];
+
+            $current = $current->parent_id ? $folders->firstWhere('id', $current->parent_id) : null;
+        }
+
+        return array_reverse($items);
     }
 }

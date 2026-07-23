@@ -18,6 +18,7 @@ class DocumentFolderResource extends JsonResource
             'owner_id' => $this->owner_id,
             'folder_type' => $this->folder_type,
             'created_at' => $this->created_at?->toDateTimeString(),
+            'file_count' => $this->files?->count() ?? 0,
             'can' => [
                 'manage' => $user?->can('update', $this->resource) ?? false,
                 'delete' => $user?->can('delete', $this->resource) ?? false,

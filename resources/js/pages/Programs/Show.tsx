@@ -66,11 +66,13 @@ export default function ProgramShow({
   stats,
   yearlyImpact,
   projects,
+  documentRepository,
 }: {
   program: { data: ProgramPayload } | ProgramPayload;
   stats: Record<string, number>;
   yearlyImpact: YearlyImpact[];
   projects: ProgramProject[];
+  documentRepository: { folder_id: number; href: string } | null;
 }) {
   const programData = (program as { data?: ProgramPayload }).data ?? (program as ProgramPayload);
 
@@ -227,6 +229,30 @@ export default function ProgramShow({
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Program Repository</CardTitle>
+            <CardDescription>
+              Working library for concept documents, brochures or posters, SLAs, reports, and related files.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <p className="max-w-3xl text-slate-700">
+              Every program keeps an owned repository in the document library so working files stay attached to the program and approved outputs can still be published into the organization vault by reference.
+            </p>
+            {documentRepository ? (
+              <Link
+                href={documentRepository.href}
+                className="rounded-md border border-emerald-200 px-3 py-2 font-medium text-emerald-700 hover:bg-emerald-50"
+              >
+                Open program repository
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">Repository not provisioned.</span>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
