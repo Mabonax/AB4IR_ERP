@@ -126,6 +126,8 @@ test('staff can submit sick leave', function () {
 });
 
 test('annual leave is blocked when annual available balance is insufficient', function () {
+    Carbon::setTestNow('2026-05-15 08:00:00');
+
     $department = makeLeaveDepartment();
     [, $managerStaff] = makeLeaveStaffUser($department, 'manager.balance@example.test', permissions: ['domain.leave.manage']);
     [$staffUser] = makeLeaveStaffUser($department, 'staff.balance@example.test', manager: $managerStaff, permissions: ['domain.leave.view']);
