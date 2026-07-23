@@ -48,14 +48,20 @@ type EventRow = {
   outcome_report?: {
     report_status?: string | null;
   };
+  closure_report?: {
+    id: number;
+  } | null;
 };
 
 const statusLabels: Record<string, string> = {
   planned: "Planned",
   open_for_registration: "Open",
+  registration_closed: "Registration Closed",
   active: "Active",
   completed: "Completed",
   cancelled: "Cancelled",
+  postponed: "Postponed",
+  archived: "Archived",
 };
 
 function statusChipClass(status: string): string {
@@ -66,8 +72,14 @@ function statusChipClass(status: string): string {
       return "border-sky-200 bg-sky-50 text-sky-700";
     case "open_for_registration":
       return "border-amber-200 bg-amber-50 text-amber-700";
+    case "registration_closed":
+      return "border-indigo-200 bg-indigo-50 text-indigo-700";
     case "cancelled":
       return "border-rose-200 bg-rose-50 text-rose-700";
+    case "postponed":
+      return "border-violet-200 bg-violet-50 text-violet-700";
+    case "archived":
+      return "border-slate-300 bg-slate-100 text-slate-600";
     default:
       return "border-slate-200 bg-slate-100 text-slate-700";
   }
@@ -107,10 +119,14 @@ export default function EventsIndex({
     open_events: number;
     active_events: number;
     completed_events: number;
+    cancelled_events: number;
     annual_events: number;
     total_participants: number;
     total_attendees: number;
     total_speakers: number;
+    average_attendance_rate: number;
+    average_registration_conversion: number;
+    outcome_achievement_events: number;
   };
 }) {
   const { auth } = usePage<SharedData>().props;
@@ -248,9 +264,9 @@ export default function EventsIndex({
                   hint: "Confirmed or registered people not yet present",
                 },
                 {
-                  label: "Draft Reports",
-                  value: portfolio.filter((event) => (event.outcome_report?.report_status ?? "draft") !== "finalized").length,
-                  hint: "Events still needing close-out",
+                  label: "Closure Pending",
+                  value: portfolio.filter((event) => !event.closure_report).length,
+                  hint: "Events still needing formal close-out",
                 },
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm">
@@ -300,6 +316,12 @@ export default function EventsIndex({
               value: stats.completed_events,
               hint: "Closed delivery cycles",
               icon: <FileText className="h-4 w-4" />,
+            },
+            {
+              label: "Attendance Rate",
+              value: `${stats.average_attendance_rate}%`,
+              hint: `Average conversion ${stats.average_registration_conversion}%`,
+              icon: <Users className="h-4 w-4" />,
             },
           ].map((item) => (
             <Card key={item.label} className="border-slate-200 shadow-sm">

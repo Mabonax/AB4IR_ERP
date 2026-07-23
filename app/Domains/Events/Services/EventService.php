@@ -2,13 +2,18 @@
 
 namespace App\Domains\Events\Services;
 
+use App\Domains\Documents\Services\DocumentFolderService;
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventClosureAsset;
+use App\Domains\Events\Models\EventHistory;
 use App\Domains\Events\Models\EventOutcomeReport;
 use App\Domains\Events\Models\EventParticipant;
 use App\Domains\Events\Models\EventTask;
 use App\Domains\Events\Models\EventWorkstream;
+use App\Domains\Events\Notifications\EventLifecycleNotification;
 use App\Domains\Events\Repositories\EventRepositoryInterface;
 use App\Domains\Staff\Models\StaffMember;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -40,6 +45,17 @@ class EventService
         'team_board' => 'Team and Board',
     ];
 
+    protected array $transitionRules = [
+        'planned' => ['open_for_registration', 'cancelled', 'postponed'],
+        'open_for_registration' => ['registration_closed', 'active', 'cancelled', 'postponed'],
+        'registration_closed' => ['active', 'cancelled', 'postponed'],
+        'active' => ['completed', 'cancelled', 'postponed'],
+        'completed' => ['archived'],
+        'cancelled' => ['archived'],
+        'postponed' => ['open_for_registration', 'cancelled', 'archived'],
+        'archived' => [],
+    ];
+
     protected array $departmentTaskGroups = [
         'Administration' => [
             'Venue',
@@ -69,7 +85,9 @@ class EventService
     ];
 
     public function __construct(
-        protected EventRepositoryInterface $repository
+        protected EventRepositoryInterface $repository,
+        protected EventHistoryService $historyService,
+        protected DocumentFolderService $documentFolderService,
     ) {}
 
     public function paginateEvents(): LengthAwarePaginator
@@ -94,6 +112,7 @@ class EventService
                 $event->partners()->sync($partnerIds);
             }
 
+            $this->documentFolderService->createDefaultEventFolders($event);
             $this->ensurePlanningTemplate($event);
 
             return $event->fresh(['owner', 'participants', 'partners', 'workstreams.tasks']);
@@ -110,6 +129,7 @@ class EventService
 
             $updated = $this->repository->update($event, $data);
             $updated->partners()->sync($partnerIds);
+            $this->documentFolderService->createDefaultEventFolders($updated);
 
             return $updated->fresh(['owner', 'participants', 'partners', 'workstreams.tasks']);
         });
@@ -299,6 +319,162 @@ class EventService
 
             return $report->fresh('reporter');
         });
+    }
+
+    public function openRegistration(Event $event, User $actor, string $reason): Event
+    {
+        return $this->transitionEvent($event, $actor, 'open_registration', 'open_for_registration', $reason, [
+            'registration_opened_at' => now(),
+        ]);
+    }
+
+    public function closeRegistration(Event $event, User $actor, string $reason): Event
+    {
+        return $this->transitionEvent($event, $actor, 'close_registration', 'registration_closed', $reason, [
+            'registration_closed_at' => now(),
+        ]);
+    }
+
+    public function startEvent(Event $event, User $actor, string $reason): Event
+    {
+        return $this->transitionEvent($event, $actor, 'start_event', 'active', $reason, [
+            'started_at' => now(),
+        ]);
+    }
+
+    public function completeEvent(Event $event, User $actor, array $data): Event
+    {
+        $this->assertTransitionAllowed($event, 'completed');
+
+        return DB::transaction(function () use ($event, $actor, $data) {
+            $attendanceSummary = $this->attendanceSummary($event);
+            $registrationSummary = $this->registrationSummary($event);
+            $previousStatus = $event->status;
+            $reporter = StaffMember::query()->where('user_id', $actor->id)->first();
+
+            $event->update([
+                'status' => 'completed',
+                'status_reason' => $data['reason'],
+                'completed_at' => now(),
+            ]);
+
+            $closureReport = $event->closureReport()->updateOrCreate(
+                ['event_id' => $event->id],
+                [
+                    'attendance_summary' => $attendanceSummary,
+                    'registration_summary' => $registrationSummary,
+                    'budget_summary' => $data['budget_summary'] ?? null,
+                    'outcomes_achieved' => $data['outcomes_achieved'],
+                    'lessons_learned' => $data['lessons_learned'],
+                    'risks_encountered' => $data['risks_encountered'],
+                    'recommendations' => $data['recommendations'],
+                    'closure_reason' => $data['reason'],
+                    'closed_by_user_id' => $actor->id,
+                    'closed_at' => now(),
+                ]
+            );
+
+            $event->outcomeReport()->updateOrCreate(
+                ['event_id' => $event->id],
+                [
+                    'summary' => $data['outcomes_achieved'],
+                    'highlights' => $data['lessons_learned'],
+                    'opportunities_created' => $data['recommendations'],
+                    'statistics_summary' => json_encode([
+                        'attendance_rate' => $attendanceSummary['attendance_rate'] ?? 0,
+                        'registration_conversion' => $registrationSummary['conversion_rate'] ?? 0,
+                    ]),
+                    'report_status' => 'finalized',
+                    'reported_by_staff_member_id' => $reporter?->id,
+                    'reported_at' => now(),
+                ]
+            );
+
+            $updated = $event->fresh($this->eventRelations());
+
+            $this->historyService->record(
+                $updated,
+                'complete_event',
+                sprintf('%s completed the event and generated a closure record.', $actor->name),
+                $actor,
+                $previousStatus,
+                'completed',
+                $data['reason'],
+                ['event_closure_report_id' => $closureReport->id]
+            );
+
+            $this->notifyManagers($updated, $actor, 'Event completed', sprintf('%s completed %s and recorded the closure report.', $actor->name, $updated->title));
+
+            return $updated;
+        });
+    }
+
+    public function cancelEvent(Event $event, User $actor, string $reason): Event
+    {
+        return $this->transitionEvent($event, $actor, 'cancel_event', 'cancelled', $reason, [
+            'cancelled_at' => now(),
+        ]);
+    }
+
+    public function postponeEvent(Event $event, User $actor, string $reason): Event
+    {
+        return $this->transitionEvent($event, $actor, 'postpone_event', 'postponed', $reason, [
+            'postponed_at' => now(),
+        ]);
+    }
+
+    public function archiveEvent(Event $event, User $actor, string $reason): Event
+    {
+        return $this->transitionEvent($event, $actor, 'archive_event', 'archived', $reason, [
+            'archived_at' => now(),
+        ]);
+    }
+
+    public function uploadClosureAsset(Event $event, User $actor, UploadedFile $file, string $category, ?string $description = null): EventClosureAsset
+    {
+        if (! $event->closureReport) {
+            throw ValidationException::withMessages([
+                'file' => ['Complete the event closure report before uploading closure assets.'],
+            ]);
+        }
+
+        return DB::transaction(function () use ($event, $actor, $file, $category, $description) {
+            $path = $file->store("event-closure-assets/{$event->id}/{$category}", 'local');
+
+            $asset = $event->closureReport->assets()->create([
+                'category' => $category,
+                'uploaded_by_user_id' => $actor->id,
+                'disk' => 'local',
+                'path' => $path,
+                'file_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getClientMimeType(),
+                'file_size' => $file->getSize(),
+                'description' => $description,
+            ]);
+
+            $updated = $event->fresh($this->eventRelations());
+            $this->historyService->record(
+                $updated,
+                'closure_asset_uploaded',
+                sprintf('%s uploaded a closure %s.', $actor->name, str($category)->replace('_', ' ')->toString()),
+                $actor,
+                $updated->status,
+                $updated->status,
+                $description,
+                ['event_closure_asset_id' => $asset->id, 'category' => $category]
+            );
+
+            return $asset->fresh('uploadedBy');
+        });
+    }
+
+    public function downloadClosureAsset(Event $event, EventClosureAsset $asset)
+    {
+        if ((int) $asset->closureReport?->event_id !== (int) $event->id) {
+            abort(404);
+        }
+
+        return Storage::disk($asset->disk)->download($asset->path, $asset->file_name);
     }
 
     public function addWorkstream(Event $event, array $data): EventWorkstream
@@ -516,6 +692,7 @@ class EventService
             'start_date' => $event->start_date?->format('Y-m-d'),
             'end_date' => $event->end_date?->format('Y-m-d'),
             'status' => $event->status,
+            'status_reason' => $event->status_reason,
             'description' => $event->description,
             'objectives' => $event->objectives,
             'technical_requirements' => $event->technical_requirements,
@@ -542,6 +719,8 @@ class EventService
             'registers' => $this->participantRegisters($event),
             'event_day_summary' => $this->eventDaySummary($event),
             'outcome_report' => $this->outcomeReportPayload($event),
+            'closure_report' => $this->closureReportPayload($event),
+            'history' => $event->history->map(fn (EventHistory $history) => $this->historyService->map($history))->values(),
             'participant_summary' => $participantSummary,
             'participant_categories' => collect($participantSummary['category_counts'])
                 ->map(fn ($count, $category) => [
@@ -636,6 +815,15 @@ class EventService
                     'checked_in_at' => $attendee->checked_in_at?->toDateTimeString(),
                     'category' => $attendee->category,
                 ]),
+            'lifecycle' => [
+                'registration_opened_at' => $event->registration_opened_at?->toDateTimeString(),
+                'registration_closed_at' => $event->registration_closed_at?->toDateTimeString(),
+                'started_at' => $event->started_at?->toDateTimeString(),
+                'completed_at' => $event->completed_at?->toDateTimeString(),
+                'cancelled_at' => $event->cancelled_at?->toDateTimeString(),
+                'postponed_at' => $event->postponed_at?->toDateTimeString(),
+                'archived_at' => $event->archived_at?->toDateTimeString(),
+            ],
         ];
     }
 
@@ -647,12 +835,21 @@ class EventService
             'total_events' => $collection->count(),
             'planned_events' => $collection->where('status', 'planned')->count(),
             'open_events' => $collection->where('status', 'open_for_registration')->count(),
+            'registration_closed_events' => $collection->where('status', 'registration_closed')->count(),
             'active_events' => $collection->where('status', 'active')->count(),
             'completed_events' => $collection->where('status', 'completed')->count(),
+            'cancelled_events' => $collection->where('status', 'cancelled')->count(),
             'annual_events' => $collection->where('is_annual', true)->count(),
             'total_participants' => $collection->sum(fn ($event) => is_array($event) ? ($event['participant_count'] ?? count($event['participants'] ?? [])) : $event->participants->count()),
             'total_attendees' => $collection->sum(fn ($event) => is_array($event) ? ($event['attendee_count'] ?? count($event['attendees'] ?? [])) : $this->participantSummary($event)['attendee_count']),
             'total_speakers' => $collection->sum(fn ($event) => is_array($event) ? ($event['speaker_count'] ?? count($event['speakers'] ?? [])) : $this->participantSummary($event)['speaker_count']),
+            'average_attendance_rate' => $collection->count() > 0
+                ? (int) round($collection->avg(fn ($event) => $this->attendanceSummary($event)['attendance_rate'] ?? 0))
+                : 0,
+            'average_registration_conversion' => $collection->count() > 0
+                ? (int) round($collection->avg(fn ($event) => $this->registrationSummary($event)['conversion_rate'] ?? 0))
+                : 0,
+            'outcome_achievement_events' => $collection->filter(fn ($event) => filled($event->closureReport?->outcomes_achieved))->count(),
         ];
     }
 
@@ -1206,6 +1403,21 @@ class EventService
         ];
     }
 
+    protected function registrationSummary(Event $event): array
+    {
+        $participants = $this->attendanceTrackedParticipants($event);
+        $registered = $participants->count();
+        $confirmed = $participants->whereIn('attendance_status', ['confirmed', 'checked_in', 'attended'])->count();
+        $attended = $participants->whereIn('attendance_status', ['checked_in', 'attended'])->count();
+
+        return [
+            'registered' => $registered,
+            'confirmed' => $confirmed,
+            'attended' => $attended,
+            'conversion_rate' => $registered > 0 ? (int) round(($attended / $registered) * 100) : 0,
+        ];
+    }
+
     protected function outcomeReportPayload(Event $event): array
     {
         $report = $event->outcomeReport;
@@ -1226,6 +1438,38 @@ class EventService
                 ? trim($report->reporter->first_name.' '.$report->reporter->last_name)
                 : null,
             'reported_at' => $report?->reported_at?->toDateTimeString(),
+        ];
+    }
+
+    protected function closureReportPayload(Event $event): ?array
+    {
+        $report = $event->closureReport;
+
+        if (! $report) {
+            return null;
+        }
+
+        return [
+            'id' => $report->id,
+            'attendance_summary' => $report->attendance_summary ?? [],
+            'registration_summary' => $report->registration_summary ?? [],
+            'budget_summary' => $report->budget_summary,
+            'outcomes_achieved' => $report->outcomes_achieved,
+            'lessons_learned' => $report->lessons_learned,
+            'risks_encountered' => $report->risks_encountered,
+            'recommendations' => $report->recommendations,
+            'closure_reason' => $report->closure_reason,
+            'closed_by_name' => $report->closedBy?->name,
+            'closed_at' => $report->closed_at?->toDateTimeString(),
+            'assets' => $report->assets->map(fn (EventClosureAsset $asset) => [
+                'id' => $asset->id,
+                'category' => $asset->category,
+                'file_name' => $asset->file_name,
+                'description' => $asset->description,
+                'mime_type' => $asset->mime_type,
+                'uploaded_by_name' => $asset->uploadedBy?->name,
+                'created_at' => $asset->created_at?->toDateTimeString(),
+            ])->values(),
         ];
     }
 
@@ -1449,5 +1693,83 @@ class EventService
             'evidence_mime_type' => $evidenceFile->getClientMimeType(),
             'evidence_file_size' => $evidenceFile->getSize(),
         ])->save();
+    }
+
+    protected function transitionEvent(
+        Event $event,
+        User $actor,
+        string $action,
+        string $targetStatus,
+        string $reason,
+        array $extra = [],
+    ): Event {
+        $this->assertTransitionAllowed($event, $targetStatus);
+
+        return DB::transaction(function () use ($event, $actor, $action, $targetStatus, $reason, $extra) {
+            $previousStatus = $event->status;
+            $event->update([
+                'status' => $targetStatus,
+                'status_reason' => $reason,
+                ...$extra,
+            ]);
+
+            $updated = $event->fresh($this->eventRelations());
+
+            $this->historyService->record(
+                $updated,
+                $action,
+                sprintf('%s moved the event to %s.', $actor->name, str($targetStatus)->replace('_', ' ')->toString()),
+                $actor,
+                $previousStatus,
+                $targetStatus,
+                $reason,
+            );
+
+            $this->notifyManagers(
+                $updated,
+                $actor,
+                'Event lifecycle updated',
+                sprintf('%s moved %s from %s to %s.', $actor->name, $updated->title, str($previousStatus)->replace('_', ' ')->toString(), str($targetStatus)->replace('_', ' ')->toString())
+            );
+
+            return $updated;
+        });
+    }
+
+    protected function assertTransitionAllowed(Event $event, string $targetStatus): void
+    {
+        $current = $event->status ?? 'planned';
+        $allowed = $this->transitionRules[$current] ?? [];
+
+        if (in_array($targetStatus, $allowed, true)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'status' => ['This event cannot transition from '.str($current)->replace('_', ' ')->toString().' to '.str($targetStatus)->replace('_', ' ')->toString().'.'],
+        ]);
+    }
+
+    protected function notifyManagers(Event $event, User $actor, string $title, string $message): void
+    {
+        User::query()
+            ->permission('domain.events.manage')
+            ->whereKeyNot($actor->id)
+            ->get()
+            ->each(fn (User $user) => $user->notify(new EventLifecycleNotification($event, $title, $message)));
+    }
+
+    protected function eventRelations(): array
+    {
+        return [
+            'owner',
+            'participants',
+            'partners',
+            'workstreams.tasks',
+            'outcomeReport.reporter',
+            'closureReport.assets.uploadedBy',
+            'closureReport.closedBy',
+            'history.actor',
+        ];
     }
 }

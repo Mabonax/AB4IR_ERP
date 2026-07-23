@@ -3,6 +3,10 @@
 namespace App\Domains\Events\Controllers;
 
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventClosureAsset;
+use App\Domains\Events\Requests\CompleteEventRequest;
+use App\Domains\Events\Requests\EventClosureAssetUploadRequest;
+use App\Domains\Events\Requests\EventLifecycleActionRequest;
 use App\Domains\Events\Models\EventWorkstream;
 use App\Domains\Events\Services\EventService;
 use App\Domains\Staff\Models\StaffMember;
@@ -305,6 +309,92 @@ class EventController extends Controller
         return redirect()->route('events.index')->with('success', 'Event deleted.');
     }
 
+    public function openRegistration(EventLifecycleActionRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->openRegistration($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->back()->with('success', 'Registration opened.');
+    }
+
+    public function closeRegistration(EventLifecycleActionRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->closeRegistration($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->back()->with('success', 'Registration closed.');
+    }
+
+    public function startLifecycle(EventLifecycleActionRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->startEvent($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->back()->with('success', 'Event started.');
+    }
+
+    public function complete(CompleteEventRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->completeEvent($model, $request->user(), $request->validated());
+
+        return redirect()->back()->with('success', 'Event completed and closure report recorded.');
+    }
+
+    public function cancelLifecycle(EventLifecycleActionRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->cancelEvent($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->back()->with('success', 'Event cancelled.');
+    }
+
+    public function postpone(EventLifecycleActionRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->postponeEvent($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->back()->with('success', 'Event postponed.');
+    }
+
+    public function archive(EventLifecycleActionRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->archiveEvent($model, $request->user(), $request->string('reason')->toString());
+
+        return redirect()->back()->with('success', 'Event archived.');
+    }
+
+    public function uploadClosureAsset(EventClosureAssetUploadRequest $request, int $event)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('manageLifecycle', $model);
+        $this->service->uploadClosureAsset(
+            $model,
+            $request->user(),
+            $request->file('file'),
+            $request->string('category')->toString(),
+            $request->string('description')->toString() ?: null,
+        );
+
+        return redirect()->back()->with('success', 'Closure asset uploaded.');
+    }
+
+    public function downloadClosureAsset(int $event, int $asset)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('view', $model);
+
+        return $this->service->downloadClosureAsset($model, EventClosureAsset::query()->findOrFail($asset));
+    }
+
     public function storeSpeaker(Request $request, int $event)
     {
         $model = $this->service->getEvent($event);
@@ -562,7 +652,7 @@ class EventController extends Controller
             'venue_contact_email' => 'nullable|email|max:255',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'status' => 'required|in:planned,open_for_registration,active,completed,cancelled',
+            'status' => 'required|in:planned,open_for_registration,registration_closed,active,completed,cancelled,postponed,archived',
             'description' => 'nullable|string|max:4000',
             'objectives' => 'nullable|string|max:4000',
             'technical_requirements' => 'nullable|string|max:4000',

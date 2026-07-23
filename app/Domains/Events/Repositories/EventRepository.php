@@ -11,7 +11,7 @@ class EventRepository implements EventRepositoryInterface
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
         return Event::query()
-            ->with(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter'])
+            ->with(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter', 'closureReport.assets.uploadedBy', 'closureReport.closedBy', 'history.actor'])
             ->orderByDesc('start_date')
             ->paginate($perPage);
     }
@@ -19,7 +19,7 @@ class EventRepository implements EventRepositoryInterface
     public function find(int $id): ?Event
     {
         return Event::query()
-            ->with(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter'])
+            ->with(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter', 'closureReport.assets.uploadedBy', 'closureReport.closedBy', 'history.actor'])
             ->find($id);
     }
 
@@ -32,7 +32,7 @@ class EventRepository implements EventRepositoryInterface
     {
         $event->update($data);
 
-        return $event->fresh(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter']);
+        return $event->fresh(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter', 'closureReport.assets.uploadedBy', 'closureReport.closedBy', 'history.actor']);
     }
 
     public function delete(Event $event): bool
@@ -43,7 +43,7 @@ class EventRepository implements EventRepositoryInterface
     public function seriesHistory(string $seriesKey): Collection
     {
         return Event::query()
-            ->with(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter'])
+            ->with(['owner', 'participants', 'partners', 'workstreams.tasks', 'outcomeReport.reporter', 'closureReport.assets.uploadedBy', 'closureReport.closedBy', 'history.actor'])
             ->where('annual_series_key', $seriesKey)
             ->orderByDesc('event_year')
             ->orderByDesc('start_date')

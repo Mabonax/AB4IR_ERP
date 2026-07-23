@@ -237,9 +237,12 @@ export function EventFormPage({
                     <SelectContent>
                       <SelectItem value="planned">Planned</SelectItem>
                       <SelectItem value="open_for_registration">Open For Registration</SelectItem>
+                      <SelectItem value="registration_closed">Registration Closed</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="postponed">Postponed</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>

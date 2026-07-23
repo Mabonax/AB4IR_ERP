@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventClosureAsset;
 use App\Domains\Events\Models\EventTask;
 use App\Domains\Events\Models\EventWorkstream;
 use App\Domains\Organization\Models\OrganizationDocument;
@@ -841,6 +842,140 @@ test('event managers can capture post event reporting outcomes', function () {
             ->where('event.outcome_report.report_status', 'submitted')
             ->where('event.outcome_report.summary', 'Event delivered successfully.')
         );
+});
+
+test('event managers can run lifecycle transitions, complete closure, and upload closure assets', function () {
+    Storage::fake('local');
+
+    $graph = makeEventOwnerGraph();
+    grantDomainAccess($graph['user'], 'events');
+
+    $event = Event::query()->create([
+        'title' => 'Lifecycle Closure Event',
+        'event_type' => 'Summit',
+        'start_date' => '2026-11-11',
+        'end_date' => '2026-11-12',
+        'status' => 'planned',
+        'owner_staff_member_id' => $graph['staff']->id,
+    ]);
+
+    $event->participants()->create([
+        'category' => 'attendee',
+        'name' => 'Registered Guest',
+        'attendance_status' => 'checked_in',
+        'attendance_type' => 'In-person',
+    ]);
+
+    $this->actingAs($graph['user'])
+        ->post(route('events.open-registration', $event->id), ['reason' => 'Registration now approved for release.'])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Registration opened.');
+
+    $this->actingAs($graph['user'])
+        ->post(route('events.close-registration', $event->id), ['reason' => 'Registration window has ended.'])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Registration closed.');
+
+    $this->actingAs($graph['user'])
+        ->post(route('events.start', $event->id), ['reason' => 'The event is now underway.'])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Event started.');
+
+    $this->actingAs($graph['user'])
+        ->post(route('events.complete', $event->id), [
+            'reason' => 'All sessions and post-event activities are closed.',
+            'budget_summary' => 'Budget remained within approved tolerance.',
+            'outcomes_achieved' => 'Stakeholder sessions delivered and attendance targets reached.',
+            'lessons_learned' => 'Pre-registration reminders improved conversion.',
+            'risks_encountered' => 'Minor projector outage handled on-site.',
+            'recommendations' => 'Increase AV redundancy and confirm speaker arrival windows earlier.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Event completed and closure report recorded.');
+
+    $upload = $this->actingAs($graph['user'])->post(route('events.closure-assets.store', $event->id), [
+        'category' => 'supporting_document',
+        'description' => 'Signed venue close-out note.',
+        'file' => UploadedFile::fake()->create('closeout-note.pdf', 64, 'application/pdf'),
+    ]);
+
+    $upload->assertRedirect();
+    $upload->assertSessionHas('success', 'Closure asset uploaded.');
+
+    $event = $event->fresh();
+    $asset = EventClosureAsset::query()->firstOrFail();
+
+    expect($event->status)->toBe('completed');
+    expect($event->completed_at)->not->toBeNull();
+
+    $this->assertDatabaseHas('event_closure_reports', [
+        'event_id' => $event->id,
+        'closure_reason' => 'All sessions and post-event activities are closed.',
+    ]);
+    $this->assertDatabaseHas('event_closure_assets', [
+        'event_closure_report_id' => $asset->event_closure_report_id,
+        'category' => 'supporting_document',
+        'description' => 'Signed venue close-out note.',
+    ]);
+    $this->assertDatabaseHas('event_history', [
+        'event_id' => $event->id,
+        'action' => 'open_registration',
+        'to_status' => 'open_for_registration',
+    ]);
+    $this->assertDatabaseHas('event_history', [
+        'event_id' => $event->id,
+        'action' => 'close_registration',
+        'to_status' => 'registration_closed',
+    ]);
+    $this->assertDatabaseHas('event_history', [
+        'event_id' => $event->id,
+        'action' => 'start_event',
+        'to_status' => 'active',
+    ]);
+    $this->assertDatabaseHas('event_history', [
+        'event_id' => $event->id,
+        'action' => 'complete_event',
+        'to_status' => 'completed',
+    ]);
+    $this->assertDatabaseHas('event_history', [
+        'event_id' => $event->id,
+        'action' => 'closure_asset_uploaded',
+    ]);
+
+    Storage::disk('local')->assertExists($asset->path);
+
+    $this->actingAs($graph['user'])
+        ->get(route('events.closure-assets.download', ['event' => $event->id, 'asset' => $asset->id]))
+        ->assertOk();
+
+    $show = $this->actingAs($graph['user'])->get(route('events.show', $event->id));
+    $show->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Events/Show')
+            ->where('event.status', 'completed')
+            ->where('event.lifecycle.completed_at', $event->completed_at?->toDateTimeString())
+            ->where('event.closure_report.outcomes_achieved', 'Stakeholder sessions delivered and attendance targets reached.')
+            ->where('event.closure_report.assets.0.file_name', 'closeout-note.pdf')
+            ->has('event.history', 5)
+        );
+});
+
+test('event lifecycle transactions require manage permission', function () {
+    $graph = makeEventOwnerGraph();
+    $viewer = grantDomainAccess(User::factory()->create(), 'events', false);
+
+    $event = Event::query()->create([
+        'title' => 'Lifecycle Guardrail Event',
+        'event_type' => 'Forum',
+        'start_date' => '2026-10-10',
+        'end_date' => '2026-10-10',
+        'status' => 'planned',
+        'owner_staff_member_id' => $graph['staff']->id,
+    ]);
+
+    $this->actingAs($viewer)
+        ->post(route('events.open-registration', $event->id), ['reason' => 'Attempted by viewer only.'])
+        ->assertForbidden();
 });
 
 test('event series and dedicated workflow pages can be viewed', function () {

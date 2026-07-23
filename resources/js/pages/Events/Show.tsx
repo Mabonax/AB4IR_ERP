@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import { CircleHelp, ClipboardSignature, FileText, Pencil, Plus, RadioTower, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -28,14 +28,21 @@ function statusBadgeClass(status: string): string {
     case "completed":
     case "attended":
       return "border-green-200 bg-green-50 text-green-700";
+    case "active":
     case "in_progress":
     case "on_going":
     case "confirmed":
     case "checked_in":
       return "border-blue-200 bg-blue-50 text-blue-700";
+    case "registration_closed":
+      return "border-indigo-200 bg-indigo-50 text-indigo-700";
     case "blocked":
     case "cancelled":
       return "border-rose-200 bg-rose-50 text-rose-700";
+    case "postponed":
+      return "border-violet-200 bg-violet-50 text-violet-700";
+    case "archived":
+      return "border-slate-300 bg-slate-100 text-slate-600";
     default:
       return "border-amber-200 bg-amber-50 text-amber-700";
   }
@@ -68,6 +75,22 @@ export default function EventShow({
   const importErrors = Array.isArray(flash?.import_errors) ? (flash?.import_errors as string[]) : [];
   const [activeDepartmentId, setActiveDepartmentId] = useState<number | null>(event.workstreams?.[0]?.id ?? null);
   const [activePhase, setActivePhase] = useState<string>("pre_event");
+  const [lifecycleReason, setLifecycleReason] = useState("");
+  const [closureForm, setClosureForm] = useState({
+    reason: "",
+    budget_summary: "",
+    outcomes_achieved: event.closure_report?.outcomes_achieved ?? "",
+    lessons_learned: event.closure_report?.lessons_learned ?? "",
+    risks_encountered: event.closure_report?.risks_encountered ?? "",
+    recommendations: event.closure_report?.recommendations ?? "",
+  });
+  const [closureAssetCategory, setClosureAssetCategory] = useState<"supporting_document" | "photo">("supporting_document");
+  const [closureAssetDescription, setClosureAssetDescription] = useState("");
+  const [closureAssetFile, setClosureAssetFile] = useState<File | null>(null);
+  const lifecycle = event.lifecycle ?? {};
+  const closureReport = event.closure_report;
+  const history = Array.isArray(event.history) ? event.history : [];
+  const statusReason = event.status_reason ?? "No lifecycle reason has been recorded yet.";
 
   const workstreams = useMemo(() => {
     return (event.workstreams ?? []).map((workstream: any) => {
@@ -139,6 +162,69 @@ export default function EventShow({
       })
       .filter((group: any) => group.total > 0);
   }, [activeDepartment, activePhase]);
+
+  const submitLifecycle = (action: string, payload: Record<string, unknown>) => {
+    router.post(`/events/${event.id}/${action}`, payload, {
+      preserveScroll: true,
+    });
+  };
+
+  const resetClosureAssetForm = () => {
+    setClosureAssetCategory("supporting_document");
+    setClosureAssetDescription("");
+    setClosureAssetFile(null);
+  };
+
+  const submitClosureCompletion = () => {
+    if (
+      !closureForm.reason.trim()
+      || !closureForm.outcomes_achieved.trim()
+      || !closureForm.lessons_learned.trim()
+      || !closureForm.risks_encountered.trim()
+      || !closureForm.recommendations.trim()
+    ) {
+      return;
+    }
+
+    router.post(`/events/${event.id}/complete`, closureForm, {
+      preserveScroll: true,
+    });
+  };
+
+  const submitClosureAsset = () => {
+    if (!closureAssetFile) {
+      return;
+    }
+
+    router.post(`/events/${event.id}/closure-assets`, {
+      category: closureAssetCategory,
+      description: closureAssetDescription || null,
+      file: closureAssetFile,
+    }, {
+      forceFormData: true,
+      preserveScroll: true,
+      onSuccess: () => resetClosureAssetForm(),
+    });
+  };
+
+  const lifecycleActions = [
+    { label: "Open Registration", action: "open-registration", enabled: ["planned", "postponed"].includes(event.status) },
+    { label: "Close Registration", action: "close-registration", enabled: event.status === "open_for_registration" },
+    { label: "Start Event", action: "start", enabled: ["open_for_registration", "registration_closed"].includes(event.status) },
+    { label: "Postpone", action: "postpone", enabled: ["planned", "open_for_registration", "registration_closed", "active"].includes(event.status), danger: true },
+    { label: "Cancel", action: "cancel", enabled: ["planned", "open_for_registration", "registration_closed", "active", "postponed"].includes(event.status), danger: true },
+    { label: "Archive", action: "archive", enabled: ["completed", "cancelled", "postponed"].includes(event.status) },
+  ];
+
+  const lifecycleMoments = [
+    ["Registration opened", lifecycle.registration_opened_at],
+    ["Registration closed", lifecycle.registration_closed_at],
+    ["Event started", lifecycle.started_at],
+    ["Event completed", lifecycle.completed_at],
+    ["Event cancelled", lifecycle.cancelled_at],
+    ["Event postponed", lifecycle.postponed_at],
+    ["Event archived", lifecycle.archived_at],
+  ].filter(([, value]) => Boolean(value));
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -663,6 +749,290 @@ export default function EventShow({
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle>Lifecycle and Closure</CardTitle>
+              <CardDescription>Move the event through explicit lifecycle transactions, then lock the close-out with one closure record.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 lg:grid-cols-[0.95fr,1.05fr]">
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current Lifecycle Status</div>
+                    <div className={`mt-3 inline-flex rounded-full border px-3 py-1 text-sm font-medium ${statusBadgeClass(event.status ?? "planned")}`}>
+                      {String(event.status ?? "planned").replaceAll("_", " ")}
+                    </div>
+                    <p className="mt-3 text-sm text-slate-600">{statusReason}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Lifecycle Timeline</div>
+                    {lifecycleMoments.length === 0 ? (
+                      <p className="mt-3 text-sm text-slate-500">No lifecycle timestamps have been recorded yet.</p>
+                    ) : (
+                      <div className="mt-3 space-y-3">
+                        {lifecycleMoments.map(([label, value]) => (
+                          <div key={String(label)} className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
+                            <span className="font-medium text-slate-900">{label}</span>
+                            <span className="text-right text-slate-600">{String(value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {canManage ? (
+                    <div className="rounded-xl border border-slate-200 p-4">
+                      <div className="text-sm font-semibold text-slate-950">Lifecycle Actions</div>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Each transition requires a reason so the event file keeps an auditable operational trail.
+                      </p>
+                      <textarea
+                        className="mt-4 min-h-28 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                        placeholder="Capture the operational reason for the selected lifecycle action."
+                        value={lifecycleReason}
+                        onChange={(current) => setLifecycleReason(current.target.value)}
+                      />
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {lifecycleActions.map((item) => (
+                          <button
+                            key={item.action}
+                            type="button"
+                            disabled={!item.enabled || !lifecycleReason.trim()}
+                            onClick={() => submitLifecycle(item.action, { reason: lifecycleReason })}
+                            className={`rounded-md border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                              item.danger
+                                ? "border-rose-300 text-rose-700 hover:bg-rose-50"
+                                : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="text-sm font-semibold text-slate-950">Closure Summary</div>
+                    {closureReport ? (
+                      <div className="mt-4 space-y-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Attendance Rate</div>
+                            <div className="mt-2 text-2xl font-semibold text-slate-950">{closureReport.attendance_summary?.attendance_rate ?? 0}%</div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {closureReport.attendance_summary?.attendee_count ?? 0} attendees from {closureReport.attendance_summary?.participant_count ?? 0} registered participants
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Registration Conversion</div>
+                            <div className="mt-2 text-2xl font-semibold text-slate-950">{closureReport.registration_summary?.conversion_rate ?? 0}%</div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {closureReport.registration_summary?.attended ?? 0} attended from {closureReport.registration_summary?.registered ?? 0} registered
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          {[
+                            ["Closure reason", closureReport.closure_reason],
+                            ["Budget summary", closureReport.budget_summary],
+                            ["Outcomes achieved", closureReport.outcomes_achieved],
+                            ["Lessons learned", closureReport.lessons_learned],
+                            ["Risks encountered", closureReport.risks_encountered],
+                            ["Recommendations", closureReport.recommendations],
+                          ].map(([label, value]) => (
+                            <div key={String(label)} className="rounded-xl border border-slate-200 p-4">
+                              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</div>
+                              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{value ? String(value) : "Not recorded."}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                          Closed by {closureReport.closed_by_name ?? "Unknown user"} on {closureReport.closed_at ?? "unknown date"}.
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-500">No closure report has been recorded for this event yet.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {canManage ? (
+                <div className="grid gap-4 lg:grid-cols-[1fr,0.95fr]">
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="text-sm font-semibold text-slate-950">Complete Event and Record Closure</div>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Completion finalizes the event, updates the outcome report snapshot, and stores the operational close-out narrative.
+                    </p>
+                    <div className="mt-4 grid gap-4">
+                      {[
+                        ["reason", "Completion reason", "Capture why the event is ready for completion."],
+                        ["budget_summary", "Budget summary", "Optional budget or cost variance summary."],
+                        ["outcomes_achieved", "Outcomes achieved", "What was delivered, achieved, or closed out successfully."],
+                        ["lessons_learned", "Lessons learned", "Key lessons the next annual or similar event should reuse."],
+                        ["risks_encountered", "Risks encountered", "Operational, participation, or delivery risks faced during execution."],
+                        ["recommendations", "Recommendations", "What should be improved or actioned next."],
+                      ].map(([field, label, placeholder]) => (
+                        <div key={String(field)} className="space-y-2">
+                          <label className="block text-sm font-medium text-slate-900">{label}</label>
+                          <textarea
+                            className="min-h-24 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                            placeholder={String(placeholder)}
+                            value={closureForm[field as keyof typeof closureForm]}
+                            onChange={(current) => setClosureForm((existing) => ({ ...existing, [field]: current.target.value }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4">
+                      <Button
+                        type="button"
+                        disabled={event.status !== "active"}
+                        onClick={submitClosureCompletion}
+                      >
+                        Complete Event
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="text-sm font-semibold text-slate-950">Closure Assets</div>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Upload proof files after the closure report exists so the event file carries final evidence in one place.
+                    </p>
+
+                    {closureReport ? (
+                      <>
+                        <div className="mt-4 grid gap-4">
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-slate-900">Category</label>
+                            <select
+                              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                              value={closureAssetCategory}
+                              onChange={(current) => setClosureAssetCategory(current.target.value as "supporting_document" | "photo")}
+                            >
+                              <option value="supporting_document">Supporting document</option>
+                              <option value="photo">Photo</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-slate-900">Description</label>
+                            <textarea
+                              className="min-h-24 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                              placeholder="Optional note about the uploaded closure evidence."
+                              value={closureAssetDescription}
+                              onChange={(current) => setClosureAssetDescription(current.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-slate-900">File</label>
+                            <input
+                              type="file"
+                              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                              onChange={(current) => setClosureAssetFile(current.target.files?.[0] ?? null)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <Button type="button" disabled={!closureAssetFile} onClick={submitClosureAsset}>
+                            Upload Closure Asset
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">
+                        Complete the event first to unlock closure asset uploads.
+                      </div>
+                    )}
+
+                    <div className="mt-6 space-y-3">
+                      <div className="text-sm font-semibold text-slate-950">Recorded Assets</div>
+                      {(closureReport?.assets ?? []).length === 0 ? (
+                        <p className="text-sm text-slate-500">No closure assets uploaded yet.</p>
+                      ) : (
+                        (closureReport.assets ?? []).map((asset: any) => (
+                          <div key={asset.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="font-medium text-slate-900">{asset.file_name}</div>
+                                <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                                  {String(asset.category ?? "supporting_document").replaceAll("_", " ")}
+                                </div>
+                                <div className="mt-2 text-sm text-slate-600">{asset.description ?? "No description recorded."}</div>
+                                <div className="mt-2 text-xs text-slate-500">
+                                  Uploaded by {asset.uploaded_by_name ?? "Unknown user"} on {asset.created_at ?? "-"}
+                                </div>
+                              </div>
+                              <a
+                                href={`/events/${event.id}/closure-assets/${asset.id}`}
+                                className="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white"
+                              >
+                                Download
+                              </a>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle>Event History</CardTitle>
+              <CardDescription>Every lifecycle move and closure upload is recorded here for operational traceability.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {history.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-sm text-slate-500">
+                  No lifecycle history has been recorded yet.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {history.map((item: any) => (
+                    <div key={item.id} className="rounded-xl border border-slate-200 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-slate-950">{item.summary}</div>
+                          <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                            {String(item.action ?? "history").replaceAll("_", " ")}
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-500">{item.created_at ?? "-"}</div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        {item.from_status ? (
+                          <span className={`rounded-full border px-2.5 py-1 ${statusBadgeClass(item.from_status)}`}>
+                            From {String(item.from_status).replaceAll("_", " ")}
+                          </span>
+                        ) : null}
+                        {item.to_status ? (
+                          <span className={`rounded-full border px-2.5 py-1 ${statusBadgeClass(item.to_status)}`}>
+                            To {String(item.to_status).replaceAll("_", " ")}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-3 text-sm text-slate-600">{item.reason ?? "No reason recorded."}</p>
+                      <div className="mt-2 text-xs text-slate-500">Actor: {item.actor_name ?? "System"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AppLayout>
   );

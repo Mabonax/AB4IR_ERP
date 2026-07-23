@@ -11,6 +11,17 @@ class Event extends Model
 {
     use HasFactory;
 
+    public const MANAGEABLE_STATUSES = [
+        'planned',
+        'open_for_registration',
+        'registration_closed',
+        'active',
+        'completed',
+        'cancelled',
+        'postponed',
+        'archived',
+    ];
+
     protected $table = 'events';
 
     protected $fillable = [
@@ -31,6 +42,7 @@ class Event extends Model
         'start_date',
         'end_date',
         'status',
+        'status_reason',
         'description',
         'objectives',
         'technical_requirements',
@@ -41,12 +53,26 @@ class Event extends Model
         'zoom_passcode',
         'expected_attendees',
         'owner_staff_member_id',
+        'registration_opened_at',
+        'registration_closed_at',
+        'started_at',
+        'completed_at',
+        'cancelled_at',
+        'postponed_at',
+        'archived_at',
     ];
 
     protected $casts = [
         'is_annual' => 'boolean',
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
+        'registration_opened_at' => 'datetime',
+        'registration_closed_at' => 'datetime',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'postponed_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     public function owner()
@@ -94,5 +120,15 @@ class Event extends Model
     public function outcomeReport()
     {
         return $this->hasOne(EventOutcomeReport::class);
+    }
+
+    public function closureReport()
+    {
+        return $this->hasOne(EventClosureReport::class);
+    }
+
+    public function history()
+    {
+        return $this->hasMany(EventHistory::class)->latest();
     }
 }

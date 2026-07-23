@@ -34,4 +34,9 @@ class EventPolicy
     {
         return $this->canManageDomain($user, 'events');
     }
+
+    public function manageLifecycle(User $user, Event $event): bool
+    {
+        return $this->canManageDomain($user, 'events');
+    }
 }
