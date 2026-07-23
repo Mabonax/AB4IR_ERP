@@ -3,7 +3,9 @@
 namespace App\Domains\Leave\Controllers;
 
 use App\Domains\Leave\Models\LeaveRequest;
+use App\Domains\Leave\Models\LeaveRequestDocument;
 use App\Domains\Leave\Services\LeaveManagementService;
+use App\Domains\Leave\Services\LeaveRequestDocumentService;
 use App\Http\Controllers\Controller;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
@@ -13,7 +15,8 @@ use Inertia\Inertia;
 class LeaveRequestController extends Controller
 {
     public function __construct(
-        protected LeaveManagementService $leaveManagementService
+        protected LeaveManagementService $leaveManagementService,
+        protected LeaveRequestDocumentService $leaveRequestDocumentService,
     ) {}
 
     public function index()
@@ -97,7 +100,7 @@ class LeaveRequestController extends Controller
     public function show(Request $request, int $leave_request)
     {
         $leave = LeaveRequest::query()
-            ->with(['staffMember.department', 'manager'])
+            ->with(['staffMember.department', 'staffMember.user', 'manager', 'documents.documentFile.uploader', 'documents.uploader'])
             ->findOrFail($leave_request);
 
         abort_unless(
@@ -207,5 +210,39 @@ class LeaveRequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Leave request revoked');
+    }
+
+    public function uploadDocument(Request $request, int $leave_request)
+    {
+        $leave = LeaveRequest::query()
+            ->with(['staffMember.department', 'staffMember.user', 'manager'])
+            ->findOrFail($leave_request);
+
+        $data = $request->validate([
+            'document_kind' => 'nullable|in:signed_leave_form,medical_certificate,manager_support,other',
+            'title' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:25600',
+        ]);
+
+        $this->leaveRequestDocumentService->upload($leave, $data, $request->user());
+
+        return redirect()->back()->with('success', 'Leave supporting document uploaded.');
+    }
+
+    public function downloadDocument(Request $request, int $leave_request, LeaveRequestDocument $document)
+    {
+        abort_unless((int) $document->leave_request_id === (int) $leave_request, 404);
+
+        return $this->leaveRequestDocumentService->download($document, $request->user());
+    }
+
+    public function deleteDocument(Request $request, int $leave_request, LeaveRequestDocument $document)
+    {
+        abort_unless((int) $document->leave_request_id === (int) $leave_request, 404);
+
+        $this->leaveRequestDocumentService->delete($document, $request->user());
+
+        return redirect()->back()->with('success', 'Leave supporting document deleted.');
     }
 }

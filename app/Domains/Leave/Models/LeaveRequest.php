@@ -5,6 +5,7 @@ namespace App\Domains\Leave\Models;
 use App\Domains\Staff\Models\StaffMember;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LeaveRequest extends Model
 {
@@ -44,5 +45,10 @@ class LeaveRequest extends Model
     public function manager()
     {
         return $this->belongsTo(StaffMember::class, 'manager_id');
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(LeaveRequestDocument::class, 'leave_request_id');
     }
 }

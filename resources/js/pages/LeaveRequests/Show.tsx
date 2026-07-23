@@ -1,5 +1,6 @@
 import { Head, router, usePage } from "@inertiajs/react";
-import { useState } from "react";
+import { File, FileImage, FileText } from "lucide-react";
+import { type FormEvent, useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
 import {
@@ -22,6 +23,7 @@ export default function LeaveRequestShow({
   const flash = (props.flash ?? {}) as Record<string, unknown>;
   const [managerComment, setManagerComment] = useState(leaveRequest.manager_comment ?? "");
   const [hrComment, setHrComment] = useState(leaveRequest.hr_comment ?? "");
+  const [supportingDocumentKind, setSupportingDocumentKind] = useState("signed_leave_form");
 
   const submitManagerAction = (action: "approve" | "reject") => {
     router.post(`/leave-requests/${leaveRequest.id}/manager-${action}`, {
@@ -37,6 +39,31 @@ export default function LeaveRequestShow({
 
   const revokeRequest = () => {
     router.post(`/leave-requests/${leaveRequest.id}/revoke`);
+  };
+
+  const uploadSupportingDocument = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+
+    router.post(`/leave-requests/${leaveRequest.id}/documents`, new FormData(form), {
+      forceFormData: true,
+      preserveScroll: true,
+      onSuccess: () => form.reset(),
+    });
+  };
+
+  const fileIcon = (document: any) => {
+    const mimeType = String(document.mime_type ?? "");
+
+    if (mimeType.includes("image")) {
+      return <FileImage className="h-5 w-5 text-emerald-600" />;
+    }
+
+    if (mimeType.includes("pdf") || mimeType.includes("word")) {
+      return <FileText className="h-5 w-5 text-blue-600" />;
+    }
+
+    return <File className="h-5 w-5 text-slate-500" />;
   };
 
   const roleContext = leaveRequest.permissions?.is_hr_user
@@ -192,6 +219,101 @@ export default function LeaveRequestShow({
                     ) : null}
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Supporting Documents</CardTitle>
+                <CardDescription>
+                  Upload signed leave forms, medical certificates, and other evidence. Files are stored in the employee evidence library for this request.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {leaveRequest.permissions?.can_upload_supporting_documents ? (
+                  <form onSubmit={uploadSupportingDocument} className="grid gap-3 rounded-lg border p-3 md:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Document type</label>
+                      <select
+                        name="document_kind"
+                        value={supportingDocumentKind}
+                        onChange={(event) => setSupportingDocumentKind(event.target.value)}
+                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="signed_leave_form">Signed leave form</option>
+                        <option value="medical_certificate">Medical certificate</option>
+                        <option value="manager_support">Manager support</option>
+                        <option value="other">Other evidence</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Title</label>
+                      <input name="title" className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Optional title" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground">Description</label>
+                      <textarea name="description" rows={2} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Optional notes" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground">File</label>
+                      <input
+                        name="file"
+                        type="file"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        required
+                      />
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Accepted: PDF, Word, JPG, PNG. Maximum 25 MB.
+                      </div>
+                    </div>
+                    <button type="submit" className="rounded-md bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800 md:col-span-2">
+                      Upload Supporting Document
+                    </button>
+                  </form>
+                ) : (
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    You can view this leave request, but your role cannot add supporting documents to it.
+                  </div>
+                )}
+
+                <div className="divide-y rounded-lg border">
+                  {(leaveRequest.documents ?? []).length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-muted-foreground">No supporting documents uploaded yet.</div>
+                  ) : null}
+
+                  {(leaveRequest.documents ?? []).map((document: any) => (
+                    <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        {fileIcon(document)}
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">{document.title ?? document.original_name}</div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {document.original_name} | {document.document_kind?.replaceAll("_", " ")} | {document.uploaded_by_name ?? "-"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <a href={document.download_url} className="rounded-md border px-3 py-2 text-xs text-slate-700 hover:bg-slate-50">
+                          Download
+                        </a>
+                        {document.can_delete ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm("Delete this supporting document?")) {
+                                router.delete(document.delete_url, { preserveScroll: true });
+                              }
+                            }}
+                            className="rounded-md border border-rose-300 px-3 py-2 text-xs text-rose-700 hover:bg-rose-50"
+                          >
+                            Delete
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -395,6 +395,10 @@ class LeaveManagementService
         $canManagerAction = $staff && (int) $leave->manager_id === (int) $staff->id && $leave->status === 'submitted';
         $canHrAction = $isHrUser && $leave->status === 'manager_approved';
         $canRevoke = $staff && (int) $leave->staff_member_id === (int) $staff->id && in_array($leave->status, ['submitted', 'manager_approved'], true);
+        $canUploadSupportingDocuments = $staff && (
+            (int) $leave->staff_member_id === (int) $staff->id
+            || (int) $leave->manager_id === (int) $staff->id
+        ) || $isHrUser || (bool) $user?->can('domain.leave.manage');
 
         return array_merge($this->mapLeave($leave), [
             'staff_member' => [
@@ -417,12 +421,37 @@ class LeaveManagementService
                 'calculated_working_days' => (float) $leave->total_days,
             ],
             'timeline' => $this->timelineForLeave($leave),
+            'documents' => $leave->documents->map(function ($document) use ($user, $isHrUser, $leave) {
+                $file = $document->documentFile;
+
+                return [
+                    'id' => $document->id,
+                    'document_kind' => $document->document_kind,
+                    'title' => $file?->title,
+                    'description' => $file?->description,
+                    'original_name' => $file?->original_name,
+                    'mime_type' => $file?->mime_type,
+                    'size_bytes' => $file?->size_bytes,
+                    'uploaded_by_name' => $document->uploader?->name ?? $file?->uploader?->name,
+                    'created_at' => $document->created_at?->toDateTimeString(),
+                    'download_url' => route('leave-requests.documents.download', [
+                        'leave_request' => $document->leave_request_id,
+                        'document' => $document->id,
+                    ]),
+                    'delete_url' => route('leave-requests.documents.destroy', [
+                        'leave_request' => $document->leave_request_id,
+                        'document' => $document->id,
+                    ]),
+                    'can_delete' => $isHrUser || ((int) $document->uploaded_by === (int) $user?->id && in_array($leave->status, ['submitted', 'manager_approved'], true)),
+                ];
+            })->values(),
             'permissions' => [
                 'can_manager_approve' => (bool) $canManagerAction,
                 'can_manager_reject' => (bool) $canManagerAction,
                 'can_hr_approve' => (bool) $canHrAction,
                 'can_hr_reject' => (bool) $canHrAction,
                 'can_revoke' => (bool) $canRevoke,
+                'can_upload_supporting_documents' => (bool) $canUploadSupportingDocuments,
                 'is_hr_user' => $isHrUser,
                 'is_manager_user' => $staff ? (int) $leave->manager_id === (int) $staff->id : false,
                 'is_requester' => $staff ? (int) $leave->staff_member_id === (int) $staff->id : false,

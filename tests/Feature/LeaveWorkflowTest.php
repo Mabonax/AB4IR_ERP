@@ -1,16 +1,22 @@
 <?php
 
 use App\Domains\Leave\Models\LeaveRequest;
+use App\Domains\Leave\Models\LeaveRequestDocument;
 use App\Domains\Leave\Notifications\LeaveRequestNotification;
 use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
+
+afterEach(fn () => Carbon::setTestNow());
 
 function makeLeaveDepartment(string $name = 'Operations'): StaffDepartment
 {
@@ -422,6 +428,8 @@ test('unrelated staff member cannot view another pending leave request detail pa
 });
 
 test('settings leave page receives annual and sick summaries', function () {
+    Carbon::setTestNow('2026-05-15 08:00:00');
+
     $department = makeLeaveDepartment();
     [, $managerStaff] = makeLeaveStaffUser($department, 'manager.settings@example.test', permissions: ['domain.leave.manage']);
     [$staffUser] = makeLeaveStaffUser(
@@ -443,6 +451,8 @@ test('settings leave page receives annual and sick summaries', function () {
 });
 
 test('staff profile exposes leave account data', function () {
+    Carbon::setTestNow('2026-05-15 08:00:00');
+
     $department = makeLeaveDepartment();
     [$viewer] = makeLeaveStaffUser($department, 'viewer.profile@example.test', permissions: ['domain.staff.view']);
     $staff = StaffMember::query()->create([
@@ -573,4 +583,137 @@ test('manager facing data includes only direct reports', function () {
             ->where('managerLeave.team_members', 2)
             ->has('managerLeave.team', 2)
         );
+});
+
+test('requester can upload supporting documents into leave evidence library', function () {
+    Storage::fake('document_library');
+
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.docs@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser, $staff] = makeLeaveStaffUser(
+        $department,
+        'staff.docs@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    Notification::fake();
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'sick',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-19',
+        'reason' => 'Medical appointment',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($staffUser)
+        ->post(route('leave-requests.documents.store', $leave), [
+            'document_kind' => 'medical_certificate',
+            'title' => 'Doctor note',
+            'description' => 'Clinic note for sick leave',
+            'file' => UploadedFile::fake()->create('medical-note.pdf', 100, 'application/pdf'),
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Leave supporting document uploaded.');
+
+    $document = LeaveRequestDocument::query()->with('documentFile.folder')->firstOrFail();
+
+    expect($document->document_kind)->toBe('medical_certificate')
+        ->and($document->documentFile->title)->toBe('Doctor note')
+        ->and($document->documentFile->folder->owner_type)->toBe(User::class)
+        ->and((int) $document->documentFile->folder->owner_id)->toBe((int) $staffUser->id);
+
+    Storage::disk('document_library')->assertExists($document->documentFile->file_path);
+});
+
+test('leave supporting documents are visible on request detail and downloadable by manager', function () {
+    Storage::fake('document_library');
+
+    $department = makeLeaveDepartment();
+    [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.download-docs@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.download-docs@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+
+    Notification::fake();
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-19',
+        'reason' => 'Family',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($staffUser)->post(route('leave-requests.documents.store', $leave), [
+        'document_kind' => 'signed_leave_form',
+        'title' => 'Signed form',
+        'file' => UploadedFile::fake()->create('signed-leave-form.pdf', 100, 'application/pdf'),
+    ]);
+
+    $document = LeaveRequestDocument::query()->firstOrFail();
+
+    $this->actingAs($managerUser)
+        ->get(route('leave-requests.show', $leave))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('LeaveRequests/Show')
+            ->has('leaveRequest.documents', 1)
+            ->where('leaveRequest.documents.0.document_kind', 'signed_leave_form')
+            ->where('leaveRequest.permissions.can_upload_supporting_documents', true)
+        );
+
+    $this->actingAs($managerUser)
+        ->get(route('leave-requests.documents.download', [$leave, $document]))
+        ->assertOk();
+});
+
+test('unrelated leave user cannot upload or download another staff member leave documents', function () {
+    Storage::fake('document_library');
+
+    $department = makeLeaveDepartment();
+    [, $managerStaff] = makeLeaveStaffUser($department, 'manager.private-docs@example.test', permissions: ['domain.leave.manage']);
+    [$staffUser] = makeLeaveStaffUser(
+        $department,
+        'staff.private-docs@example.test',
+        manager: $managerStaff,
+        permissions: ['domain.leave.view']
+    );
+    [$otherUser] = makeLeaveStaffUser($department, 'other.private-docs@example.test', permissions: ['domain.leave.view']);
+
+    Notification::fake();
+
+    $this->actingAs($staffUser)->post('/leave-requests', [
+        'leave_type' => 'annual',
+        'start_date' => '2026-05-19',
+        'end_date' => '2026-05-19',
+    ]);
+
+    $leave = LeaveRequest::query()->firstOrFail();
+
+    $this->actingAs($staffUser)->post(route('leave-requests.documents.store', $leave), [
+        'document_kind' => 'other',
+        'title' => 'Private note',
+        'file' => UploadedFile::fake()->create('private-note.pdf', 100, 'application/pdf'),
+    ]);
+
+    $document = LeaveRequestDocument::query()->firstOrFail();
+
+    $this->actingAs($otherUser)
+        ->post(route('leave-requests.documents.store', $leave), [
+            'document_kind' => 'other',
+            'title' => 'Unauthorized',
+            'file' => UploadedFile::fake()->create('unauthorized.pdf', 100, 'application/pdf'),
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($otherUser)
+        ->get(route('leave-requests.documents.download', [$leave, $document]))
+        ->assertForbidden();
 });
