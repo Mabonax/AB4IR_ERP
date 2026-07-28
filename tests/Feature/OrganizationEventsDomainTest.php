@@ -66,16 +66,16 @@ test('organization profile can be updated and viewed as a shared institutional s
     $user = makeOrganizationManager();
 
     $response = $this->actingAs($user)->put(route('organization.update'), [
-        'name' => 'AB4IR Enterprise Development Centre',
-        'legal_name' => 'AB4IR NPC',
+        'name' => 'Programme of Action Centre',
+        'legal_name' => 'Programme of Action NPC',
         'tagline' => 'Catalysing incubation and enterprise growth',
         'mission' => 'To incubate viable enterprises and strengthen entrepreneurs.',
         'vision' => 'A thriving and inclusive business ecosystem.',
-        'about' => 'AB4IR supports incubation, enterprise support, and institutional development.',
+        'about' => 'Programme of Action supports governance, programme delivery, and institutional development.',
         'core_values' => 'Innovation, Inclusion, Accountability',
         'service_offering' => 'Incubation, acceleration, training, and ecosystem support.',
-        'website' => 'https://ab4ir.example.com',
-        'email' => 'info@ab4ir.example.com',
+        'website' => 'https://poa.example.org',
+        'email' => 'info@poa.org.za',
         'phone' => '+27 11 000 0000',
         'address_line_1' => '1 Innovation Way',
         'city' => 'Johannesburg',
@@ -88,13 +88,13 @@ test('organization profile can be updated and viewed as a shared institutional s
     $response->assertSessionHas('success', 'Organization profile updated.');
 
     $this->assertDatabaseHas('organization_profiles', [
-        'name' => 'AB4IR Enterprise Development Centre',
-        'legal_name' => 'AB4IR NPC',
+        'name' => 'Programme of Action Centre',
+        'legal_name' => 'Programme of Action NPC',
     ]);
 
     $show = $this->actingAs($user)->get(route('organization.show'));
     $show->assertOk();
-    $show->assertSee('AB4IR Enterprise Development Centre');
+    $show->assertSee('Programme of Action Centre');
     $show->assertSee('Catalysing incubation and enterprise growth');
 });
 
@@ -102,7 +102,7 @@ test('organization impact updates create snapshot history for charts', function 
     $user = makeOrganizationManager();
 
     $this->actingAs($user)->put(route('organization.update'), [
-        'name' => 'AB4IR Enterprise Development Centre',
+        'name' => 'Programme of Action Centre',
         'impact_total' => 1000,
         'impact_digital' => 650,
         'impact_physical' => 350,
@@ -113,7 +113,7 @@ test('organization impact updates create snapshot history for charts', function 
     ])->assertRedirect();
 
     $this->actingAs($user)->put(route('organization.update'), [
-        'name' => 'AB4IR Enterprise Development Centre',
+        'name' => 'Programme of Action Centre',
         'impact_total' => 1400,
         'impact_digital' => 900,
         'impact_physical' => 500,
@@ -236,7 +236,7 @@ test('organization document vault can stream pdf previews inline', function () {
     Storage::fake('public');
 
     $manager = makeOrganizationManager();
-    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'POA']);
 
     Storage::disk('public')->put('organization/documents/other/preview.pdf', '%PDF-1.4 preview');
 
@@ -266,7 +266,7 @@ test('organization document vault only shows active in-window documents to ordin
     $manager = makeOrganizationManager();
     $user = User::factory()->create();
 
-    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'POA']);
 
     OrganizationDocument::query()->create([
         'organization_profile_id' => $profile->id,
@@ -326,7 +326,7 @@ test('organization document vault only shows active in-window documents to ordin
 
 test('organization managers can deactivate reactivate and retire vault documents', function () {
     $manager = makeOrganizationManager();
-    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'POA']);
 
     $document = OrganizationDocument::query()->create([
         'organization_profile_id' => $profile->id,
@@ -365,7 +365,7 @@ test('organization managers can delete vault documents and remove stored files',
     Storage::fake('public');
 
     $manager = makeOrganizationManager();
-    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'AB4IR']);
+    $profile = OrganizationProfile::query()->firstOrCreate(['name' => 'POA']);
 
     Storage::disk('public')->put('organization/documents/email_signature/delete-me.png', 'signature');
 
@@ -466,7 +466,7 @@ test('event managers can create annual events and manage broader event participa
         'name' => 'John Attendee',
         'email' => 'attendee@example.com',
         'phone' => '0722222222',
-        'organization_name' => 'AB4IR',
+        'organization_name' => 'POA',
         'role' => 'Guest',
         'attendance_type' => 'In-person',
     ]);
@@ -683,7 +683,7 @@ test('event report pdf can be downloaded for an annual series event', function (
     $event->participants()->create([
         'category' => 'speaker',
         'name' => 'Panel Speaker',
-        'organization_name' => 'AB4IR',
+        'organization_name' => 'POA',
         'topic' => 'Innovation',
         'attendance_status' => 'confirmed',
     ]);
@@ -787,7 +787,7 @@ test('attendees require attendance type when captured manually', function () {
         ->post(route('events.participants.store', $event->id), [
             'category' => 'attendee',
             'name' => 'Attendance Missing',
-            'organization_name' => 'AB4IR',
+            'organization_name' => 'POA',
         ]);
 
     $response->assertRedirect(route('events.participants.page', $event->id));

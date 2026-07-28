@@ -15,6 +15,8 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.brand-header')
+
     <h1>{{ $event->title }}</h1>
     <p class="muted">
         {{ $event->event_type ?: 'Institutional event' }}
@@ -269,5 +271,7 @@
             </table>
         </div>
     @endif
+
+    @include('pdf.partials.brand-footer')
 </body>
 </html>

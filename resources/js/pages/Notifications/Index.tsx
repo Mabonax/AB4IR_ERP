@@ -1,8 +1,8 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem, type SharedData } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -63,7 +63,7 @@ export default function NotificationsIndex({
               notifications.data.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`rounded-lg border p-4 ${notification.read_at ? "bg-card" : "border-orange-200 bg-orange-50/60"}`}
+                  className={`rounded-lg border p-4 ${notification.read_at ? "bg-card" : "border-red-200 bg-red-50/60"}`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">

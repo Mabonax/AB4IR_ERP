@@ -37,7 +37,7 @@ export function DomainNav({
           "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm transition",
           isActive
             ? "border-red-600 bg-red-600 text-white"
-            : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+            : "border-red-500 text-red-600 hover:bg-red-500 hover:text-white"
         );
 
         if (isAnchor) {

@@ -1,12 +1,10 @@
 import { Head } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
 import { staffNavItems } from "@/config/domain-nav/staff";
-
 import { StaffTableConfig } from "@/config/tables/staff-table";
-
+import AppLayout from "@/layouts/app-layout";
 import staff from "@/routes/staff";
 import { type BreadcrumbItem } from "@/types";
 

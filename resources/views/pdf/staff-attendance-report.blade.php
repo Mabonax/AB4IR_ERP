@@ -15,6 +15,8 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.brand-header')
+
     <h1>Staff Attendance Report</h1>
     <p><strong>Period:</strong> {{ $period['label'] }} ({{ $period['start'] }} to {{ $period['end'] }})</p>
     <p><strong>Generated:</strong> {{ $generatedAt->format('Y-m-d H:i') }}</p>
@@ -85,5 +87,7 @@
             @endforelse
         </tbody>
     </table>
+
+    @include('pdf.partials.brand-footer')
 </body>
 </html>

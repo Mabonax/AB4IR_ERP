@@ -1,5 +1,4 @@
 import { Link } from "@inertiajs/react";
-import { route } from "ziggy-js";
 import {
   CalendarCheck2,
   CheckCircle,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { route } from "ziggy-js";
 
 type RowData = Record<string, any>;
 
@@ -71,11 +71,11 @@ export const CustomTable = <T extends RowData>({
             ? tableActionIcons[action.icon as keyof typeof tableActionIcons]
             : action.icon;
         const label = action.label ?? (typeof action.icon === "string" ? action.icon : "Action");
-        const baseClassName = `inline-flex items-center justify-center rounded-md border p-2 transition
+        const baseClassName = `inline-flex items-center justify-center border p-2 transition
           ${
             action.variant === "danger"
               ? "border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
-              : "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+              : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
           }`;
 
         /* ===============================
@@ -141,14 +141,13 @@ export const CustomTable = <T extends RowData>({
   return (
     <div
       className="
-        overflow-hidden rounded-lg border shadow-sm
+        overflow-hidden border shadow-sm
         bg-card
         border-gray-200 dark:border-border
       "
     >
       <table className="min-w-full divide-y divide-gray-200 dark:divide-border">
-        {/* ===================== HEADER (BLUE – DO NOT DARKEN) ===================== */}
-        <thead className="bg-gradient-to-r from-red-600 to-orange-500 text-white">
+        <thead className="bg-primary text-primary-foreground">
           <tr>
             {columns.map((col: any) => (
               <th

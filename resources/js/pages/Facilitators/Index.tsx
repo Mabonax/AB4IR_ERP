@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { CustomTable } from "@/components/custom-table";
 import { FacilitatorTableConfig } from "@/config/tables/facilitator-table";
+import AppLayout from "@/layouts/app-layout";
 import facilitators from "@/routes/facilitators";
 import { type BreadcrumbItem } from "@/types";
 

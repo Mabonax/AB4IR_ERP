@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { Head, Link, router, useForm } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { CustomModelForm } from "@/components/custom-model-form";
 import { StakeholderModelFormConfig } from "@/config/forms/stakeholder-model-form";
+import AppLayout from "@/layouts/app-layout";
 import stakeholders from "@/routes/stakeholders";
 import { type BreadcrumbItem } from "@/types";
 
@@ -61,7 +61,7 @@ export default function StakeholderShow({
             <button
               type="button"
               onClick={() => setEditOpen(true)}
-              className="rounded-md border border-orange-500 px-4 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+              className="rounded-md border border-red-500 px-4 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
             >
               Edit Stakeholder
             </button>

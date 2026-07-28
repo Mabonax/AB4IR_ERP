@@ -1,4 +1,5 @@
 import { KeyRound, ShieldCheck, Users } from "lucide-react";
+
 import { type DomainNavItem } from "@/components/domain-nav";
 
 export const accessControlNavItems: DomainNavItem[] = [

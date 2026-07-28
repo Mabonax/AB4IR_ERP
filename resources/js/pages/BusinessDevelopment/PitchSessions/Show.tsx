@@ -103,7 +103,7 @@ export default function PitchSessionShow({
             <DomainNav items={businessDevelopmentNavItems} />
             <Link
               href={businessDevelopment.pitchSessions.index().url}
-              className="rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+              className="rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
             >
               Back to Sessions
             </Link>
@@ -205,7 +205,7 @@ export default function PitchSessionShow({
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/business-development/adjudications/create?smme_id=${prospect.bds_application_id}&pitch_session_id=${sessionData.id}`}
-                      className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+                      className="rounded-md border border-red-500 px-3 py-1.5 text-xs text-red-600 hover:bg-red-500 hover:text-white"
                     >
                       {prospect.has_current_user_submitted ? "Open Scorecard Flow" : "Start Scorecard"}
                     </Link>

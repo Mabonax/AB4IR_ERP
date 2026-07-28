@@ -16,6 +16,8 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.brand-header')
+
     <h1>{{ $report->title }}</h1>
     <p class="muted">
         {{ ucfirst($report->report_type) }} report |
@@ -130,5 +132,7 @@
             </ul>
         </div>
     @endif
+
+    @include('pdf.partials.brand-footer')
 </body>
 </html>

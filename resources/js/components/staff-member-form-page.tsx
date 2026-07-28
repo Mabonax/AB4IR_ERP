@@ -1,4 +1,3 @@
-import { useEffect, useMemo, type ReactNode } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
 import {
   BriefcaseBusiness,
@@ -8,7 +7,9 @@ import {
   ShieldCheck,
   UserRoundCog,
 } from "lucide-react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
+import { DomainNav } from "@/components/domain-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import AppLayout from "@/layouts/app-layout";
-import { DomainNav } from "@/components/domain-nav";
 import { staffNavItems } from "@/config/domain-nav/staff";
+import AppLayout from "@/layouts/app-layout";
 import { cn } from "@/lib/utils";
 import { type BreadcrumbItem } from "@/types";
 
@@ -119,10 +119,10 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <Card className="border-orange-100 shadow-sm">
+    <Card className="border-red-100 shadow-sm">
       <CardHeader className="space-y-3">
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-orange-50 p-2 text-orange-600">{icon}</div>
+          <div className="rounded-xl bg-red-50 p-2 text-red-600">{icon}</div>
           <div>
             <CardTitle className="text-base">{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
@@ -527,9 +527,9 @@ export function StaffMemberFormPage({
               </div>
 
               {isIntern ? (
-                <div className="mt-5 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+                <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-900">
                   <div className="font-medium">Calculated Duration</div>
-                  <div className="mt-1 text-orange-800">
+                  <div className="mt-1 text-red-800">
                     {internshipDurationLabel ?? "Select the internship start and end dates to calculate duration."}
                   </div>
                 </div>
@@ -575,7 +575,7 @@ export function StaffMemberFormPage({
             <Card className="border-slate-200 bg-slate-900 text-white shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Landmark className="h-4 w-4 text-orange-300" />
+                  <Landmark className="h-4 w-4 text-red-300" />
                   Assignment Snapshot
                 </CardTitle>
                 <CardDescription className="text-slate-300">
@@ -608,14 +608,14 @@ export function StaffMemberFormPage({
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 bg-orange-50 shadow-sm">
+            <Card className="border-red-100 bg-red-50 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base text-orange-900">
+                <CardTitle className="flex items-center gap-2 text-base text-red-900">
                   <ShieldCheck className="h-4 w-4" />
                   Capture Notes
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm text-orange-800">
+              <CardContent className="space-y-2 text-sm text-red-800">
                 <p>Choose the department first so the manager list stays relevant.</p>
                 <p>Keep employee numbers unique and stable before saving.</p>
                 <p>Emergency contact details should be complete before onboarding is finished.</p>

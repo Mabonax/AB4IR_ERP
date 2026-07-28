@@ -55,7 +55,7 @@ const statusBadgeClass = (status: TaskStatus) => {
 const transactionBadgeClass = (state: "open" | "closed") =>
   state === "closed"
     ? "border-green-200 bg-green-50 text-green-700"
-    : "border-orange-200 bg-orange-50 text-orange-700";
+    : "border-red-200 bg-red-50 text-red-700";
 
 const workflowHeadline = (task: TaskRow) => {
   if (task.status === "pending_review") {
@@ -380,7 +380,7 @@ export default function TaskManagementTasksIndex({
                     <button
                       type="button"
                       onClick={() => router.visit(`/task-management/tasks/${task.id}`)}
-                      className="rounded-md border border-orange-500 px-3 py-1.5 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+                      className="rounded-md border border-red-500 px-3 py-1.5 text-sm text-red-600 hover:bg-red-500 hover:text-white"
                     >
                       Open Task Page
                     </button>

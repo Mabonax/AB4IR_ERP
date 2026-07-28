@@ -77,7 +77,7 @@ function FileIcon({ file }: { file: Pick<FileItem, "mime_type" | "original_name"
   }
 
   if (["ppt", "pptx"].includes(extension) || file.mime_type?.includes("presentation")) {
-    return <Presentation className="h-5 w-5 text-orange-600" />;
+    return <Presentation className="h-5 w-5 text-red-600" />;
   }
 
   if (["pdf", "doc", "docx"].includes(extension) || file.mime_type?.includes("pdf") || file.mime_type?.includes("word")) {

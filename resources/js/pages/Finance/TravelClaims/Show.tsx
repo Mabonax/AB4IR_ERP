@@ -54,7 +54,7 @@ export default function TravelClaimShow({
             <DomainNav items={financeNavItems} />
             <a
               href={`/finance/travel-claims/${claim.id}/pdf`}
-              className="inline-flex items-center rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+              className="inline-flex items-center rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
             >
               Download PDF
             </a>
@@ -131,7 +131,7 @@ export default function TravelClaimShow({
 
             <div className="mt-5 overflow-x-auto rounded-lg border">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gradient-to-r from-red-600 to-orange-500 text-white">
+                <thead className="bg-gradient-to-r from-red-600 to-red-500 text-white">
                   <tr>
                     {["Date", "From", "To", "Starting", "Ending", "Nature of Duty", "Actual KM", "Claimable KM", "Total"].map((label) => (
                       <th key={label} className="px-3 py-2 text-left font-semibold">
@@ -265,7 +265,7 @@ export default function TravelClaimShow({
                       <button
                         type="button"
                         onClick={() => submitAction("receive")}
-                        className="rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+                        className="rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
                       >
                         Mark Received
                       </button>

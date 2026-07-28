@@ -27,6 +27,14 @@ export interface NavItem {
 
 export interface SharedData {
     name: string;
+    brand?: {
+        name: string;
+        short_name?: string;
+        tagline?: string;
+        logo_url?: string;
+        support_email?: string;
+        pdf_footer?: string;
+    };
     auth: Auth;
     organization?: {
         id?: number;

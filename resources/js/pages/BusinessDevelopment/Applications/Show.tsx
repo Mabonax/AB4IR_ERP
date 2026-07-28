@@ -98,7 +98,7 @@ export default function BdsApplicationShow({
             <DomainNav items={businessDevelopmentNavItems} />
             <Link
               href={businessDevelopment.applications.index().url}
-              className="rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+              className="rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
             >
               Back to List
             </Link>

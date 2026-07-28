@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, Download, FolderTree, LayoutGrid, LifeBuoy, Megaphone, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
+import { Bell, BookOpen, Bot, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, Download, FolderTree, LayoutGrid, LifeBuoy, MapPinned, Megaphone, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -55,6 +55,18 @@ const mainNavItems: NavItem[] = [
         requiredPermissions: ['domain.human-resources.view', 'domain.human-resources.manage'],
     },
     {
+        title: 'Human Capital',
+        href: '/human-capital/dashboard',
+        icon: MapPinned,
+        requiredPermissions: ['domain.human-capital.view', 'domain.human-capital.manage', 'domain.members.view', 'domain.members.manage'],
+    },
+    {
+        title: 'Intelligence',
+        href: '/intelligence',
+        icon: Bot,
+        requiredPermissions: ['domain.intelligence.view', 'domain.intelligence.manage'],
+    },
+    {
         title: 'Assets',
         href: '/assets',
         icon: Package,
@@ -71,6 +83,12 @@ const mainNavItems: NavItem[] = [
         href: '/projects',
         icon: Briefcase,
         requiredPermissions: ['domain.projects.view', 'domain.projects.manage'],
+    },
+    {
+        title: 'Service Delivery',
+        href: '/service-delivery',
+        icon: ClipboardCheck,
+        requiredPermissions: ['domain.service-delivery.view', 'domain.service-delivery.manage', 'domain.programs.view', 'domain.projects.view', 'domain.beneficiaries.view'],
     },
     {
         title: 'Business Development',
@@ -170,7 +188,7 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+            <SidebarHeader className="gap-4 border-b border-[#ECECEC] px-3 py-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
@@ -180,13 +198,21 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                <div className="border border-[#ECECEC] bg-[#F7F7F7] p-4 text-sm leading-6 text-[#4B5563] group-data-[collapsible=icon]:hidden">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#C8102E]">
+                        Internal ERP
+                    </p>
+                    <p className="mt-2">
+                        Delivery operations, governance workflows, and institutional records in one workspace.
+                    </p>
+                </div>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="px-1 py-3">
                 <NavMain items={visibleMainNavItems} />
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="border-t border-[#ECECEC] px-3 py-3">
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

@@ -2,17 +2,17 @@ import { Form, Head } from '@inertiajs/react';
 import { ShieldBan, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
+import { DomainNav } from '@/components/domain-nav';
 import Heading from '@/components/heading';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { settingsNavItems } from '@/config/domain-nav/settings';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import AppLayout from '@/layouts/app-layout';
 import { disable, enable, show } from '@/routes/two-factor';
 import { type BreadcrumbItem } from '@/types';
-import { DomainNav } from '@/components/domain-nav';
-import { settingsNavItems } from '@/config/domain-nav/settings';
 
 interface TwoFactorProps {
     requiresConfirmation?: boolean;

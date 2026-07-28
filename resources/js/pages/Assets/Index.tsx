@@ -16,8 +16,9 @@ import { assetNavItems } from "@/config/domain-nav/assets";
 import { AssetModelFormConfig } from "@/config/forms/asset-model-form";
 import { AssetTableConfig } from "@/config/tables/asset-table";
 import AppLayout from "@/layouts/app-layout";
-import assets from "@/routes/assets";
 import { type BreadcrumbItem, type SharedData } from "@/types";
+
+import assets from "@/routes/assets";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Assets", href: "/assets" },
@@ -297,7 +298,7 @@ export default function AssetIndex({
                           <button
                             type="button"
                             onClick={() => openEditBatch(batch)}
-                            className="rounded-md border border-orange-500 px-2 py-1 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
+                            className="rounded-md border border-red-500 px-2 py-1 text-xs text-red-600 hover:bg-red-500 hover:text-white"
                           >
                             Edit
                           </button>

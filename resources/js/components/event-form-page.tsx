@@ -141,10 +141,10 @@ export function EventFormPage({
           className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"
         >
           <div className="space-y-5">
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <Presentation className="h-4 w-4" />
                   </div>
                   <div>
@@ -206,10 +206,10 @@ export function EventFormPage({
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <MapPinned className="h-4 w-4" />
                   </div>
                   <div>
@@ -265,10 +265,10 @@ export function EventFormPage({
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <Link2 className="h-4 w-4" />
                   </div>
                   <div>
@@ -317,10 +317,10 @@ export function EventFormPage({
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <Users className="h-4 w-4" />
                   </div>
                   <div>
@@ -341,7 +341,7 @@ export function EventFormPage({
                         className={`rounded-lg border px-4 py-3 text-left text-sm transition ${
                           selected
                             ? "border-red-600 bg-red-50 text-red-700"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:bg-orange-50"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-red-300 hover:bg-red-50"
                         }`}
                       >
                         {stakeholder.name}

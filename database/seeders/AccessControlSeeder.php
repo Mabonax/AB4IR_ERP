@@ -79,6 +79,15 @@ class AccessControlSeeder extends Seeder
             'marketing.dashboard.performance.view',
         ];
 
+        $programmeOfActionPermissions = [
+            'governance.approve',
+            'compliance.calendar.manage',
+            'compliance.submissions.manage',
+            'funding.reports.generate',
+            'volunteers.certificates.issue',
+            'monitoring-evaluation.reports.generate',
+        ];
+
         $allPermissions = array_values(array_unique([
             ...$allDomainPermissions,
             ...$accessControlPermissions,
@@ -88,6 +97,7 @@ class AccessControlSeeder extends Seeder
             ...$technicalTicketPermissions,
             ...$travelClaimPermissions,
             ...$marketingWorkflowPermissions,
+            ...$programmeOfActionPermissions,
         ]));
 
         foreach ($allPermissions as $permissionName) {
@@ -197,6 +207,115 @@ class AccessControlSeeder extends Seeder
             'marketing.deliverables.approve',
             'marketing.dashboard.performance.view',
         ]);
+
+        $programmeOfActionRoles = [
+            'super-administrator' => $allPermissions,
+            'executive-director' => [
+                'domain.organization.view',
+                'domain.organization.manage',
+                'domain.governance.view',
+                'domain.governance.manage',
+                'domain.compliance.view',
+                'domain.compliance.manage',
+                'domain.funding.view',
+                'domain.funding.manage',
+                'domain.reporting.view',
+                'domain.reporting.manage',
+                'domain.projects.view',
+                'domain.programs.view',
+                'governance.approve',
+                'compliance.calendar.manage',
+                'funding.reports.generate',
+                'monitoring-evaluation.reports.generate',
+            ],
+            'board-chairperson' => [
+                'domain.organization.view',
+                'domain.governance.view',
+                'domain.governance.manage',
+                'domain.committees.view',
+                'domain.meetings.view',
+                'domain.resolutions.view',
+                'domain.policies.view',
+                'domain.compliance.view',
+                'domain.reporting.view',
+                'governance.approve',
+            ],
+            'board-member' => [
+                'domain.organization.view',
+                'domain.governance.view',
+                'domain.committees.view',
+                'domain.meetings.view',
+                'domain.resolutions.view',
+                'domain.policies.view',
+                'domain.reporting.view',
+            ],
+            'programme-manager' => [
+                'domain.programs.view',
+                'domain.programs.manage',
+                'domain.projects.view',
+                'domain.projects.manage',
+                'domain.beneficiaries.view',
+                'domain.beneficiaries.manage',
+                'domain.volunteers.view',
+                'domain.volunteers.manage',
+                'domain.monitoring-evaluation.view',
+                'domain.monitoring-evaluation.manage',
+                'domain.reporting.view',
+                'monitoring-evaluation.reports.generate',
+            ],
+            'project-manager' => [
+                'domain.projects.view',
+                'domain.projects.manage',
+                'domain.beneficiaries.view',
+                'domain.beneficiaries.manage',
+                'domain.volunteers.view',
+                'domain.reporting.view',
+            ],
+            'compliance-officer' => [
+                'domain.organization.view',
+                'domain.compliance.view',
+                'domain.compliance.manage',
+                'domain.public-benefit-organisation.view',
+                'domain.public-benefit-organisation.manage',
+                'domain.reporting.view',
+                'compliance.calendar.manage',
+                'compliance.submissions.manage',
+            ],
+            'finance-officer' => [
+                'domain.finance.view',
+                'domain.finance.manage',
+                'domain.funding.view',
+                'domain.funding.manage',
+                'domain.donors.view',
+                'domain.grants.view',
+                'domain.reporting.view',
+                'funding.reports.generate',
+            ],
+            'volunteer-coordinator' => [
+                'domain.volunteers.view',
+                'domain.volunteers.manage',
+                'domain.projects.view',
+                'domain.programs.view',
+                'domain.reporting.view',
+                'volunteers.certificates.issue',
+            ],
+            'monitoring-officer' => [
+                'domain.monitoring-evaluation.view',
+                'domain.monitoring-evaluation.manage',
+                'domain.reporting.view',
+                'domain.beneficiaries.view',
+                'domain.projects.view',
+                'domain.programs.view',
+                'monitoring-evaluation.reports.generate',
+            ],
+        ];
+
+        foreach ($programmeOfActionRoles as $roleName => $permissions) {
+            Role::firstOrCreate([
+                'name' => $roleName,
+                'guard_name' => $guard,
+            ])->syncPermissions(array_values(array_unique(array_intersect($allPermissions, $permissions))));
+        }
 
         $departmentMap = config('access_control.department_domain_map', []);
 

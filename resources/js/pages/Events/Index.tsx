@@ -1,5 +1,4 @@
 import { Head, Link, usePage } from "@inertiajs/react";
-import { useMemo } from "react";
 import {
   CalendarRange,
   CircleDashed,
@@ -9,6 +8,7 @@ import {
   RadioTower,
   Users,
 } from "lucide-react";
+import { useMemo } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { Button } from "@/components/ui/button";
@@ -195,11 +195,11 @@ export default function EventsIndex({
       <Head title="Events" />
 
       <div className="space-y-6 p-4">
-        <section className="overflow-hidden rounded-3xl border border-orange-200 bg-gradient-to-br from-orange-50 via-white to-red-50 shadow-sm">
+        <section className="overflow-hidden rounded-3xl border border-red-200 bg-gradient-to-br from-red-50 via-white to-red-50 shadow-sm">
           <div className="grid gap-6 p-6 xl:grid-cols-[1.3fr,0.7fr] xl:p-8">
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-orange-700">
+                <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-red-700">
                   <Presentation className="h-3.5 w-3.5" />
                   Events Domain
                 </span>
@@ -309,7 +309,7 @@ export default function EventsIndex({
                     <CardTitle className="text-sm font-semibold text-slate-900">{item.label}</CardTitle>
                     <CardDescription>{item.hint}</CardDescription>
                   </div>
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">{item.icon}</div>
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">{item.icon}</div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -435,7 +435,7 @@ export default function EventsIndex({
                     <Link
                       key={event.id}
                       href={`/events/${event.id}`}
-                      className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:border-orange-300 hover:bg-orange-50"
+                      className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:border-red-300 hover:bg-red-50"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>

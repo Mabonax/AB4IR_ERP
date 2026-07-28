@@ -5,16 +5,16 @@ namespace Database\Seeders;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Models\User;
-use RuntimeException;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 use Spatie\Permission\Models\Role;
 
 class LocalDevelopmentUsersSeeder extends Seeder
 {
     public function run(): void
     {
-        if (! app()->environment('local')) {
+        if (! app()->environment(['local', 'development'])) {
             return;
         }
 
@@ -30,7 +30,7 @@ class LocalDevelopmentUsersSeeder extends Seeder
 
         $ceo = $this->upsertStaffUser(
             department: $departments->get('admin'),
-            email: 'ceo@ab4ir.org',
+            email: 'executive@poa.org.za',
             firstName: 'Chief',
             lastName: 'Executive',
             employeeNumber: 'DEV-CEO-001',
@@ -39,14 +39,14 @@ class LocalDevelopmentUsersSeeder extends Seeder
                 'is_ceo' => true,
                 'is_manager' => true,
             ],
-            roleName: 'super-admin',
+            roleNames: ['super-admin'],
             guard: $guard,
         );
 
         $technicalManager = $this->upsertStaffUser(
             department: $departments->get('technical'),
-            email: 'technical.manager@ab4ir.org',
-            firstName: 'Technical',
+            email: 'admin@poa.org.za',
+            firstName: 'Platform',
             lastName: 'Manager',
             employeeNumber: 'DEV-TEC-001',
             password: $defaultPassword,
@@ -54,28 +54,28 @@ class LocalDevelopmentUsersSeeder extends Seeder
                 'manager_id' => $ceo->id,
                 'is_manager' => true,
             ],
-            roleName: 'department-manager-technical',
+            roleNames: ['super-admin', 'department-manager-technical'],
             guard: $guard,
         );
 
         $this->upsertStaffUser(
             department: $departments->get('technical'),
-            email: 'technical@ab4ir.org',
-            firstName: 'Technical',
-            lastName: 'User',
+            email: 'compliance@poa.org.za',
+            firstName: 'Compliance',
+            lastName: 'Officer',
             employeeNumber: 'DEV-TEC-002',
             password: $defaultPassword,
             staffOverrides: [
                 'manager_id' => $technicalManager->id,
             ],
-            roleName: 'department-user-technical',
+            roleNames: ['department-user-technical'],
             guard: $guard,
         );
 
         $marketingManager = $this->upsertStaffUser(
             department: $departments->get('marketing'),
-            email: 'marketing.manager@ab4ir.org',
-            firstName: 'Marketing',
+            email: 'funding@poa.org.za',
+            firstName: 'Funding',
             lastName: 'Manager',
             employeeNumber: 'DEV-MKT-001',
             password: $defaultPassword,
@@ -83,28 +83,28 @@ class LocalDevelopmentUsersSeeder extends Seeder
                 'manager_id' => $ceo->id,
                 'is_manager' => true,
             ],
-            roleName: 'department-manager-marketing',
+            roleNames: ['department-manager-marketing'],
             guard: $guard,
         );
 
         $this->upsertStaffUser(
             department: $departments->get('marketing'),
-            email: 'marketing@ab4ir.org',
-            firstName: 'Marketing',
-            lastName: 'User',
+            email: 'volunteer@poa.org.za',
+            firstName: 'Volunteer',
+            lastName: 'Coordinator',
             employeeNumber: 'DEV-MKT-002',
             password: $defaultPassword,
             staffOverrides: [
                 'manager_id' => $marketingManager->id,
             ],
-            roleName: 'department-user-marketing',
+            roleNames: ['department-user-marketing'],
             guard: $guard,
         );
 
         $adminManager = $this->upsertStaffUser(
             department: $departments->get('admin'),
-            email: 'admin.manager@ab4ir.org',
-            firstName: 'Admin',
+            email: 'monitoring@poa.org.za',
+            firstName: 'Monitoring',
             lastName: 'Manager',
             employeeNumber: 'DEV-ADM-001',
             password: $defaultPassword,
@@ -112,28 +112,28 @@ class LocalDevelopmentUsersSeeder extends Seeder
                 'manager_id' => $ceo->id,
                 'is_manager' => true,
             ],
-            roleName: 'department-manager-admin',
+            roleNames: ['department-manager-admin'],
             guard: $guard,
         );
 
         $this->upsertStaffUser(
             department: $departments->get('admin'),
-            email: 'admin@ab4ir.org',
-            firstName: 'Admin',
-            lastName: 'User',
+            email: 'ops-admin@poa.org.za',
+            firstName: 'Operations',
+            lastName: 'Admin',
             employeeNumber: 'DEV-ADM-002',
             password: $defaultPassword,
             staffOverrides: [
                 'manager_id' => $adminManager->id,
             ],
-            roleName: 'department-user-admin',
+            roleNames: ['department-user-admin'],
             guard: $guard,
         );
 
         $businessDevelopmentManager = $this->upsertStaffUser(
             department: $departments->get('business development'),
-            email: 'businessdevelopment.manager@ab4ir.org',
-            firstName: 'Business',
+            email: 'programme.manager@poa.org.za',
+            firstName: 'Programme',
             lastName: 'Manager',
             employeeNumber: 'DEV-BDS-001',
             password: $defaultPassword,
@@ -141,21 +141,21 @@ class LocalDevelopmentUsersSeeder extends Seeder
                 'manager_id' => $ceo->id,
                 'is_manager' => true,
             ],
-            roleName: 'department-manager-business-development',
+            roleNames: ['department-manager-business-development'],
             guard: $guard,
         );
 
         $this->upsertStaffUser(
             department: $departments->get('business development'),
-            email: 'businessdevelopment@ab4ir.org',
-            firstName: 'Business',
-            lastName: 'User',
+            email: 'programme.officer@poa.org.za',
+            firstName: 'Programme',
+            lastName: 'Officer',
             employeeNumber: 'DEV-BDS-002',
             password: $defaultPassword,
             staffOverrides: [
                 'manager_id' => $businessDevelopmentManager->id,
             ],
-            roleName: 'department-user-business-development',
+            roleNames: ['department-user-business-development'],
             guard: $guard,
         );
     }
@@ -168,7 +168,7 @@ class LocalDevelopmentUsersSeeder extends Seeder
         string $employeeNumber,
         string $password,
         array $staffOverrides,
-        string $roleName,
+        string|array $roleNames,
         string $guard,
     ): StaffMember {
         if ($department === null) {
@@ -206,12 +206,16 @@ class LocalDevelopmentUsersSeeder extends Seeder
             $staff->forceFill(['user_id' => $user->id])->save();
         }
 
-        Role::firstOrCreate([
-            'name' => $roleName,
-            'guard_name' => $guard,
-        ]);
+        $roleNames = array_values(array_unique((array) $roleNames));
 
-        $user->syncRoles([$roleName]);
+        foreach ($roleNames as $roleName) {
+            Role::firstOrCreate([
+                'name' => $roleName,
+                'guard_name' => $guard,
+            ]);
+        }
+
+        $user->syncRoles($roleNames);
 
         return $staff->refresh();
     }

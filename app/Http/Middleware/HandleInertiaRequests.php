@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Domains\Organization\Services\OrganizationProfileService;
 use App\Domains\StaffAttendance\Services\StaffAttendanceService;
+use App\Support\Branding\BrandingService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,8 +30,11 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $branding = app(BrandingService::class)->payload();
+
         return array_merge(parent::share($request), [
-            'name' => config('app.name'),
+            'name' => $branding['name'],
+            'brand' => $branding,
 
             'auth' => [
                 'user' => fn () => $request->user()

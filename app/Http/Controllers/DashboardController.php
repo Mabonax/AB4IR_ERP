@@ -3,12 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Domains\Assets\Services\AssetService;
+use App\Domains\Beneficiaries\Models\Beneficiary;
+use App\Domains\Compliance\Services\ComplianceService;
+use App\Domains\Governance\Services\GovernanceStructureService;
+use App\Domains\HumanCapital\Services\HumanCapitalDashboardService;
 use App\Domains\Leave\Models\LeaveRequest;
 use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Marketing\Services\MarketingService;
+use App\Domains\Meetings\Services\MeetingService;
+use App\Domains\Organisation\Services\OrganisationService;
+use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectEnrollment;
 use App\Domains\Projects\Models\ProjectLocation;
+use App\Domains\Resolutions\Services\ResolutionService;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\StaffAttendance\Services\StaffAttendanceService;
 use App\Domains\TaskManagement\Services\SupportTicketService;
@@ -25,6 +33,12 @@ class DashboardController extends Controller
         protected WorkTaskService $taskService,
         protected SupportTicketService $ticketService,
         protected MarketingService $marketingService,
+        protected OrganisationService $organisationService,
+        protected ComplianceService $complianceService,
+        protected GovernanceStructureService $governanceStructureService,
+        protected HumanCapitalDashboardService $humanCapitalDashboardService,
+        protected MeetingService $meetingService,
+        protected ResolutionService $resolutionService,
         protected TaskWorkflowGovernance $governance,
         protected LeaveManagementService $leaveManagementService,
         protected AssetService $assetService,
@@ -96,7 +110,15 @@ class DashboardController extends Controller
     {
         return collect([
             $this->leaveWidget($user),
+            $this->governanceWidget($user),
+            $this->organisationWidget($user),
+            $this->complianceWidget($user),
+            $this->fundingWidget($user),
+            $this->volunteerWidget($user),
+            $this->impactWidget($user),
+            $this->organisationHealthWidget($user),
             $this->marketingWidget($user),
+            $this->humanCapitalWidget($user),
             $this->projectsWidget($user),
             $this->assetsWidget($user),
             $this->staffWidget($user),
@@ -146,6 +168,173 @@ class DashboardController extends Controller
                     ? "{$managerPending} team requests need your review."
                     : "{$myPending} leave requests are still in progress."),
             'href' => $canViewHr ? route('human-resources.dashboard') : route('leave-requests.index'),
+        ];
+    }
+
+    protected function organisationWidget(User $user): ?array
+    {
+        if (! $user->can('domain.organization.view') && ! $user->can('domain.organization.manage')) {
+            return null;
+        }
+
+        $widget = $this->organisationService->dashboardWidget();
+
+        return [
+            'key' => 'organisation-registry',
+            'title' => 'Organisation registry',
+            'value' => $widget['total'],
+            'description' => sprintf(
+                '%d active entities, %d NPC records, %d with NPO or PBO references.',
+                $widget['active'],
+                $widget['npc'],
+                $widget['compliance_ready']
+            ),
+            'href' => route('organization.registry.index'),
+        ];
+    }
+
+    protected function governanceWidget(User $user): ?array
+    {
+        if (
+            ! $user->can('domain.governance.view')
+            && ! $user->can('domain.governance.manage')
+            && ! $user->can('domain.meetings.view')
+            && ! $user->can('domain.resolutions.view')
+        ) {
+            return null;
+        }
+
+        $widget = $this->governanceStructureService->executiveWidget();
+
+        return [
+            'key' => 'governance',
+            'title' => 'Governance widget',
+            'value' => $widget['upcoming_meetings'],
+            'description' => sprintf(
+                '%d upcoming meetings, %d open resolutions, %d policies due for review.',
+                $widget['upcoming_meetings'],
+                $widget['open_resolutions'],
+                $widget['policies_due_for_review']
+            ),
+            'href' => route('governance.index'),
+        ];
+    }
+
+    protected function complianceWidget(User $user): ?array
+    {
+        if (
+            ! $user->can('domain.compliance.view')
+            && ! $user->can('domain.compliance.manage')
+            && ! $user->can('domain.organization.manage')
+        ) {
+            return null;
+        }
+
+        $widget = $this->complianceService->dashboardWidget();
+
+        return [
+            'key' => 'compliance',
+            'title' => 'Compliance tracker',
+            'value' => $widget['overdue'],
+            'description' => sprintf(
+                '%d due soon, %d submitted, %d overdue across tracked obligations.',
+                $widget['due_soon'],
+                $widget['submitted'],
+                $widget['overdue']
+            ),
+            'href' => route('organization.compliance.index'),
+        ];
+    }
+
+    protected function fundingWidget(User $user): ?array
+    {
+        if (! $user->can('domain.funding.view') && ! $user->can('domain.funding.manage')) {
+            return null;
+        }
+
+        return [
+            'key' => 'funding',
+            'title' => 'Funding widget',
+            'value' => 0,
+            'description' => '0 pipeline opportunities, 0 active grants, 0 secured awards tracked so far.',
+            'href' => route('dashboard'),
+        ];
+    }
+
+    protected function volunteerWidget(User $user): ?array
+    {
+        if (! $user->can('domain.volunteers.view') && ! $user->can('domain.volunteers.manage')) {
+            return null;
+        }
+
+        return [
+            'key' => 'volunteers',
+            'title' => 'Volunteer widget',
+            'value' => 0,
+            'description' => '0 active volunteers, 0 logged hours, 0 certificates are pending.',
+            'href' => route('dashboard'),
+        ];
+    }
+
+    protected function impactWidget(User $user): ?array
+    {
+        if (
+            ! $user->can('domain.programs.view')
+            && ! $user->can('domain.projects.view')
+            && ! $user->can('domain.beneficiaries.view')
+        ) {
+            return null;
+        }
+
+        $beneficiaries = Beneficiary::query()->count();
+        $projects = Project::query()->count();
+        $programs = Program::query()->count();
+
+        return [
+            'key' => 'impact',
+            'title' => 'Impact widget',
+            'value' => $beneficiaries,
+            'description' => sprintf(
+                '%d beneficiaries, %d projects, %d programmes are currently represented.',
+                $beneficiaries,
+                $projects,
+                $programs
+            ),
+            'href' => route('programs.index'),
+        ];
+    }
+
+    protected function organisationHealthWidget(User $user): ?array
+    {
+        if (
+            ! $user->can('domain.organization.view')
+            && ! $user->can('domain.governance.view')
+            && ! $user->can('domain.compliance.view')
+            && ! $user->can('domain.programs.view')
+            && ! $user->can('domain.projects.view')
+        ) {
+            return null;
+        }
+
+        $compliance = $this->complianceService->dashboardWidget();
+        $governance = $this->governanceStructureService->dashboard()['stats'];
+        $programmeDeliveryBase = max(Project::query()->count(), 1);
+        $programmeDelivery = (int) round((Project::query()->where('status', 'active')->count() / $programmeDeliveryBase) * 100);
+
+        $governanceScore = (int) round(($governance['active'] / max($governance['total'], 1)) * 100);
+        $complianceScore = (int) round(((max($compliance['total'] - $compliance['overdue'], 0)) / max($compliance['total'], 1)) * 100);
+        $fundingScore = 0;
+        $overallHealth = (int) round(($governanceScore + $complianceScore + $fundingScore + $programmeDelivery) / 4);
+
+        return [
+            'key' => 'organisation-health',
+            'title' => 'Organisation health',
+            'value' => $overallHealth,
+            'description' => sprintf(
+                'Overall Health %% across governance, compliance, funding, and programme delivery is %d%%.',
+                $overallHealth
+            ),
+            'href' => route('dashboard'),
         ];
     }
 
@@ -233,6 +422,34 @@ class DashboardController extends Controller
                 (int) ($stats['staffAssets'] ?? 0)
             ),
             'href' => route('assets.manager-dashboard'),
+        ];
+    }
+
+    protected function humanCapitalWidget(User $user): ?array
+    {
+        if (
+            ! $user->can('domain.human-capital.view')
+            && ! $user->can('domain.human-capital.manage')
+            && ! $user->can('domain.members.view')
+            && ! $user->can('domain.members.manage')
+        ) {
+            return null;
+        }
+
+        $dashboard = $this->humanCapitalDashboardService->dashboard();
+        $stats = $dashboard['stats'];
+
+        return [
+            'key' => 'human-capital',
+            'title' => 'Human capital dashboard',
+            'value' => (int) $stats['total_members'],
+            'description' => sprintf(
+                '%d graduates, %d unemployed members, %d recorded skills.',
+                (int) $stats['total_graduates'],
+                (int) $stats['total_unemployed'],
+                (int) $stats['total_skills']
+            ),
+            'href' => route('human-capital.dashboard'),
         ];
     }
 

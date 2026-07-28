@@ -108,7 +108,7 @@ export default function MarketingRequestsIndex({
                     <span className="rounded-full border bg-slate-50 px-2.5 py-1 text-xs font-medium capitalize">
                       {requestRecord.status.replaceAll("_", " ")}
                     </span>
-                    <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">
+                    <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700">
                       {requestRecord.priority.toUpperCase()}
                     </span>
                   </div>
@@ -121,7 +121,7 @@ export default function MarketingRequestsIndex({
                     <div className="text-xs text-muted-foreground">Migrated from legacy marketing job #{requestRecord.source_marketing_job_id}.</div>
                   ) : null}
                 </div>
-                <Link href={`/marketing/requests/${requestRecord.id}`} className="rounded-md border border-orange-500 px-3 py-1.5 text-sm text-orange-600 hover:bg-orange-500 hover:text-white">
+                <Link href={`/marketing/requests/${requestRecord.id}`} className="rounded-md border border-red-500 px-3 py-1.5 text-sm text-red-600 hover:bg-red-500 hover:text-white">
                   Open Request
                 </Link>
               </div>

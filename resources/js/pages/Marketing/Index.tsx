@@ -168,7 +168,7 @@ export default function MarketingIndex({
                     <span className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${statusBadgeClass(job.status)}`}>
                       {job.status.replaceAll("_", " ")}
                     </span>
-                    <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-medium capitalize text-orange-700">
+                    <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium capitalize text-red-700">
                       Transaction {job.transaction_state}
                     </span>
                   </div>
@@ -185,7 +185,7 @@ export default function MarketingIndex({
                     <div className="text-xs text-muted-foreground">Closed at {job.transaction_closed_at} by {job.closed_by_name ?? "manager"}.</div>
                   ) : null}
                 </div>
-                <button type="button" onClick={() => router.visit(`/marketing/jobs/${job.id}`)} className="rounded-md border border-orange-500 px-3 py-1.5 text-sm text-orange-600 hover:bg-orange-500 hover:text-white">
+                <button type="button" onClick={() => router.visit(`/marketing/jobs/${job.id}`)} className="rounded-md border border-red-500 px-3 py-1.5 text-sm text-red-600 hover:bg-red-500 hover:text-white">
                   Open Workflow
                 </button>
               </div>

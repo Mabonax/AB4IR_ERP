@@ -147,7 +147,7 @@ export default function BusinessDevelopmentDashboard({
                       {activity.entity_type === "application" ? (
                         <a
                           href={`/business-development/applications/${activity.entity_id}`}
-                          className="text-orange-600 hover:underline"
+                          className="text-red-600 hover:underline"
                         >
                           {activity.entity}
                         </a>

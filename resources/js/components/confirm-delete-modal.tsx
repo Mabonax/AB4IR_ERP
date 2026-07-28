@@ -1,5 +1,6 @@
-import { router } from "@inertiajs/react";
 import type { Method } from "@inertiajs/core";
+import { router } from "@inertiajs/react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

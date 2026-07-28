@@ -165,7 +165,7 @@ export default function MarketingShow({
               <span className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${statusBadgeClass(job.status)}`}>
                 {job.status.replaceAll("_", " ")}
               </span>
-              <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-medium capitalize text-orange-700">
+              <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium capitalize text-red-700">
                 Transaction {job.transaction_state}
               </span>
             </div>

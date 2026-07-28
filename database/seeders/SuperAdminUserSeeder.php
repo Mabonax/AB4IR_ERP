@@ -15,7 +15,7 @@ class SuperAdminUserSeeder extends Seeder
     {
         $guard = config('access_control.guard', 'web');
         $name = (string) config('app.super_admin_name', 'Super Admin');
-        $email = (string) config('app.super_admin_email', 'admin@ab4irerp.local');
+        $email = (string) config('app.super_admin_email', 'admin@poa.org.za');
         $syncPassword = (bool) config('app.super_admin_sync_password', false);
 
         $user = User::query()->firstOrNew(['email' => $email]);

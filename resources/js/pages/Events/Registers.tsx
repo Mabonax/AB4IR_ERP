@@ -1,9 +1,9 @@
 import { Head } from "@inertiajs/react";
 import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import AppLayout from "@/layouts/app-layout";
 import { eventWorkflowNav } from "@/pages/Events/navigation";
 import { type BreadcrumbItem } from "@/types";
 
@@ -96,7 +96,7 @@ export default function EventRegisters({
                     </a>
                     <a
                       href={`/events/${event.id}/registers/${activeRegister.key}/csv`}
-                      className="rounded-md border border-orange-500 px-3 py-2 text-xs font-medium text-orange-600 hover:bg-orange-500 hover:text-white"
+                      className="rounded-md border border-red-500 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-500 hover:text-white"
                     >
                       CSV
                     </a>

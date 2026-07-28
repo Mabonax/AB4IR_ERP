@@ -13,16 +13,32 @@ use App\Domains\BusinessDevelopment\Controllers\BdsDashboardController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeKpiController;
 use App\Domains\BusinessDevelopment\Controllers\BdsPitchSessionController;
+use App\Domains\Committees\Controllers\CommitteeController;
+use App\Domains\Compliance\Controllers\ComplianceRegistryController;
 use App\Domains\Documents\Controllers\DocumentLibraryController;
 use App\Domains\Events\Controllers\EventController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\Finance\Controllers\TravelClaimController;
+use App\Domains\Geography\Controllers\GeographicRegistryController;
+use App\Domains\Governance\Controllers\GovernanceDashboardController;
+use App\Domains\HumanCapital\Controllers\HumanCapitalDashboardController;
 use App\Domains\HumanResources\Controllers\HumanResourcesController;
+use App\Domains\Intelligence\Controllers\AgentController;
+use App\Domains\Intelligence\Controllers\AiToolController;
+use App\Domains\Intelligence\Controllers\ConversationController;
+use App\Domains\Intelligence\Controllers\IntelligenceWorkspaceController;
+use App\Domains\Intelligence\Controllers\MemoryController;
+use App\Domains\Intelligence\Controllers\ModelRoutingController;
+use App\Domains\Intelligence\Controllers\PromptTemplateController;
+use App\Domains\Intelligence\Controllers\ToolExecutionLogController;
 use App\Domains\Leave\Controllers\LeaveRequestController;
 use App\Domains\Marketing\Controllers\MarketingController;
 use App\Domains\Marketing\Controllers\MarketingOperationsController;
-use App\Domains\Organization\Controllers\OrganizationProfileController;
+use App\Domains\Meetings\Controllers\MeetingController;
+use App\Domains\Members\Controllers\MemberController;
+use App\Domains\Organisation\Controllers\OrganisationRegistryController;
 use App\Domains\Organization\Controllers\OrganizationDocumentController;
+use App\Domains\Organization\Controllers\OrganizationProfileController;
 use App\Domains\Programs\Controllers\ProgramController;
 use App\Domains\Projects\Controllers\MilestoneTemplateController;
 use App\Domains\Projects\Controllers\ProjectAttendanceController;
@@ -30,6 +46,14 @@ use App\Domains\Projects\Controllers\ProjectController;
 use App\Domains\Projects\Controllers\ProjectEnrollmentController;
 use App\Domains\Projects\Controllers\ProjectLocationController;
 use App\Domains\Projects\Controllers\ProjectMilestoneAssessmentController;
+use App\Domains\Resolutions\Controllers\ResolutionController;
+use App\Domains\ServiceDelivery\Controllers\PartnershipController;
+use App\Domains\ServiceDelivery\Controllers\PlacementController;
+use App\Domains\ServiceDelivery\Controllers\ProgrammeDocumentController;
+use App\Domains\ServiceDelivery\Controllers\ProgrammeOutcomeController;
+use App\Domains\ServiceDelivery\Controllers\ProjectActivityController;
+use App\Domains\ServiceDelivery\Controllers\ServiceAttendanceController;
+use App\Domains\ServiceDelivery\Controllers\ServiceDeliveryDashboardController;
 use App\Domains\Staff\Controllers\StaffController;
 use App\Domains\Staff\Controllers\StaffDepartmentController;
 use App\Domains\StaffAttendance\Controllers\StaffAttendanceController;
@@ -381,9 +405,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('organization', [OrganizationProfileController::class, 'show'])
         ->middleware($viewPermission('organization'))
         ->name('organization.show');
+    Route::get('organization/registry', [OrganisationRegistryController::class, 'index'])
+        ->middleware($viewPermission('organization'))
+        ->name('organization.registry.index');
+    Route::get('organization/compliance', [ComplianceRegistryController::class, 'index'])
+        ->middleware('permission:domain.compliance.view|domain.compliance.manage|domain.organization.manage')
+        ->name('organization.compliance.index');
     Route::put('organization', [OrganizationProfileController::class, 'update'])
         ->middleware($managePermission('organization'))
         ->name('organization.update');
+    Route::post('organization/registry', [OrganisationRegistryController::class, 'store'])
+        ->middleware($managePermission('organization'))
+        ->name('organization.registry.store');
+    Route::put('organization/registry/{organisation}', [OrganisationRegistryController::class, 'update'])
+        ->middleware($managePermission('organization'))
+        ->whereNumber('organisation')
+        ->name('organization.registry.update');
+    Route::post('organization/compliance', [ComplianceRegistryController::class, 'store'])
+        ->middleware('permission:domain.compliance.manage|domain.organization.manage')
+        ->name('organization.compliance.store');
+    Route::put('organization/compliance/{record}', [ComplianceRegistryController::class, 'update'])
+        ->middleware('permission:domain.compliance.manage|domain.organization.manage')
+        ->whereNumber('record')
+        ->name('organization.compliance.update');
     Route::post('organization/logos', [OrganizationProfileController::class, 'updateLogos'])
         ->middleware($managePermission('organization'))
         ->name('organization.logos.update');
@@ -599,6 +643,70 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('programs', ProgramController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('programs'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('programs'));
+
+    Route::get('service-delivery', ServiceDeliveryDashboardController::class)
+        ->middleware('permission:domain.service-delivery.view|domain.service-delivery.manage|domain.programs.view|domain.projects.view|domain.beneficiaries.view')
+        ->name('service-delivery.dashboard');
+    Route::get('service-delivery/activities', [ProjectActivityController::class, 'index'])
+        ->middleware('permission:project-activities.view|project-activities.manage')
+        ->name('service-delivery.activities.index');
+    Route::post('service-delivery/activities', [ProjectActivityController::class, 'store'])
+        ->middleware('permission:project-activities.manage')
+        ->name('service-delivery.activities.store');
+    Route::put('service-delivery/activities/{activity}', [ProjectActivityController::class, 'update'])
+        ->middleware('permission:project-activities.manage')
+        ->whereNumber('activity')
+        ->name('service-delivery.activities.update');
+    Route::get('service-delivery/attendance', [ServiceAttendanceController::class, 'index'])
+        ->middleware('permission:domain.attendance.view|domain.attendance.manage|attendance.view|attendance.manage')
+        ->name('service-delivery.attendance.index');
+    Route::post('service-delivery/attendance', [ServiceAttendanceController::class, 'store'])
+        ->middleware('permission:domain.attendance.manage|attendance.manage')
+        ->name('service-delivery.attendance.store');
+    Route::put('service-delivery/attendance/{attendance}', [ServiceAttendanceController::class, 'update'])
+        ->middleware('permission:domain.attendance.manage|attendance.manage')
+        ->whereNumber('attendance')
+        ->name('service-delivery.attendance.update');
+    Route::get('service-delivery/placements', [PlacementController::class, 'index'])
+        ->middleware('permission:domain.placements.view|domain.placements.manage')
+        ->name('service-delivery.placements.index');
+    Route::post('service-delivery/placements', [PlacementController::class, 'store'])
+        ->middleware('permission:domain.placements.manage')
+        ->name('service-delivery.placements.store');
+    Route::put('service-delivery/placements/{placement}', [PlacementController::class, 'update'])
+        ->middleware('permission:domain.placements.manage')
+        ->whereNumber('placement')
+        ->name('service-delivery.placements.update');
+    Route::get('service-delivery/partnerships', [PartnershipController::class, 'index'])
+        ->middleware('permission:domain.partnerships.view|domain.partnerships.manage')
+        ->name('service-delivery.partnerships.index');
+    Route::post('service-delivery/partnerships', [PartnershipController::class, 'store'])
+        ->middleware('permission:domain.partnerships.manage')
+        ->name('service-delivery.partnerships.store');
+    Route::put('service-delivery/partnerships/{partnership}', [PartnershipController::class, 'update'])
+        ->middleware('permission:domain.partnerships.manage')
+        ->whereNumber('partnership')
+        ->name('service-delivery.partnerships.update');
+    Route::get('service-delivery/outcomes', [ProgrammeOutcomeController::class, 'index'])
+        ->middleware('permission:domain.outcomes.view|domain.outcomes.manage')
+        ->name('service-delivery.outcomes.index');
+    Route::post('service-delivery/outcomes', [ProgrammeOutcomeController::class, 'store'])
+        ->middleware('permission:domain.outcomes.manage')
+        ->name('service-delivery.outcomes.store');
+    Route::put('service-delivery/outcomes/{outcome}', [ProgrammeOutcomeController::class, 'update'])
+        ->middleware('permission:domain.outcomes.manage')
+        ->whereNumber('outcome')
+        ->name('service-delivery.outcomes.update');
+    Route::get('service-delivery/documents', [ProgrammeDocumentController::class, 'index'])
+        ->middleware('permission:domain.programs.view|domain.programs.manage|domain.projects.view|domain.projects.manage')
+        ->name('programme-documents.index');
+    Route::post('service-delivery/documents', [ProgrammeDocumentController::class, 'store'])
+        ->middleware('permission:domain.programs.manage|domain.projects.manage')
+        ->name('programme-documents.store');
+    Route::get('service-delivery/documents/{programmeDocument}/download', [ProgrammeDocumentController::class, 'download'])
+        ->middleware('permission:domain.programs.view|domain.programs.manage|domain.projects.view|domain.projects.manage')
+        ->whereNumber('programmeDocument')
+        ->name('programme-documents.download');
 
     Route::get('human-resources', [HumanResourcesController::class, 'dashboard'])
         ->middleware('permission:domain.human-resources.view|domain.human-resources.manage')
@@ -859,6 +967,155 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('access-control/users/{user}/permissions', [AccessControlController::class, 'syncUserPermissions'])
         ->whereNumber('user')
         ->name('access-control.users.permissions.sync');
+    Route::get('governance', [GovernanceDashboardController::class, 'index'])
+        ->middleware($viewPermission('governance'))
+        ->name('governance.index');
+    Route::post('governance', [GovernanceDashboardController::class, 'store'])
+        ->middleware($managePermission('governance'))
+        ->name('governance.store');
+    Route::put('governance/{structure}', [GovernanceDashboardController::class, 'update'])
+        ->middleware($managePermission('governance'))
+        ->whereNumber('structure')
+        ->name('governance.update');
+
+    Route::get('committees', [CommitteeController::class, 'index'])
+        ->middleware($viewPermission('committees'))
+        ->name('committees.index');
+    Route::post('committees', [CommitteeController::class, 'store'])
+        ->middleware($managePermission('committees'))
+        ->name('committees.store');
+    Route::put('committees/{committee}', [CommitteeController::class, 'update'])
+        ->middleware($managePermission('committees'))
+        ->whereNumber('committee')
+        ->name('committees.update');
+
+    Route::get('meetings', [MeetingController::class, 'index'])
+        ->middleware($viewPermission('meetings'))
+        ->name('meetings.index');
+    Route::post('meetings', [MeetingController::class, 'store'])
+        ->middleware($managePermission('meetings'))
+        ->name('meetings.store');
+    Route::put('meetings/{meeting}', [MeetingController::class, 'update'])
+        ->middleware($managePermission('meetings'))
+        ->whereNumber('meeting')
+        ->name('meetings.update');
+
+    Route::get('resolutions', [ResolutionController::class, 'index'])
+        ->middleware($viewPermission('resolutions'))
+        ->name('resolutions.index');
+    Route::post('resolutions', [ResolutionController::class, 'store'])
+        ->middleware($managePermission('resolutions'))
+        ->name('resolutions.store');
+    Route::put('resolutions/{resolution}', [ResolutionController::class, 'update'])
+        ->middleware($managePermission('resolutions'))
+        ->whereNumber('resolution')
+        ->name('resolutions.update');
+
+    Route::get('members', [MemberController::class, 'index'])
+        ->middleware($viewPermission('members'))
+        ->name('members.index');
+    Route::get('members/create', [MemberController::class, 'create'])
+        ->middleware($managePermission('members'))
+        ->name('members.create');
+    Route::post('members', [MemberController::class, 'store'])
+        ->middleware($managePermission('members'))
+        ->name('members.store');
+    Route::get('members/{member}/edit', [MemberController::class, 'edit'])
+        ->middleware($managePermission('members'))
+        ->whereNumber('member')
+        ->name('members.edit');
+    Route::put('members/{member}', [MemberController::class, 'update'])
+        ->middleware($managePermission('members'))
+        ->whereNumber('member')
+        ->name('members.update');
+
+    Route::get('geography', [GeographicRegistryController::class, 'index'])
+        ->middleware($viewPermission('geography'))
+        ->name('geography.index');
+    Route::post('geography', [GeographicRegistryController::class, 'store'])
+        ->middleware($managePermission('geography'))
+        ->name('geography.store');
+
+    Route::get('human-capital/dashboard', [HumanCapitalDashboardController::class, 'dashboard'])
+        ->middleware('permission:domain.human-capital.view|domain.human-capital.manage|domain.members.view|domain.members.manage')
+        ->name('human-capital.dashboard');
+    Route::get('human-capital/reports', [HumanCapitalDashboardController::class, 'reports'])
+        ->middleware('permission:domain.human-capital.view|domain.human-capital.manage|domain.reporting.view|domain.reporting.manage')
+        ->name('human-capital.reports');
+
+    Route::get('intelligence', [IntelligenceWorkspaceController::class, 'index'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.index');
+    Route::get('intelligence/agents', [AgentController::class, 'index'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.agents.index');
+    Route::post('intelligence/agents', [AgentController::class, 'store'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->name('intelligence.agents.store');
+    Route::put('intelligence/agents/{agent}', [AgentController::class, 'update'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->whereNumber('agent')
+        ->name('intelligence.agents.update');
+
+    Route::get('intelligence/prompts', [PromptTemplateController::class, 'index'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.prompts.index');
+    Route::post('intelligence/prompts', [PromptTemplateController::class, 'store'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->name('intelligence.prompts.store');
+    Route::put('intelligence/prompts/{promptTemplate}', [PromptTemplateController::class, 'update'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->whereNumber('promptTemplate')
+        ->name('intelligence.prompts.update');
+    Route::post('intelligence/prompts/{promptTemplate}/activate', [PromptTemplateController::class, 'activate'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->whereNumber('promptTemplate')
+        ->name('intelligence.prompts.activate');
+
+    Route::get('intelligence/memory', [MemoryController::class, 'index'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.memory.index');
+    Route::post('intelligence/memory', [MemoryController::class, 'store'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->name('intelligence.memory.store');
+    Route::put('intelligence/memory/{memory}', [MemoryController::class, 'update'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->whereNumber('memory')
+        ->name('intelligence.memory.update');
+    Route::post('intelligence/memory/{memory}/review', [MemoryController::class, 'review'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->whereNumber('memory')
+        ->name('intelligence.memory.review');
+
+    Route::get('intelligence/tools', [AiToolController::class, 'index'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.tools.index');
+    Route::post('intelligence/tools', [AiToolController::class, 'store'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->name('intelligence.tools.store');
+    Route::put('intelligence/tools/{tool}', [AiToolController::class, 'update'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->whereNumber('tool')
+        ->name('intelligence.tools.update');
+
+    Route::get('intelligence/tool-logs', [ToolExecutionLogController::class, 'index'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.logs.index');
+
+    Route::get('intelligence/model-routing', [ModelRoutingController::class, 'index'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.routing.index');
+    Route::post('intelligence/model-routing', [ModelRoutingController::class, 'store'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->name('intelligence.routing.store');
+    Route::put('intelligence/model-routing/{rule}', [ModelRoutingController::class, 'update'])
+        ->middleware('permission:domain.intelligence.manage')
+        ->whereNumber('rule')
+        ->name('intelligence.routing.update');
+
+    Route::post('intelligence/conversations', [ConversationController::class, 'store'])
+        ->middleware('permission:domain.intelligence.view|domain.intelligence.manage')
+        ->name('intelligence.conversations.store');
 });
 
 require __DIR__.'/settings.php';

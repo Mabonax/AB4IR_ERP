@@ -1,12 +1,13 @@
 import { Head } from '@inertiajs/react';
 
 import AppearanceTabs from '@/components/appearance-tabs';
-import Heading from '@/components/heading';
-import AppLayout from '@/layouts/app-layout';
-import { edit as editAppearance } from '@/routes/appearance';
-import { type BreadcrumbItem } from '@/types';
 import { DomainNav } from '@/components/domain-nav';
+import Heading from '@/components/heading';
 import { settingsNavItems } from '@/config/domain-nav/settings';
+import AppLayout from '@/layouts/app-layout';
+import { type BreadcrumbItem } from '@/types';
+
+import { edit as editAppearance } from '@/routes/appearance';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

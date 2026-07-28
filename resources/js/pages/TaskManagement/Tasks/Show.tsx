@@ -104,7 +104,7 @@ const statusBadgeClass = (status: TaskStatus) => {
 const transactionBadgeClass = (state: "open" | "closed") =>
   state === "closed"
     ? "border-green-200 bg-green-50 text-green-700"
-    : "border-orange-200 bg-orange-50 text-orange-700";
+    : "border-red-200 bg-red-50 text-red-700";
 
 const documentKindLabel = (kind: string) => kind.replaceAll("_", " ");
 

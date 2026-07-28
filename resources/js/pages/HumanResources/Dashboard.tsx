@@ -2,9 +2,9 @@ import { Head, Link, router } from "@inertiajs/react";
 import { Users, UserPlus } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -386,7 +386,7 @@ export default function HumanResourcesDashboard({
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {departments.map((department) => (
-              <Card key={department.id} className="border-orange-200">
+              <Card key={department.id} className="border-red-200">
                 <CardHeader className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -395,7 +395,7 @@ export default function HumanResourcesDashboard({
                         {department.description || "Department staff allocation"}
                       </CardDescription>
                     </div>
-                    <div className="rounded-full bg-orange-100 p-2 text-orange-600">
+                    <div className="rounded-full bg-red-100 p-2 text-red-600">
                       <Users className="h-4 w-4" />
                     </div>
                   </div>

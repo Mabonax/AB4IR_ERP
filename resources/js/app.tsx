@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { createPageResolver } from './lib/inertia-page-resolver';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Programme of Action ERP';
 const pages = {
     ...import.meta.glob('./pages/**/*.tsx'),
     './pages/Finance/TravelClaims/Index.tsx': () => import('./pages/Finance/TravelClaims/Index'),
@@ -29,7 +29,7 @@ createInertiaApp({
         );
     },
     progress: {
-        color: '#4B5563',
+        color: '#C8102E',
     },
 });
 

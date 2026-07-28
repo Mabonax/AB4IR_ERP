@@ -356,7 +356,7 @@ export default function TaskManagementTicketsIndex({
                     <button
                       type="button"
                       onClick={() => setOpenTicketId(openTicketId === ticket.id ? null : ticket.id)}
-                      className="rounded-md border border-orange-500 px-3 py-1.5 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+                      className="rounded-md border border-red-500 px-3 py-1.5 text-sm text-red-600 hover:bg-red-500 hover:text-white"
                     >
                       {openTicketId === ticket.id ? "Hide Workflow" : "Open Workflow"}
                     </button>

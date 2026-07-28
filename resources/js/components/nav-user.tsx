@@ -15,8 +15,8 @@ import {
 import { UserInfo } from '@/components/user-info';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { type SharedData } from '@/types';
 import { login } from '@/routes';
+import { type SharedData } from '@/types';
 
 export function NavUser() {
     const { auth } = usePage<SharedData>().props;
@@ -27,7 +27,10 @@ export function NavUser() {
         return (
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild className="text-sidebar-accent-foreground">
+                    <SidebarMenuButton
+                        asChild
+                        className="h-11 rounded-none border border-[#ECECEC] bg-[#F7F7F7] px-3 text-[#111111] hover:bg-[#111111] hover:text-white"
+                    >
                         <Link href={login()} prefetch>
                             <UserInfo user={null} />
                             <span>Sign in</span>
@@ -45,7 +48,7 @@ export function NavUser() {
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton
                             size="lg"
-                            className="group text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
+                            className="group h-auto rounded-none border border-[#ECECEC] bg-[#F7F7F7] px-3 py-3 text-[#111111] data-[state=open]:bg-[#111111] data-[state=open]:text-white"
                             data-test="sidebar-menu-button"
                         >
                             <UserInfo user={auth.user} />

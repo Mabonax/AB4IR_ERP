@@ -198,7 +198,7 @@ export default function TravelClaimCreate({
               <button
                 type="button"
                 onClick={addTrip}
-                className="rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+                className="rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
               >
                 Add Trip
               </button>
@@ -245,11 +245,11 @@ export default function TravelClaimCreate({
               ))}
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-              <div className="text-sm text-orange-800">
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              <div className="text-sm text-red-800">
                 Totals are calculated from the claimable distance and tariff.
               </div>
-              <div className="text-lg font-semibold text-orange-900">R{totalAmount.toFixed(2)}</div>
+              <div className="text-lg font-semibold text-red-900">R{totalAmount.toFixed(2)}</div>
             </div>
           </div>
 

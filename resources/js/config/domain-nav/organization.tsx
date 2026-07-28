@@ -1,4 +1,5 @@
-import { Building2, FolderOpen } from "lucide-react";
+import { BadgeCheck, Building2, FolderOpen } from "lucide-react";
+
 import { type DomainNavItem } from "@/components/domain-nav";
 
 export const organizationNavItems: DomainNavItem[] = [
@@ -7,6 +8,18 @@ export const organizationNavItems: DomainNavItem[] = [
     href: "/organization",
     icon: <Building2 className="h-4 w-4" />,
     requiredPermissions: ["domain.organization.view", "domain.organization.manage"],
+  },
+  {
+    label: "Organisation Registry",
+    href: "/organization/registry",
+    icon: <Building2 className="h-4 w-4" />,
+    requiredPermissions: ["domain.organization.view", "domain.organization.manage"],
+  },
+  {
+    label: "Compliance",
+    href: "/organization/compliance",
+    icon: <BadgeCheck className="h-4 w-4" />,
+    requiredPermissions: ["domain.compliance.view", "domain.compliance.manage", "domain.organization.manage"],
   },
   {
     label: "Official Vault",

@@ -5,8 +5,8 @@ namespace App\Domains\Organization\Services;
 use App\Domains\Organization\Models\OrganizationMetricSnapshot;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Organization\Repositories\OrganizationProfileRepositoryInterface;
-use Carbon\CarbonInterface;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +20,7 @@ class OrganizationProfileService
     public function getProfile(): OrganizationProfile
     {
         return $this->repository->first() ?? $this->repository->upsert([
-            'name' => config('app.name', 'AB4IR'),
+            'name' => config('app.name', 'Programme of Action ERP'),
         ]);
     }
 

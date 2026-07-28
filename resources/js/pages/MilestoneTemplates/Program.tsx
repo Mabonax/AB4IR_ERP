@@ -1,16 +1,14 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { CustomModelForm } from "@/components/custom-model-form";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
 import { projectNavItems } from "@/config/domain-nav/projects";
-
 import { MilestoneTemplateModelFormConfig } from "@/config/forms/milestone-template-model-form";
 import { MilestoneTemplateTableConfig } from "@/config/tables/milestone-template-table";
-
+import AppLayout from "@/layouts/app-layout";
 import milestoneTemplates from "@/routes/milestone-templates";
 import { type BreadcrumbItem } from "@/types";
 

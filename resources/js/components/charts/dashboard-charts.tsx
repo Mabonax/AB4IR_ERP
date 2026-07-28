@@ -51,7 +51,7 @@ const defaultBarColor = "bg-red-500";
 
 const colorMap: Record<string, string> = {
   "bg-red-500": "#ef4444",
-  "bg-orange-500": "#f97316",
+  "bg-red-600": "#dc2626",
   "bg-amber-500": "#f59e0b",
   "bg-emerald-500": "#10b981",
   "bg-sky-500": "#0ea5e9",

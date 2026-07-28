@@ -94,7 +94,7 @@ export function FacilitatorFormPage({
           className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"
         >
           <div className="space-y-5">
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">Core identity</CardTitle>
                 <CardDescription>Keep the required facilitator record lean. Extra profile details can be added later.</CardDescription>
@@ -132,7 +132,7 @@ export function FacilitatorFormPage({
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">Extended profile</CardTitle>
                 <CardDescription>Optional identity and address details for HR or compliance capture when available.</CardDescription>

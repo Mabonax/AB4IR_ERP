@@ -15,7 +15,7 @@ export function UserInfo({
         return (
             <>
                 <Avatar className="h-8 w-8 overflow-hidden rounded-full">
-                    <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                    <AvatarFallback className="rounded-full bg-[#111111] text-white">
                         ?
                     </AvatarFallback>
                 </Avatar>
@@ -30,7 +30,7 @@ export function UserInfo({
         <>
             <Avatar className="h-8 w-8 overflow-hidden rounded-full">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                <AvatarFallback className="rounded-full bg-[#111111] text-white">
                     {getInitials(user.name)}
                 </AvatarFallback>
             </Avatar>

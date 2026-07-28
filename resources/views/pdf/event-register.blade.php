@@ -17,6 +17,8 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.brand-header')
+
     <div class="meta">
         <h1>{{ $event->title }}</h1>
         <div class="muted">
@@ -82,5 +84,7 @@
             </tbody>
         </table>
     @endforeach
+
+    @include('pdf.partials.brand-footer')
 </body>
 </html>

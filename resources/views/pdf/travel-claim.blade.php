@@ -15,6 +15,8 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.brand-header')
+
     <div class="title">TRANSPORT CLAIM : PRIVATE VEHICLE</div>
 
     <table class="grid meta section">
@@ -110,5 +112,7 @@
             <td>{{ \Illuminate\Support\Str::of($claim->status)->replace('_', ' ')->title() }}</td>
         </tr>
     </table>
+
+    @include('pdf.partials.brand-footer')
 </body>
 </html>

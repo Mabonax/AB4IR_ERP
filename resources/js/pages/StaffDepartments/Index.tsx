@@ -1,17 +1,15 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
-
-import { StaffDepartmentModelFormConfig } from "@/config/forms/staff-department-model-form";
-import { StaffDepartmentTableConfig } from "@/config/tables/staff-department-table";
-
-import staffDepartments from "@/routes/staff-departments";
+import { CustomModelForm } from "@/components/custom-model-form";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
 import { staffNavItems } from "@/config/domain-nav/staff";
+import { StaffDepartmentModelFormConfig } from "@/config/forms/staff-department-model-form";
+import { StaffDepartmentTableConfig } from "@/config/tables/staff-department-table";
+import AppLayout from "@/layouts/app-layout";
+import staffDepartments from "@/routes/staff-departments";
 import { type BreadcrumbItem } from "@/types";
 
 /* =========================================================

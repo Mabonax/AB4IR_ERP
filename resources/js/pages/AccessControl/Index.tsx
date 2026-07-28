@@ -1,10 +1,10 @@
 import { Head, router, useForm } from "@inertiajs/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import Heading from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 type RoleRow = {

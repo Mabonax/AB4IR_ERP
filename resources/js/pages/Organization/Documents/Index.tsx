@@ -59,7 +59,7 @@ function VaultFileIcon({ document }: { document: Pick<OrganizationDocument, "fil
   }
 
   if (["ppt", "pptx"].includes(ext) || document.mime_type?.includes("presentation")) {
-    return <Presentation className="h-5 w-5 text-orange-600" />;
+    return <Presentation className="h-5 w-5 text-red-600" />;
   }
 
   if (["pdf", "doc", "docx"].includes(ext) || document.mime_type?.includes("pdf") || document.mime_type?.includes("word")) {

@@ -1,5 +1,5 @@
-import { FormEvent, useMemo, useState } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
+import { FormEvent, useMemo, useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { businessDevelopmentNavItems } from "@/config/domain-nav/business-development";
@@ -229,7 +229,7 @@ export default function BdsIncubateeShow({
             <DomainNav items={businessDevelopmentNavItems} />
             <Link
               href="/business-development/incubatees"
-              className="rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+              className="rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
             >
               Back to List
             </Link>
@@ -322,7 +322,7 @@ export default function BdsIncubateeShow({
               <button
                 type="submit"
                 disabled={assignForm.processing || availableKpiDefinitions.length === 0}
-                className="rounded-md bg-orange-500 px-3 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                className="rounded-md bg-red-500 px-3 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50"
               >
                 Assign
               </button>
@@ -382,7 +382,7 @@ export default function BdsIncubateeShow({
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full rounded-full bg-orange-500"
+                      className="h-full rounded-full bg-red-500"
                       style={{ width: `${Math.min(Math.max(kpi.progress.latest_progress_percent, 0), 100)}%` }}
                     />
                   </div>
@@ -464,7 +464,7 @@ export default function BdsIncubateeShow({
                 <button
                   type="submit"
                   disabled={reviewForm.processing}
-                  className="rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+                  className="rounded-md bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50"
                 >
                   Save Review
                 </button>

@@ -1,8 +1,6 @@
 import { Head, Link, router, useForm, usePage } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
-import { staffNavItems } from "@/config/domain-nav/staff";
 import {
   Card,
   CardContent,
@@ -10,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { staffNavItems } from "@/config/domain-nav/staff";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 export default function StaffProfile({
@@ -56,7 +56,7 @@ export default function StaffProfile({
             {canManageStaff ? (
               <Link
                 href={`/staff/${data.id}/edit`}
-                className="inline-flex items-center rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+                className="inline-flex items-center rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
               >
                 Edit Staff Member
               </Link>
@@ -71,7 +71,7 @@ export default function StaffProfile({
 
                   router.post(`/staff/${data.id}/promote-manager`);
                 }}
-                className="inline-flex items-center rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+                className="inline-flex items-center rounded-md border border-red-500 px-3 py-2 text-sm text-red-600 hover:bg-red-500 hover:text-white"
               >
                 Promote to Manager
               </button>

@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { Head, useForm, usePage } from "@inertiajs/react";
+import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
-import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
-import { organizationNavItems } from "@/config/domain-nav/organization";
-import { type BreadcrumbItem, type SharedData } from "@/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartConfig,
   ChartContainer,
@@ -14,7 +12,9 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { organizationNavItems } from "@/config/domain-nav/organization";
+import AppLayout from "@/layouts/app-layout";
+import { type BreadcrumbItem, type SharedData } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Organization", href: "/organization" },
@@ -330,7 +330,7 @@ export default function OrganizationShow({
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>About AB4IR</CardTitle>
+                <CardTitle>About the Organisation</CardTitle>
                 <CardDescription>Official institutional profile for internal and external reference.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 text-sm text-slate-700">
@@ -400,7 +400,7 @@ export default function OrganizationShow({
                 {focusAreas.length ? (
                   <div className="flex flex-wrap gap-3">
                     {focusAreas.map((item) => (
-                      <div key={item} className="rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700">
+                      <div key={item} className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700">
                         {item}
                       </div>
                     ))}

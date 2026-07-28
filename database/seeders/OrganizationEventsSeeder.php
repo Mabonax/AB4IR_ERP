@@ -18,11 +18,11 @@ class OrganizationEventsSeeder extends Seeder
         $organization = OrganizationProfile::query()->latest('id')->first();
 
         $organizationPayload = [
-            'name' => 'AB4IR Enterprise Development Centre',
-            'legal_name' => 'AB4IR NPC',
-            'tagline' => 'Catalysing incubation, innovation, and enterprise growth',
-            'mission' => 'To strengthen entrepreneurs and accelerate inclusive enterprise development through incubation, skills development, and strategic ecosystem support.',
-            'vision' => 'A thriving enterprise ecosystem where incubatees and emerging ventures can grow sustainably.',
+            'name' => 'Programme of Action ERP',
+            'legal_name' => 'Programme of Action NPC',
+            'tagline' => 'Governance, compliance, programme delivery, and impact reporting in one platform',
+            'mission' => 'To strengthen organisational governance, programme delivery, and evidence-based reporting through one integrated operating platform.',
+            'vision' => 'A resilient civil society organisation operating with accountable governance, funded delivery, and measurable impact.',
             'objectives' => implode("\n", [
                 'Bridge the digital and gender divide through technology, innovation, and business incubation interventions.',
                 'Unlock the value and opportunities through creating awareness within the digital creative industries.',
@@ -37,9 +37,9 @@ class OrganizationEventsSeeder extends Seeder
                 'VR & AR',
                 'Drone Technology',
             ]),
-            'about' => 'AB4IR supports enterprise incubation, business development, institutional partnerships, and delivery of annual ecosystem events.',
-            'service_offering' => 'Incubation, acceleration, ecosystem development, events, and enterprise support.',
-            'email' => 'info@ab4ir.example.com',
+            'about' => 'Programme of Action ERP supports governance, compliance, programme delivery, stakeholder coordination, and reporting for mission-driven organisations.',
+            'service_offering' => 'Governance management, compliance oversight, programme operations, asset coordination, and reporting support.',
+            'email' => 'info@programmeofaction.example.com',
             'phone' => '+27 11 000 0000',
             'city' => 'Johannesburg',
             'province' => 'Gauteng',
@@ -65,8 +65,8 @@ class OrganizationEventsSeeder extends Seeder
         }
 
         $user = User::query()->first() ?? User::factory()->create([
-            'name' => 'AB4IR Demo User',
-            'email' => 'demo@ab4ir.example.com',
+            'name' => 'POA Demo User',
+            'email' => 'demo@programmeofaction.example.com',
         ]);
 
         $department = StaffDepartment::query()->firstOrCreate(
@@ -75,7 +75,7 @@ class OrganizationEventsSeeder extends Seeder
         );
 
         $staff = StaffMember::query()->firstOrCreate(
-            ['email' => 'manager.events@ab4ir.example.com'],
+            ['email' => 'manager.events@programmeofaction.example.com'],
             [
                 'user_id' => $user->id,
                 'department_id' => $department->id,
@@ -112,32 +112,32 @@ class OrganizationEventsSeeder extends Seeder
         );
 
         $event = Event::query()->firstOrCreate(
-            ['title' => 'AB4IR Annual Incubation Summit 2026'],
+            ['title' => 'Programme of Action Governance Summit 2026'],
             [
                 'event_type' => 'Summit',
                 'event_format' => 'hybrid',
-                'annual_series_key' => 'ab4ir-incubation-summit',
+                'annual_series_key' => 'programme-of-action-governance-summit',
                 'event_year' => 2026,
                 'is_annual' => true,
-                'theme' => 'Strengthening Growth Pathways for Incubatees',
-                'track_name' => 'Incubation and Ecosystem Development',
+                'theme' => 'Strengthening Governance, Compliance, and Programme Delivery',
+                'track_name' => 'Organisation Governance and Impact Delivery',
                 'location' => 'Johannesburg',
-                'venue_name' => 'AB4IR Innovation Centre',
-                'venue_address' => '1 Innovation Way, Johannesburg, Gauteng, South Africa',
+                'venue_name' => 'Programme of Action Centre',
+                'venue_address' => '1 Civic Operations Way, Johannesburg, Gauteng, South Africa',
                 'venue_contact_person' => 'Venue Operations Desk',
                 'venue_contact_phone' => '+27 11 000 1234',
-                'venue_contact_email' => 'venue@ab4ir.example.com',
+                'venue_contact_email' => 'venue@programmeofaction.example.com',
                 'start_date' => '2026-09-15',
                 'end_date' => '2026-09-16',
                 'status' => 'open_for_registration',
-                'description' => 'A flagship annual event bringing together incubatees, partners, speakers, and ecosystem stakeholders.',
-                'objectives' => 'Showcase incubatee progress, connect support partners, and strengthen the enterprise ecosystem.',
+                'description' => 'A flagship annual event bringing together governance leaders, delivery teams, donors, and ecosystem stakeholders.',
+                'objectives' => 'Showcase organisational progress, connect funders and partners, and strengthen governance and compliance delivery.',
                 'technical_requirements' => 'Projector, stage microphones, livestream support, registration desk laptops, and stable high-speed internet.',
-                'registration_link' => 'https://events.ab4ir.example.com/incubation-summit-2026',
-                'zoom_join_url' => 'https://zoom.example.com/j/ab4ir-summit-2026',
-                'zoom_host_url' => 'https://zoom.example.com/s/ab4ir-summit-2026-host',
+                'registration_link' => 'https://events.programmeofaction.example.com/governance-summit-2026',
+                'zoom_join_url' => 'https://zoom.example.com/j/poa-summit-2026',
+                'zoom_host_url' => 'https://zoom.example.com/s/poa-summit-2026-host',
                 'zoom_meeting_id' => '817 4455 2026',
-                'zoom_passcode' => 'AB4IR2026',
+                'zoom_passcode' => 'POA2026',
                 'expected_attendees' => 250,
                 'owner_staff_member_id' => $staff->id,
             ]
@@ -175,7 +175,7 @@ class OrganizationEventsSeeder extends Seeder
                 'name' => 'John Mabona',
                 'email' => 'john@example.com',
                 'phone' => '0720000001',
-                'organization_name' => 'AB4IR',
+                'organization_name' => 'Programme of Action',
                 'role' => 'Host and MC',
                 'attendance_status' => 'confirmed',
                 'sort_order' => 1,
@@ -202,10 +202,10 @@ class OrganizationEventsSeeder extends Seeder
             ],
             [
                 'category' => 'team_board',
-                'name' => 'AB4IR Board Secretariat',
+                'name' => 'Programme of Action Board Secretariat',
                 'email' => 'board@example.com',
                 'phone' => '0720000004',
-                'organization_name' => 'AB4IR',
+                'organization_name' => 'Programme of Action',
                 'role' => 'Board Coordination',
                 'attendance_status' => 'registered',
                 'sort_order' => 4,

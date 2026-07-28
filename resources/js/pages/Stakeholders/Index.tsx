@@ -1,14 +1,12 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
-
+import { CustomModelForm } from "@/components/custom-model-form";
+import { CustomTable } from "@/components/custom-table";
 import { StakeholderModelFormConfig } from "@/config/forms/stakeholder-model-form";
 import { StakeholderTableConfig } from "@/config/tables/stakeholder-table";
-
+import AppLayout from "@/layouts/app-layout";
 import stakeholders from "@/routes/stakeholders";
 import { type BreadcrumbItem } from "@/types";
 

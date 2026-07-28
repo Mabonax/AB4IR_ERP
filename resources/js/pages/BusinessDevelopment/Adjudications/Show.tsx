@@ -1,8 +1,8 @@
 import { Head, router } from "@inertiajs/react";
 
+import { DomainNav } from "@/components/domain-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DomainNav } from "@/components/domain-nav";
 import { businessDevelopmentNavItems } from "@/config/domain-nav/business-development";
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";

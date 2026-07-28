@@ -101,6 +101,8 @@
     </style>
 </head>
 <body>
+    @include('pdf.partials.brand-header')
+
     <div class="header">
         <h1 class="title">Attendance Register Details</h1>
         <p class="subtle"><strong>Register ID:</strong> {{ $register_reference }}</p>
@@ -176,7 +178,7 @@
     </table>
 
     <div class="footer">
-        Generated on {{ now()->format('Y-m-d H:i') }}
+        @include('pdf.partials.brand-footer')
     </div>
 </body>
 </html>

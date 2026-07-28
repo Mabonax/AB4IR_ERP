@@ -6,11 +6,20 @@ use App\Domains\Leave\Services\LeaveManagementService;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    Carbon::setTestNow('2026-05-31 12:00:00');
+});
+
+afterEach(function () {
+    Carbon::setTestNow();
+});
 
 function makeLeaveDepartment(string $name = 'Operations'): StaffDepartment
 {
