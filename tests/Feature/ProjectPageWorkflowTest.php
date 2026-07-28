@@ -35,7 +35,7 @@ function makeProjectPageWorkflowFixture(): array
     ]);
 
     $stakeholder = Stakeholder::query()->create([
-        'organization_name' => 'AB4IR Partner '.Str::upper(Str::random(4)),
+        'organization_name' => 'POA Partner '.Str::upper(Str::random(4)),
         'name' => 'Primary Contact',
         'email' => 'stakeholder-'.Str::lower(Str::random(8)).'@example.com',
         'contact_number' => '010'.random_int(1000000, 9999999),
@@ -43,7 +43,7 @@ function makeProjectPageWorkflowFixture(): array
     ]);
 
     $partnerStakeholder = Stakeholder::query()->create([
-        'organization_name' => 'AB4IR Delivery '.Str::upper(Str::random(4)),
+        'organization_name' => 'POA Delivery '.Str::upper(Str::random(4)),
         'name' => 'Delivery Partner',
         'email' => 'partner-'.Str::lower(Str::random(8)).'@example.com',
         'contact_number' => '011'.random_int(1000000, 9999999),
@@ -58,7 +58,7 @@ function makeProjectPageWorkflowFixture(): array
         'start_date' => now()->toDateString(),
         'status' => 'planned',
         'description' => 'Workflow test cohort',
-        'contract_reference' => 'AB4IR-TEST-2026',
+        'contract_reference' => 'POA-TEST-2026',
         'funding_amount' => 250000,
         'reporting_cadence' => 'monthly',
         'reporting_obligations' => 'Monthly operational reporting',
@@ -153,7 +153,7 @@ test('creating a project from the page redirects to the project file', function 
         'end_date' => now()->addMonths(6)->toDateString(),
         'status' => 'planned',
         'description' => 'Expanded delivery project',
-        'contract_reference' => 'AB4IR-EXP-2027',
+        'contract_reference' => 'POA-EXP-2027',
         'funding_amount' => 500000,
         'reporting_cadence' => 'quarterly',
         'reporting_obligations' => 'Quarterly reporting',

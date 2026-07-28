@@ -3,8 +3,8 @@
 namespace App\Domains\Beneficiaries\Resources;
 
 use App\Domains\Projects\Models\ProjectEnrollment;
-use Illuminate\Support\Collection;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Collection;
 
 class BeneficiaryResource extends JsonResource
 {
@@ -14,6 +14,11 @@ class BeneficiaryResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'member_id' => $this->member_id,
+            'member_name' => $this->member
+                ? trim($this->member->first_name.' '.$this->member->last_name)
+                : null,
+            'beneficiary_number' => $this->beneficiary_number,
 
             // Personal info
             'name' => $this->name,
@@ -35,8 +40,11 @@ class BeneficiaryResource extends JsonResource
             'project_name' => $this->project?->name,
             'project_location_id' => $currentEnrollment?->project_location_id,
             'project_location' => $currentEnrollment?->location?->province?->name,
-            'program_id' => $this->project?->program?->id,
-            'program_title' => $this->project?->program?->title,
+            'program_id' => $this->program_id ?? $this->project?->program?->id,
+            'program_title' => $this->program?->title ?? $this->project?->program?->title,
+            'member_branch' => $this->member?->branch?->name,
+            'member_township' => $this->member?->township?->name,
+            'member_province' => $this->member?->province?->name,
 
             // Address
             'street_address' => $this->street_address,
@@ -48,6 +56,10 @@ class BeneficiaryResource extends JsonResource
             // Education
             'highest_qualification' => $this->highest_qualification,
             'attendance_status' => $this->attendance_status ?? 'active',
+            'enrolment_date' => $this->enrolment_date?->format('Y-m-d'),
+            'exit_date' => $this->exit_date?->format('Y-m-d'),
+            'participation_status' => $this->participation_status ?? 'registered',
+            'placement_status' => $this->placement_status,
 
             // Relations
             'next_of_kin_id' => $this->next_of_kin_id,

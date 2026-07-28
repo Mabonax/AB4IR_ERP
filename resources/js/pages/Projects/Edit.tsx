@@ -117,7 +117,9 @@ export default function ProjectEdit(props: {
       staffMembers={props.staffMembers}
       initialData={{
         name: projectData.name ?? "",
+        project_code: projectData.project_code ?? "",
         description: projectData.description ?? "",
+        primary_location: projectData.primary_location ?? "",
         start_date: projectData.start_date ?? "",
         end_date: projectData.end_date ?? "",
         status: projectData.status ?? "planned",
@@ -129,6 +131,11 @@ export default function ProjectEdit(props: {
         project_manager_id: projectData.project_manager_id !== null && projectData.project_manager_id !== undefined ? String(projectData.project_manager_id) : "",
         contract_reference: projectData.contract_reference ?? "",
         funding_amount: projectData.funding_amount !== null && projectData.funding_amount !== undefined ? String(projectData.funding_amount) : "",
+        budget: projectData.budget !== null && projectData.budget !== undefined ? String(projectData.budget) : "",
+        target_beneficiaries:
+          projectData.target_beneficiaries !== null && projectData.target_beneficiaries !== undefined
+            ? String(projectData.target_beneficiaries)
+            : "",
         reporting_cadence: projectData.reporting_cadence ?? "",
         reporting_obligations: projectData.reporting_obligations ?? "",
       }}

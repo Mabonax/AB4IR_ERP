@@ -1,12 +1,11 @@
 import { Head } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import {
   HorizontalBarChart,
   StackedCompositionChart,
 } from "@/components/charts/dashboard-charts";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-import { projectNavItems } from "@/config/domain-nav/projects";
 import {
   Card,
   CardContent,
@@ -14,7 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CustomTable } from "@/components/custom-table";
+import { projectNavItems } from "@/config/domain-nav/projects";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [

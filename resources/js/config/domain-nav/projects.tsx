@@ -1,4 +1,5 @@
 import { Briefcase, CalendarCheck2, ClipboardCheck, MapPin, NotebookPen, Users } from "lucide-react";
+
 import { type DomainNavItem } from "@/components/domain-nav";
 
 const isProjectDetailUrl = (url: string) => /^\/projects\/\d+(?:\/.*)?$/.test(url);

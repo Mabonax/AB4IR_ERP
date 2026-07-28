@@ -5,6 +5,8 @@ namespace App\Domains\Beneficiaries\Services;
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Beneficiaries\Repositories\BeneficiaryRepositoryInterface;
 use App\Domains\Beneficiaries\Support\BeneficiaryIdentityMatcher;
+use App\Domains\Members\Models\Member;
+use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Services\ProjectEnrollmentConsistencyService;
 use App\Models\NextOfKin;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -53,9 +55,13 @@ class BeneficiaryService
             $projectId = (int) $data['project_id'];
             $projectLocationId = (int) $data['project_location_id'];
             $attendanceStatus = (string) ($data['attendance_status'] ?? 'active');
+            $programId = $this->resolveProgramId($data, $projectId);
+            $member = $this->syncMemberProfile($data);
             $nextOfKin = $this->upsertNextOfKin(null, $data);
 
             $beneficiary = $this->repository->create([
+                'member_id' => $member?->id,
+                'beneficiary_number' => $this->nextBeneficiaryNumber(),
                 'name' => $this->requiredString($data['name']),
                 'surname' => $this->requiredString($data['surname']),
                 'dob' => $this->normalizeDate($data['dob'] ?? null),
@@ -65,6 +71,11 @@ class BeneficiaryService
                 'phone' => $this->nullableString($data['phone'] ?? null),
                 'gender' => $this->nullableString($data['gender'] ?? null),
                 'project_id' => $projectId,
+                'program_id' => $programId,
+                'enrolment_date' => $this->normalizeDate($data['enrolment_date'] ?? now()->toDateString()),
+                'exit_date' => $this->normalizeDate($data['exit_date'] ?? null),
+                'participation_status' => $this->normalizeParticipationStatus($data['participation_status'] ?? 'registered'),
+                'placement_status' => $this->nullableString($data['placement_status'] ?? null),
                 'street_address' => $this->nullableString($data['street_address'] ?? null),
                 'address_line_2' => $this->nullableString($data['address_line_2'] ?? null),
                 'city' => $this->nullableString($data['city'] ?? null),
@@ -94,9 +105,12 @@ class BeneficiaryService
             $projectId = (int) $data['project_id'];
             $projectLocationId = (int) $data['project_location_id'];
             $attendanceStatus = (string) ($data['attendance_status'] ?? 'active');
+            $programId = $this->resolveProgramId($data, $projectId);
+            $member = $this->syncMemberProfile($data, $beneficiary->member);
             $nextOfKin = $this->upsertNextOfKin($beneficiary->nextOfKin, $data);
 
             $updated = $this->repository->update($beneficiary, [
+                'member_id' => $member?->id,
                 'name' => $this->requiredString($data['name']),
                 'surname' => $this->requiredString($data['surname']),
                 'dob' => $this->normalizeDate($data['dob'] ?? null),
@@ -106,6 +120,11 @@ class BeneficiaryService
                 'phone' => $this->nullableString($data['phone'] ?? null),
                 'gender' => $this->nullableString($data['gender'] ?? null),
                 'project_id' => $projectId,
+                'program_id' => $programId,
+                'enrolment_date' => $this->normalizeDate($data['enrolment_date'] ?? $beneficiary->enrolment_date?->format('Y-m-d')),
+                'exit_date' => $this->normalizeDate($data['exit_date'] ?? null),
+                'participation_status' => $this->normalizeParticipationStatus($data['participation_status'] ?? $beneficiary->participation_status ?? 'registered'),
+                'placement_status' => $this->nullableString($data['placement_status'] ?? null),
                 'street_address' => $this->nullableString($data['street_address'] ?? null),
                 'address_line_2' => $this->nullableString($data['address_line_2'] ?? null),
                 'city' => $this->nullableString($data['city'] ?? null),
@@ -553,6 +572,88 @@ class BeneficiaryService
             'female', 'f' => 'female',
             default => null,
         };
+    }
+
+    protected function normalizeParticipationStatus(mixed $value): string
+    {
+        $normalized = Str::lower((string) $this->nullableString($value));
+
+        return match ($normalized) {
+            'enrolled', 'active', 'completed', 'withdrawn', 'suspended' => $normalized,
+            default => 'registered',
+        };
+    }
+
+    protected function resolveProgramId(array $data, int $projectId): ?int
+    {
+        if (! empty($data['program_id'])) {
+            return (int) $data['program_id'];
+        }
+
+        return Project::query()->whereKey($projectId)->value('program_id');
+    }
+
+    protected function syncMemberProfile(array $data, ?Member $existingMember = null): ?Member
+    {
+        $memberId = ! empty($data['member_id']) ? (int) $data['member_id'] : null;
+        $idNumber = $this->nullableString($data['id_number'] ?? null);
+        $email = $this->normalizeEmail($data['email'] ?? null);
+
+        $member = $memberId
+            ? Member::query()->find($memberId)
+            : $existingMember;
+
+        if (! $member) {
+            if ($idNumber || $email) {
+                $member = Member::query()
+                    ->where(function ($query) use ($idNumber, $email) {
+                        if ($idNumber) {
+                            $query->where('id_number', $idNumber);
+                        }
+
+                        if ($email) {
+                            $idNumber
+                                ? $query->orWhere('email', $email)
+                                : $query->where('email', $email);
+                        }
+                    })
+                    ->first();
+            }
+        }
+
+        if (! $member && $idNumber === null) {
+            return null;
+        }
+
+        $payload = [
+            'first_name' => $this->requiredString($data['name']),
+            'last_name' => $this->requiredString($data['surname']),
+            'id_number' => $idNumber,
+            'date_of_birth' => $this->normalizeDate($data['dob'] ?? null),
+            'gender' => $this->nullableString($data['gender'] ?? null),
+            'phone' => $this->nullableString($data['phone'] ?? null),
+            'email' => $email,
+            'physical_address' => $this->nullableString($data['street_address'] ?? null),
+            'province_id' => ! empty($data['province_id']) ? (int) $data['province_id'] : null,
+            'member_type' => $this->nullableString($data['member_type'] ?? null) ?? 'Beneficiary',
+            'status' => 'active',
+        ];
+
+        if ($member) {
+            $member->fill(array_filter($payload, fn ($value) => $value !== null));
+            $member->save();
+
+            return $member->fresh();
+        }
+
+        return Member::query()->create($payload);
+    }
+
+    protected function nextBeneficiaryNumber(): string
+    {
+        $latestId = (int) Beneficiary::query()->withTrashed()->max('id') + 1;
+
+        return 'BEN-'.str_pad((string) $latestId, 5, '0', STR_PAD_LEFT);
     }
 
     protected function columnIndexFromReference(string $reference): int

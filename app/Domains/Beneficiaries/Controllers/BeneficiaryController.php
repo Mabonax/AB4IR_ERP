@@ -8,6 +8,7 @@ use App\Domains\Beneficiaries\Requests\StoreBeneficiaryRequest;
 use App\Domains\Beneficiaries\Requests\UpdateBeneficiaryRequest;
 use App\Domains\Beneficiaries\Resources\BeneficiaryResource;
 use App\Domains\Beneficiaries\Services\BeneficiaryService;
+use App\Domains\Members\Models\Member;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectLocation;
@@ -192,6 +193,17 @@ class BeneficiaryController extends Controller
                 ->map(fn ($program) => [
                     'id' => $program->id,
                     'title' => $program->title,
+                ]),
+            'members' => Member::query()
+                ->select('id', 'first_name', 'last_name', 'member_type', 'email')
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get()
+                ->map(fn (Member $member) => [
+                    'id' => $member->id,
+                    'name' => trim($member->first_name.' '.$member->last_name),
+                    'member_type' => $member->member_type,
+                    'email' => $member->email,
                 ]),
             'provinces' => Provinces::query()
                 ->select('id', 'name')

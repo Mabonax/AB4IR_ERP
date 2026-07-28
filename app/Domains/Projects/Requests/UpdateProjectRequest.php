@@ -3,6 +3,7 @@
 namespace App\Domains\Projects\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateProjectRequest extends FormRequest
 {
@@ -13,6 +14,8 @@ class UpdateProjectRequest extends FormRequest
 
     public function rules(): array
     {
+        $projectId = $this->route('project');
+
         return [
             'program_id' => 'required|exists:programs,id',
             'sponsor_stakeholder_id' => 'nullable|exists:stakeholders,id',
@@ -20,7 +23,10 @@ class UpdateProjectRequest extends FormRequest
             'partner_stakeholder_ids.*' => 'integer|exists:stakeholders,id|different:sponsor_stakeholder_id',
             'project_manager_id' => 'nullable|exists:staff_members,id',
             'contract_reference' => 'nullable|string|max:255',
+            'project_code' => ['nullable', 'string', 'max:100', Rule::unique('projects', 'project_code')->ignore($projectId)],
+            'primary_location' => 'nullable|string|max:255',
             'funding_amount' => 'nullable|numeric|min:0',
+            'budget' => 'nullable|numeric|min:0',
             'reporting_cadence' => 'nullable|string|max:100',
             'reporting_obligations' => 'nullable|string|max:4000',
             'name' => 'required|string|max:255',
@@ -28,6 +34,7 @@ class UpdateProjectRequest extends FormRequest
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'status' => 'nullable|in:planned,active,completed,on_hold,cancelled',
             'description' => 'nullable|string|max:1000',
+            'target_beneficiaries' => 'nullable|integer|min:0',
         ];
     }
 }

@@ -1,14 +1,13 @@
-import { useMemo, useRef, useState } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import { Upload } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import {
   HorizontalBarChart,
   StackedCompositionChart,
 } from "@/components/charts/dashboard-charts";
-import { CustomTable } from "@/components/custom-table";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { CustomTable } from "@/components/custom-table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
+import AppLayout from "@/layouts/app-layout";
 import beneficiaries from "@/routes/beneficiaries";
 import { type BreadcrumbItem, type SharedData } from "@/types";
 

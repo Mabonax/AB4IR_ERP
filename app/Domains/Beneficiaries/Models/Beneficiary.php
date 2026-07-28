@@ -2,8 +2,12 @@
 
 namespace App\Domains\Beneficiaries\Models;
 
+use App\Domains\Members\Models\Member;
+use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectEnrollment;
+use App\Domains\ServiceDelivery\Models\BeneficiaryPlacement;
+use App\Domains\ServiceDelivery\Models\ServiceAttendance;
 use App\Models\NextOfKin;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +21,8 @@ class Beneficiary extends Model
     protected $table = 'beneficiaries';
 
     protected $fillable = [
+        'member_id',
+        'beneficiary_number',
         'name',
         'surname',
         'dob',
@@ -26,6 +32,11 @@ class Beneficiary extends Model
         'phone',
         'gender',
         'project_id',
+        'program_id',
+        'enrolment_date',
+        'exit_date',
+        'participation_status',
+        'placement_status',
         'street_address',
         'address_line_2',
         'city',
@@ -40,7 +51,14 @@ class Beneficiary extends Model
 
     protected $casts = [
         'dob' => 'date:Y-m-d',
+        'enrolment_date' => 'date:Y-m-d',
+        'exit_date' => 'date:Y-m-d',
     ];
+
+    public function member()
+    {
+        return $this->belongsTo(Member::class);
+    }
 
     public function nextOfKin()
     {
@@ -52,8 +70,23 @@ class Beneficiary extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function program()
+    {
+        return $this->belongsTo(Program::class);
+    }
+
     public function projectEnrollments()
     {
         return $this->hasMany(ProjectEnrollment::class);
+    }
+
+    public function placements()
+    {
+        return $this->hasMany(BeneficiaryPlacement::class);
+    }
+
+    public function attendanceRecords()
+    {
+        return $this->hasMany(ServiceAttendance::class);
     }
 }

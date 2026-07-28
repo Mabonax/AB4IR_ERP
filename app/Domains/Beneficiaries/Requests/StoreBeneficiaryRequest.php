@@ -24,6 +24,7 @@ class StoreBeneficiaryRequest extends FormRequest
             // =========================
             'name' => 'required|string|max:100',
             'surname' => 'required|string|max:100',
+            'member_id' => 'nullable|exists:members,id',
             'dob' => 'nullable|date',
             'age' => 'nullable|integer|min:0',
 
@@ -33,7 +34,13 @@ class StoreBeneficiaryRequest extends FormRequest
 
             'gender' => 'nullable|in:male,female',
             'project_id' => 'required|exists:projects,id',
+            'program_id' => 'nullable|exists:programs,id',
             'project_location_id' => 'required|exists:project_locations,id',
+            'enrolment_date' => 'nullable|date',
+            'exit_date' => 'nullable|date|after_or_equal:enrolment_date',
+            'participation_status' => 'nullable|in:registered,enrolled,active,completed,withdrawn,suspended',
+            'placement_status' => 'nullable|string|max:100',
+            'member_type' => 'nullable|string|max:100',
 
             'street_address' => 'nullable|string|max:255',
             'address_line_2' => 'nullable|string|max:255',

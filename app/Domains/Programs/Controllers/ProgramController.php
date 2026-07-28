@@ -2,10 +2,12 @@
 
 namespace App\Domains\Programs\Controllers;
 
+use App\Domains\Committees\Models\Committee;
 use App\Domains\Programs\Requests\StoreProgramRequest;
 use App\Domains\Programs\Requests\UpdateProgramRequest;
 use App\Domains\Programs\Resources\ProgramResource;
 use App\Domains\Programs\Services\ProgramService;
+use App\Domains\Staff\Models\StaffMember;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -23,6 +25,7 @@ class ProgramController extends Controller
         return Inertia::render('Programs/Dashboard', [
             'stats' => $portfolio['stats'],
             'programs' => $portfolio['programs'],
+            ...$this->formOptions(),
         ]);
     }
 
@@ -62,5 +65,24 @@ class ProgramController extends Controller
         $this->service->delete($program);
 
         return redirect()->back()->with('success', 'Program deleted');
+    }
+
+    protected function formOptions(): array
+    {
+        return [
+            'committees' => Committee::query()
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get(),
+            'staffMembers' => StaffMember::query()
+                ->select('id', 'first_name', 'last_name')
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get()
+                ->map(fn (StaffMember $staffMember) => [
+                    'id' => $staffMember->id,
+                    'name' => trim($staffMember->first_name.' '.$staffMember->last_name),
+                ]),
+        ];
     }
 }

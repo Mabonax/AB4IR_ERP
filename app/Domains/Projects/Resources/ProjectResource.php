@@ -30,7 +30,11 @@ class ProjectResource extends JsonResource
                 ? trim($this->projectManager->first_name.' '.$this->projectManager->last_name)
                 : null,
             'contract_reference' => $this->contract_reference,
+            'project_code' => $this->project_code,
+            'primary_location' => $this->primary_location,
             'funding_amount' => $this->funding_amount !== null ? (float) $this->funding_amount : null,
+            'budget' => $this->budget !== null ? (float) $this->budget : null,
+            'target_beneficiaries' => $this->target_beneficiaries,
             'reporting_cadence' => $this->reporting_cadence,
             'reporting_obligations' => $this->reporting_obligations,
             'name' => $this->name,

@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
 
 import {
 } from "@/components/charts/dashboard-charts";
@@ -7,10 +7,6 @@ import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { CustomModelForm } from "@/components/custom-model-form";
 import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-import { programNavItems } from "@/config/domain-nav/programs";
-import { ProgramModelFormConfig } from "@/config/forms/program-model-form";
-import { ProgramTableConfig } from "@/config/tables/program-table";
-import AppLayout from "@/layouts/app-layout";
 import {
   Card,
   CardContent,
@@ -18,6 +14,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { programNavItems } from "@/config/domain-nav/programs";
+import { ProgramModelFormConfig } from "@/config/forms/program-model-form";
+import { ProgramTableConfig } from "@/config/tables/program-table";
+import AppLayout from "@/layouts/app-layout";
 import programsRoutes from "@/routes/programs";
 import { type BreadcrumbItem } from "@/types";
 
@@ -28,7 +28,18 @@ const breadcrumbs: BreadcrumbItem[] = [
 type ProgramPortfolioRow = {
   id: number;
   title: string;
+  code?: string | null;
   description?: string | null;
+  strategic_objective?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  status?: string | null;
+  budget?: number | null;
+  funding_source?: string | null;
+  responsible_committee_id?: number | null;
+  responsible_committee_name?: string | null;
+  programme_manager_id?: number | null;
+  programme_manager_name?: string | null;
   slug?: string | null;
   projects_count: number;
   active_projects: number;
@@ -46,9 +57,13 @@ type ProgramPortfolioRow = {
 export default function ProgramsDashboard({
   stats,
   programs,
+  committees,
+  staffMembers,
 }: {
   stats: Record<string, number>;
   programs: ProgramPortfolioRow[];
+  committees: Array<{ id: number; name: string }>;
+  staffMembers: Array<{ id: number; name: string }>;
 }) {
   const [open, setOpen] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<any | null>(null);
@@ -58,7 +73,22 @@ export default function ProgramsDashboard({
   const mappedProgramData = selectedProgram
     ? {
         title: selectedProgram.title ?? "",
+        code: selectedProgram.code ?? "",
         description: selectedProgram.description ?? "",
+        strategic_objective: selectedProgram.strategic_objective ?? "",
+        start_date: selectedProgram.start_date ?? "",
+        end_date: selectedProgram.end_date ?? "",
+        status: selectedProgram.status ?? "draft",
+        budget: selectedProgram.budget ?? "",
+        funding_source: selectedProgram.funding_source ?? "",
+        responsible_committee_id:
+          selectedProgram.responsible_committee_id !== null && selectedProgram.responsible_committee_id !== undefined
+            ? String(selectedProgram.responsible_committee_id)
+            : "",
+        programme_manager_id:
+          selectedProgram.programme_manager_id !== null && selectedProgram.programme_manager_id !== undefined
+            ? String(selectedProgram.programme_manager_id)
+            : "",
         slug: selectedProgram.slug ?? "",
       }
     : {};
@@ -83,6 +113,7 @@ export default function ProgramsDashboard({
               description={ProgramModelFormConfig.description}
               fields={ProgramModelFormConfig.fields}
               submitRoute={programsRoutes.store}
+              options={{ committees, staffMembers }}
             />
             <DomainNav items={programNavItems} />
           </div>
@@ -172,6 +203,7 @@ export default function ProgramsDashboard({
             initialData={mappedProgramData}
             submitRoute={programsRoutes.update}
             routeParams={selectedProgram.id}
+            options={{ committees, staffMembers }}
           />
         )}
 

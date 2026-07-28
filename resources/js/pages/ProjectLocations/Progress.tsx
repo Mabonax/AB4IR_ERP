@@ -1,9 +1,7 @@
 import { Head, Link, router } from "@inertiajs/react";
 import { useMemo, useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
-import { projectNavItems } from "@/config/domain-nav/projects";
 import {
   Card,
   CardContent,
@@ -18,6 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { projectNavItems } from "@/config/domain-nav/projects";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -199,7 +199,7 @@ export default function ProjectLocationProgress({
           <CardContent>
             <div className="overflow-x-auto">
               <table className="min-w-full border text-sm">
-                <thead className="bg-gradient-to-r from-red-600 to-orange-500 text-white">
+                <thead className="bg-gradient-to-r from-red-600 to-red-500 text-white">
                   <tr>
                     <th className="px-4 py-2 text-left">Beneficiary</th>
                     {milestoneOptions.map((m) => (

@@ -2,11 +2,11 @@
 
 namespace App\Domains\Programs\Services;
 
-use App\Domains\Projects\Models\Project;
-use App\Domains\Projects\Services\ProjectProgressService;
 use App\Domains\Documents\Services\DocumentFolderService;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Programs\Repositories\ProgramRepositoryInterface;
+use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Services\ProjectProgressService;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -47,6 +47,11 @@ class ProgramService
         $program = Program::query()
             ->withCount(['projects', 'milestoneTemplates'])
             ->with([
+                'responsibleCommittee',
+                'programmeManager',
+                'outcomes',
+                'documents',
+                'partnerships',
                 'milestoneTemplates',
                 'projects.program',
                 'projects.sponsor',
@@ -124,6 +129,11 @@ class ProgramService
         $programs = Program::query()
             ->withCount(['projects', 'milestoneTemplates'])
             ->with([
+                'responsibleCommittee',
+                'programmeManager',
+                'outcomes',
+                'documents',
+                'partnerships',
                 'projects.program',
                 'projects.sponsor',
                 'projects.projectManager',
@@ -145,6 +155,23 @@ class ProgramService
                 return [
                     'id' => $program->id,
                     'title' => $program->title,
+                    'code' => $program->code,
+                    'description' => $program->description,
+                    'strategic_objective' => $program->strategic_objective,
+                    'start_date' => $program->start_date?->format('Y-m-d'),
+                    'end_date' => $program->end_date?->format('Y-m-d'),
+                    'status' => $program->status,
+                    'budget' => $program->budget !== null ? (float) $program->budget : null,
+                    'funding_source' => $program->funding_source,
+                    'responsible_committee_id' => $program->responsible_committee_id,
+                    'programme_manager_name' => $program->programmeManager
+                        ? trim($program->programmeManager->first_name.' '.$program->programmeManager->last_name)
+                        : null,
+                    'programme_manager_id' => $program->programme_manager_id,
+                    'responsible_committee_name' => $program->responsibleCommittee?->name,
+                    'outcomes_count' => $program->outcomes->count(),
+                    'documents_count' => $program->documents->count(),
+                    'partnerships_count' => $program->partnerships->count(),
                     'slug' => $program->slug,
                     'projects_count' => $overview['stats']['total_projects'],
                     'active_projects' => $overview['stats']['active_projects'],

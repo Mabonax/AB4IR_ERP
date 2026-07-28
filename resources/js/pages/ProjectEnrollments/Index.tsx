@@ -1,14 +1,9 @@
-import { useState } from "react";
 import { Head, Link } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import { CustomTable } from "@/components/custom-table";
-
-import { ProjectEnrollmentTableConfig } from "@/config/tables/project-enrollment-table";
 import { DomainNav } from "@/components/domain-nav";
-import { projectNavItems } from "@/config/domain-nav/projects";
-
-import { type BreadcrumbItem } from "@/types";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { projectNavItems } from "@/config/domain-nav/projects";
+import { ProjectEnrollmentTableConfig } from "@/config/tables/project-enrollment-table";
+import AppLayout from "@/layouts/app-layout";
+import { type BreadcrumbItem } from "@/types";
 
 /* =========================================================
 | BREADCRUMBS

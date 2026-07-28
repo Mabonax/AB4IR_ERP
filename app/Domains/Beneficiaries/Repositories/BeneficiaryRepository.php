@@ -11,6 +11,10 @@ class BeneficiaryRepository implements BeneficiaryRepositoryInterface
     protected function baseQuery()
     {
         return Beneficiary::with([
+            'member.province',
+            'member.township',
+            'member.branch',
+            'program',
             'nextOfKin',
             'project.program',
             'projectEnrollments.project.program',

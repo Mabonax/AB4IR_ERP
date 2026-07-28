@@ -9,11 +9,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function BeneficiaryCreate({
   programs,
+  members,
   projects,
   provinces,
   projectLocations,
 }: {
   programs: { id: number; title: string }[];
+  members: { id: number; name: string; member_type?: string | null; email?: string | null }[];
   projects: { id: number; name: string; program_id?: number | null }[];
   provinces: { id: number; name: string }[];
   projectLocations: { id: number; project_id: number; name: string }[];
@@ -27,10 +29,12 @@ export default function BeneficiaryCreate({
       breadcrumbs={breadcrumbs}
       submitRoute={beneficiaries.store()}
       programs={programs}
+      members={members}
       projects={projects}
       provinces={provinces}
       projectLocations={projectLocations}
       initialData={{
+        member_id: "",
         name: "",
         surname: "",
         dob: "",
@@ -39,8 +43,14 @@ export default function BeneficiaryCreate({
         email: "",
         phone: "",
         gender: "",
+        program_id: "",
         project_id: "",
         project_location_id: "",
+        enrolment_date: "",
+        exit_date: "",
+        participation_status: "registered",
+        placement_status: "",
+        member_type: "Beneficiary",
         street_address: "",
         address_line_2: "",
         city: "",

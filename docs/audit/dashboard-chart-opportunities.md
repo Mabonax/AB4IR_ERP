@@ -1,6 +1,6 @@
 # Dashboard Chart Opportunities Audit
 
-This audit reviews the current AB4IRERP dashboard surfaces and identifies where charts would improve manager decision-making, especially around beneficiary decline, milestone completion, attendance health, and workflow pressure.
+This audit reviews the current Programme of Action ERP dashboard surfaces and identifies where charts would improve manager decision-making, especially around beneficiary decline, milestone completion, attendance health, and workflow pressure.
 
 ## Current state
 

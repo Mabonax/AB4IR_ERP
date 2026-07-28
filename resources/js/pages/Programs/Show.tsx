@@ -4,10 +4,6 @@ import {
   HorizontalBarChart,
 } from "@/components/charts/dashboard-charts";
 import { DomainNav } from "@/components/domain-nav";
-import { programNavItems } from "@/config/domain-nav/programs";
-import AppLayout from "@/layouts/app-layout";
-import programs from "@/routes/programs";
-import { type BreadcrumbItem } from "@/types";
 import {
   Card,
   CardContent,
@@ -15,6 +11,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { programNavItems } from "@/config/domain-nav/programs";
+import AppLayout from "@/layouts/app-layout";
+import programs from "@/routes/programs";
+import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Programs", href: programs.index().url },
@@ -24,7 +24,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 type ProgramPayload = {
   id: number;
   title: string;
+  code?: string | null;
   description?: string | null;
+  strategic_objective?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  status?: string | null;
+  budget?: number | null;
+  funding_source?: string | null;
+  responsible_committee_name?: string | null;
+  programme_manager_name?: string | null;
   slug?: string | null;
 };
 
@@ -199,6 +208,14 @@ export default function ProgramShow({
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Programme Code</div>
+                <div className="mt-1 font-medium text-slate-900">{programData.code ?? "-"}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</div>
+                <div className="mt-1 font-medium capitalize text-slate-900">{programData.status ?? "-"}</div>
+              </div>
+              <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Slug</div>
                 <div className="mt-1 font-medium text-slate-900">{programData.slug ?? "-"}</div>
               </div>
@@ -208,7 +225,47 @@ export default function ProgramShow({
                   {programData.description ?? "No program description has been recorded yet."}
                 </div>
               </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Strategic Objective</div>
+                <div className="mt-1 whitespace-pre-wrap text-slate-700">
+                  {programData.strategic_objective ?? "No strategic objective has been recorded yet."}
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Programme manager
+                  </div>
+                  <div className="mt-1 font-medium text-slate-900">{programData.programme_manager_name ?? "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Responsible committee
+                  </div>
+                  <div className="mt-1 font-medium text-slate-900">{programData.responsible_committee_name ?? "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Programme period
+                  </div>
+                  <div className="mt-1 font-medium text-slate-900">
+                    {programData.start_date ?? "-"} to {programData.end_date ?? "-"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Budget
+                  </div>
+                  <div className="mt-1 font-medium text-slate-900">
+                    {programData.budget !== null && programData.budget !== undefined ? Number(programData.budget).toLocaleString() : "-"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Funding source
+                  </div>
+                  <div className="mt-1 font-medium text-slate-900">{programData.funding_source ?? "-"}</div>
+                </div>
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Milestone templates

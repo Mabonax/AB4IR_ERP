@@ -3,6 +3,7 @@
 namespace App\Domains\Projects\Models;
 
 use App\Domains\Programs\Models\Program;
+use App\Domains\Programs\Models\ProgrammeDocument;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Stakeholders\Models\Stakeholder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,16 +24,21 @@ class Project extends Model
         'reporting_cadence',
         'reporting_obligations',
         'name',
+        'project_code',
+        'primary_location',
         'start_date',
         'end_date',
         'status',
         'description',
+        'budget',
+        'target_beneficiaries',
     ];
 
     protected $casts = [
         'start_date' => 'date:Y-m-d',
         'end_date' => 'date:Y-m-d',
         'funding_amount' => 'decimal:2',
+        'budget' => 'decimal:2',
     ];
 
     public function program()
@@ -98,5 +104,15 @@ class Project extends Model
     public function attendanceRegisters()
     {
         return $this->hasMany(AttendanceRegister::class);
+    }
+
+    public function activities()
+    {
+        return $this->hasMany(ProjectActivity::class);
+    }
+
+    public function programmeDocuments()
+    {
+        return $this->hasMany(ProgrammeDocument::class);
     }
 }

@@ -15,6 +15,7 @@ type RouteDef = {
 };
 
 type BeneficiaryFormData = {
+  member_id: string;
   name: string;
   surname: string;
   dob: string;
@@ -23,8 +24,14 @@ type BeneficiaryFormData = {
   email: string;
   phone: string;
   gender: string;
+  program_id: string;
   project_id: string;
   project_location_id: string;
+  enrolment_date: string;
+  exit_date: string;
+  participation_status: string;
+  placement_status: string;
+  member_type: string;
   street_address: string;
   address_line_2: string;
   city: string;
@@ -48,6 +55,7 @@ type Props = {
   submitRoute: RouteDef;
   initialData: BeneficiaryFormData;
   programs: { id: number; title: string }[];
+  members: { id: number; name: string; member_type?: string | null; email?: string | null }[];
   projects: { id: number; name: string; program_id?: number | null }[];
   provinces: { id: number; name: string }[];
   projectLocations: { id: number; project_id: number; name: string }[];
@@ -86,6 +94,7 @@ export function BeneficiaryFormPage({
   submitRoute,
   initialData,
   programs,
+  members,
   projects,
   provinces,
   projectLocations,
@@ -104,13 +113,18 @@ export function BeneficiaryFormPage({
   }, [form.data.project_id, projectLocations]);
 
   const selectedProject = projects.find((project) => String(project.id) === form.data.project_id);
-  const selectedProgram = programs.find((program) => program.id === selectedProject?.program_id);
+  const selectedProgram = programs.find(
+    (program) => String(program.id) === (form.data.program_id || String(selectedProject?.program_id ?? "")),
+  );
   const selectedLocation = filteredLocations.find((location) => String(location.id) === form.data.project_location_id);
+  const selectedMember = members.find((member) => String(member.id) === form.data.member_id);
 
   const handleProjectChange = (value: string) => {
     const projectChanged = form.data.project_id !== value;
+    const project = projects.find((candidate) => String(candidate.id) === value);
 
     form.setData("project_id", value);
+    form.setData("program_id", project?.program_id ? String(project.program_id) : "");
 
     if (!value || projectChanged) {
       form.setData("project_location_id", "");
@@ -147,10 +161,10 @@ export function BeneficiaryFormPage({
           className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"
         >
           <div className="space-y-5">
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <UserRound className="h-4 w-4" />
                   </div>
                   <div>
@@ -160,6 +174,20 @@ export function BeneficiaryFormPage({
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Field label="Linked Member" error={form.errors.member_id}>
+                  <select
+                    value={form.data.member_id}
+                    onChange={(event) => form.setData("member_id", event.target.value)}
+                    className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="">Create or auto-link member</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <Field label="First Name" required error={form.errors.name}>
                   <Input value={form.data.name} onChange={(event) => form.setData("name", event.target.value)} />
                 </Field>
@@ -205,10 +233,10 @@ export function BeneficiaryFormPage({
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <GraduationCap className="h-4 w-4" />
                   </div>
                   <div>
@@ -218,6 +246,20 @@ export function BeneficiaryFormPage({
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Field label="Programme" error={form.errors.program_id}>
+                  <select
+                    value={form.data.program_id}
+                    onChange={(event) => form.setData("program_id", event.target.value)}
+                    className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="">Select programme</option>
+                    {programs.map((program) => (
+                      <option key={program.id} value={program.id}>
+                        {program.title}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <Field label="Project" required error={form.errors.project_id}>
                   <select
                     value={form.data.project_id}
@@ -252,13 +294,39 @@ export function BeneficiaryFormPage({
                 <Field label="Highest Qualification" error={form.errors.highest_qualification}>
                   <Input value={form.data.highest_qualification} onChange={(event) => form.setData("highest_qualification", event.target.value)} />
                 </Field>
+                <Field label="Enrolment Date" error={form.errors.enrolment_date}>
+                  <Input type="date" value={form.data.enrolment_date} onChange={(event) => form.setData("enrolment_date", event.target.value)} />
+                </Field>
+                <Field label="Exit Date" error={form.errors.exit_date}>
+                  <Input type="date" value={form.data.exit_date} onChange={(event) => form.setData("exit_date", event.target.value)} />
+                </Field>
+                <Field label="Participation Status" error={form.errors.participation_status}>
+                  <select
+                    value={form.data.participation_status}
+                    onChange={(event) => form.setData("participation_status", event.target.value)}
+                    className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="registered">Registered</option>
+                    <option value="enrolled">Enrolled</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="withdrawn">Withdrawn</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </Field>
+                <Field label="Placement Status" error={form.errors.placement_status}>
+                  <Input value={form.data.placement_status} onChange={(event) => form.setData("placement_status", event.target.value)} placeholder="Placed, pending, completed" />
+                </Field>
+                <Field label="Member Type" error={form.errors.member_type}>
+                  <Input value={form.data.member_type} onChange={(event) => form.setData("member_type", event.target.value)} placeholder="Beneficiary" />
+                </Field>
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <MapPinned className="h-4 w-4" />
                   </div>
                   <div>
@@ -302,10 +370,10 @@ export function BeneficiaryFormPage({
               </CardContent>
             </Card>
 
-            <Card className="border-orange-100 shadow-sm">
+            <Card className="border-red-100 shadow-sm">
               <CardHeader>
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl bg-orange-50 p-2 text-orange-600">
+                  <div className="rounded-xl bg-red-50 p-2 text-red-600">
                     <HeartHandshake className="h-4 w-4" />
                   </div>
                   <div>
@@ -353,6 +421,10 @@ export function BeneficiaryFormPage({
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-slate-200">
                 <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400">Linked Member</div>
+                  <div className="mt-1 font-medium text-white">{selectedMember?.name ?? "Will be created or auto-linked"}</div>
+                </div>
+                <div>
                   <div className="text-xs uppercase tracking-wide text-slate-400">Programme</div>
                   <div className="mt-1 font-medium text-white">{selectedProgram?.title ?? "Not selected"}</div>
                 </div>
@@ -368,6 +440,12 @@ export function BeneficiaryFormPage({
                   <div className="text-xs uppercase tracking-wide text-slate-400">Attendance Status</div>
                   <div className="mt-1 font-medium capitalize text-white">
                     {form.data.attendance_status || "Not selected"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-400">Participation Status</div>
+                  <div className="mt-1 font-medium capitalize text-white">
+                    {form.data.participation_status || "Not selected"}
                   </div>
                 </div>
               </CardContent>

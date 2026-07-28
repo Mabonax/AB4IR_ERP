@@ -15,7 +15,9 @@ type ProjectOption = { id: number; title?: string; name?: string };
 type ProjectData = {
   id?: number;
   name: string;
+  project_code: string;
   description: string;
+  primary_location: string;
   start_date: string;
   end_date: string;
   status: string;
@@ -25,6 +27,8 @@ type ProjectData = {
   project_manager_id: string;
   contract_reference: string;
   funding_amount: string;
+  budget: string;
+  target_beneficiaries: string;
   reporting_cadence: string;
   reporting_obligations: string;
 };
@@ -46,7 +50,9 @@ type ProjectFormPageProps = {
 
 const defaultProjectData: ProjectData = {
   name: "",
+  project_code: "",
   description: "",
+  primary_location: "",
   start_date: "",
   end_date: "",
   status: "planned",
@@ -56,6 +62,8 @@ const defaultProjectData: ProjectData = {
   project_manager_id: "",
   contract_reference: "",
   funding_amount: "",
+  budget: "",
+  target_beneficiaries: "",
   reporting_cadence: "",
   reporting_obligations: "",
 };
@@ -146,6 +154,28 @@ export function ProjectFormPage({
                 </div>
 
                 <div>
+                  <Label htmlFor="project-code">Project Code</Label>
+                  <Input
+                    id="project-code"
+                    value={form.data.project_code}
+                    onChange={(event) => form.setData("project_code", event.target.value)}
+                    placeholder="PROJ-001"
+                  />
+                  {form.errors.project_code ? <p className="mt-1 text-sm text-red-600">{form.errors.project_code}</p> : null}
+                </div>
+
+                <div>
+                  <Label htmlFor="project-primary-location">Primary Location</Label>
+                  <Input
+                    id="project-primary-location"
+                    value={form.data.primary_location}
+                    onChange={(event) => form.setData("primary_location", event.target.value)}
+                    placeholder="Johannesburg South"
+                  />
+                  {form.errors.primary_location ? <p className="mt-1 text-sm text-red-600">{form.errors.primary_location}</p> : null}
+                </div>
+
+                <div>
                   <Label htmlFor="project-start-date">Start Date</Label>
                   <Input
                     id="project-start-date"
@@ -182,6 +212,33 @@ export function ProjectFormPage({
                     ))}
                   </select>
                   {form.errors.status ? <p className="mt-1 text-sm text-red-600">{form.errors.status}</p> : null}
+                </div>
+
+                <div>
+                  <Label htmlFor="project-budget">Project Budget</Label>
+                  <Input
+                    id="project-budget"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.data.budget}
+                    onChange={(event) => form.setData("budget", event.target.value)}
+                    placeholder="0.00"
+                  />
+                  {form.errors.budget ? <p className="mt-1 text-sm text-red-600">{form.errors.budget}</p> : null}
+                </div>
+
+                <div>
+                  <Label htmlFor="project-target-beneficiaries">Target Beneficiaries</Label>
+                  <Input
+                    id="project-target-beneficiaries"
+                    type="number"
+                    min="0"
+                    value={form.data.target_beneficiaries}
+                    onChange={(event) => form.setData("target_beneficiaries", event.target.value)}
+                    placeholder="0"
+                  />
+                  {form.errors.target_beneficiaries ? <p className="mt-1 text-sm text-red-600">{form.errors.target_beneficiaries}</p> : null}
                 </div>
 
                 <div className="sm:col-span-2">
