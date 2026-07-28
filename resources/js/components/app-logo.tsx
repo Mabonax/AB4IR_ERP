@@ -1,16 +1,13 @@
-import AppLogoIcon from './app-logo-icon';
+import BrandMark from './brand-mark';
 
 export default function AppLogo() {
     return (
-        <>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-gradient-to-br from-red-600 to-orange-500 text-white">
-                <AppLogoIcon className="size-5 fill-current text-white" />
-            </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-tight font-semibold">
-                    AB4IR ERP
-                </span>
-            </div>
-        </>
+        <BrandMark
+            className="flex items-center gap-3"
+            iconClassName="h-10 w-auto max-w-[11rem] object-contain"
+            textClassName="hidden"
+            variant="horizontal"
+            showWordmark={false}
+        />
     );
 }

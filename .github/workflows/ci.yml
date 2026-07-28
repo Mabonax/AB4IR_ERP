@@ -61,7 +61,7 @@ jobs:
           mkdir -p database bootstrap/cache
           touch database/database.sqlite
           {
-            echo "APP_NAME=AB4IRERP"
+            echo "APP_NAME=Programme of Action ERP"
             echo "APP_ENV=testing"
             echo "APP_DEBUG=true"
             echo "APP_URL=http://localhost"
@@ -104,7 +104,7 @@ jobs:
         run: |
           cp .env.example .env
           {
-            echo "APP_NAME=AB4IRERP"
+            echo "APP_NAME=Programme of Action ERP"
             echo "APP_KEY=base64:ci-only-placeholder-ci-only-placeholder"
           } >> .env
 
@@ -117,7 +117,7 @@ jobs:
           context: .
           target: app
           load: true
-          tags: ghcr.io/mabonax/ab4ir_erp-app:ci-test
+          tags: ghcr.io/mabonax/poa_erp-app:ci-test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -127,6 +127,6 @@ jobs:
           context: .
           target: web
           load: true
-          tags: ghcr.io/mabonax/ab4ir_erp-web:ci-test
+          tags: ghcr.io/mabonax/poa_erp-web:ci-test
           cache-from: type=gha
           cache-to: type=gha,mode=max

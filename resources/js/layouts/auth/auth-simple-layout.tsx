@@ -1,7 +1,9 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 
+import BrandMark from '@/components/brand-mark';
 import { home } from '@/routes';
+import { type SharedData } from '@/types';
 
 interface AuthLayoutProps {
     name?: string;
@@ -14,6 +16,8 @@ export default function AuthSimpleLayout({
     title,
     description,
 }: PropsWithChildren<AuthLayoutProps>) {
+    const { brand } = usePage<SharedData>().props;
+
     return (
         <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
             <div className="w-full max-w-sm">
@@ -23,20 +27,17 @@ export default function AuthSimpleLayout({
                             href={home()}
                             className="flex flex-col items-center gap-2 font-medium"
                         >
-                            <div className="mb-1 flex items-center justify-center rounded-md">
-                                <img
-                                    src="/logo.png"
-                                    alt="AB4IR ERP Logo"
-                                    className="h-14 w-14 object-contain"
-                                />
-                            </div>
-                            <span className="text-lg font-semibold tracking-wide">AB4IR ERP</span>
+                            <BrandMark
+                                className="mb-1 flex flex-col items-center gap-3"
+                                iconClassName="h-14 w-14 object-contain"
+                                textClassName="text-center"
+                            />
                         </Link>
 
                         <div className="space-y-2 text-center">
                             <h1 className="text-xl font-medium">{title}</h1>
                             <p className="text-center text-sm text-muted-foreground">
-                                {description}
+                                {description ?? brand?.tagline}
                             </p>
                         </div>
                     </div>

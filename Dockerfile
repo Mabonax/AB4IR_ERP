@@ -66,7 +66,7 @@ WORKDIR /var/www/html
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
-    APP_NAME=AB4IRERP \
+    APP_NAME="Programme of Action ERP" \
     APP_URL=http://localhost \
     APP_KEY=base64:build-only-placeholder-build-only-placeholder \
     LOG_CHANNEL=stderr \

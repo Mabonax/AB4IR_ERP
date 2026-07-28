@@ -1,9 +1,5 @@
-import { SVGAttributes } from 'react';
+import { ImgHTMLAttributes } from 'react';
 
-export default function AppLogoIcon(props: SVGAttributes<SVGElement>) {
-    return (
-        <svg {...props} viewBox="0 0 40 42" xmlns="http://www.w3.org/2000/svg">
-            
-        </svg>
-    );
+export default function AppLogoIcon(props: ImgHTMLAttributes<HTMLImageElement>) {
+    return <img {...props} src={props.src ?? '/poa-assets/poa-logo-icon.png'} alt={props.alt ?? 'POA logo'} />;
 }

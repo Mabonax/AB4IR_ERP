@@ -1,6 +1,6 @@
 # PTPI Organization Blueprint
 
-This blueprint defines how PTPI should be organized inside AB4IRERP so it remains usable, scalable, and aligned with the existing domain-driven Laravel plus Inertia architecture.
+This blueprint defines how PTPI should be organized inside Programme of Action ERP so it remains usable, scalable, and aligned with the existing domain-driven Laravel plus Inertia architecture.
 
 It is intentionally structured around information architecture, user intent, and domain ownership first. UI styling and motion come after that.
 

@@ -6,7 +6,7 @@ Canonical shared location:
 
 `C:\Users\John Mabona\Documents\DEV\Shared\WebAppLauncher`
 
-Use it when a project needs a branded Windows shell for a browser-hosted system such as AB4IR ERP, Dr Health, PTPI Portal, or a future SaaS product.
+Use it when a project needs a branded Windows shell for a browser-hosted system such as Programme of Action ERP, Dr Health, PTPI Portal, or a future SaaS product.
 
 ## Reuse Workflow
 

@@ -1,7 +1,7 @@
-name: ${COMPOSE_PROJECT_NAME:-ab4irerp}
+name: ${COMPOSE_PROJECT_NAME:-poaerp}
 
 x-app-environment: &app-environment
-  APP_NAME: ${APP_NAME:-AB4IRERP}
+  APP_NAME: ${APP_NAME:-Programme of Action ERP}
   APP_ENV: ${APP_ENV:-production}
   APP_DEBUG: ${APP_DEBUG:-false}
   APP_URL: ${APP_URL:-http://localhost}
@@ -10,13 +10,13 @@ x-app-environment: &app-environment
   LOG_LEVEL: ${LOG_LEVEL:-info}
   RELEASE_SHA: ${RELEASE_SHA:-unknown}
   DEPLOYED_AT: ${DEPLOYED_AT:-unknown}
-  APP_RUNTIME_IMAGE_REF: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-app:latest}
-  WEB_RUNTIME_IMAGE_REF: ${WEB_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-web:latest}
+  APP_RUNTIME_IMAGE_REF: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/poa_erp-app:latest}
+  WEB_RUNTIME_IMAGE_REF: ${WEB_RUNTIME_IMAGE:-ghcr.io/mabonax/poa_erp-web:latest}
   DB_CONNECTION: ${DB_CONNECTION:-mysql}
   DB_HOST: ${DB_HOST:-mysql}
   DB_PORT: ${DB_PORT:-3306}
-  DB_DATABASE: ${DB_DATABASE:-ab4irerp}
-  DB_USERNAME: ${DB_USERNAME:-ab4irerp}
+  DB_DATABASE: ${DB_DATABASE:-poaerp}
+  DB_USERNAME: ${DB_USERNAME:-poaerp}
   DB_PASSWORD: ${DB_PASSWORD:-change-me-db-password}
   CACHE_STORE: ${CACHE_STORE:-redis}
   QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
@@ -43,7 +43,7 @@ x-app-environment: &app-environment
   SCHEDULER_HEARTBEAT_TTL: ${SCHEDULER_HEARTBEAT_TTL:-180}
 
 x-app-service: &app-service
-  image: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-app:latest}
+  image: ${APP_RUNTIME_IMAGE:-ghcr.io/mabonax/poa_erp-app:latest}
   build:
     context: .
     target: app
@@ -79,7 +79,7 @@ services:
       start_period: 30s
 
   web:
-    image: ${WEB_RUNTIME_IMAGE:-ghcr.io/mabonax/ab4ir_erp-web:latest}
+    image: ${WEB_RUNTIME_IMAGE:-ghcr.io/mabonax/poa_erp-web:latest}
     build:
       context: .
       target: web
@@ -159,8 +159,8 @@ services:
     init: true
     stop_grace_period: 60s
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-ab4irerp}
-      MYSQL_USER: ${DB_USERNAME:-ab4irerp}
+      MYSQL_DATABASE: ${DB_DATABASE:-poaerp}
+      MYSQL_USER: ${DB_USERNAME:-poaerp}
       MYSQL_PASSWORD: ${DB_PASSWORD:-change-me-db-password}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-change-me-root-password}
     volumes:

@@ -12,8 +12,8 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  APP_IMAGE_NAME: mabonax/ab4ir_erp-app
-  WEB_IMAGE_NAME: mabonax/ab4ir_erp-web
+  APP_IMAGE_NAME: mabonax/poa_erp-app
+  WEB_IMAGE_NAME: mabonax/poa_erp-web
 
 jobs:
   build-and-push:

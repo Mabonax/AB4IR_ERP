@@ -7,7 +7,7 @@ if [[ "${remote_url}" != git@github.com:* ]]; then
     echo "Git remote is not using GitHub SSH." >&2
     echo "Current remote: ${remote_url}" >&2
     echo "Fix it with:" >&2
-    echo "  git remote set-url origin git@github.com:Mabonax/AB4IR_ERP.git" >&2
+    echo "  git remote set-url origin git@github.com:Mabonax/poa_erp.git" >&2
     exit 1
 fi
 

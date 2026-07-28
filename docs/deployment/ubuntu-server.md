@@ -81,14 +81,14 @@ Do not use HTTPS cloning for the server checkout.
 Recommended:
 
 ```bash
-git clone git@github.com:Mabonax/AB4IR_ERP.git /var/www/ab4irerp
-cd /var/www/ab4irerp
+git clone git@github.com:Mabonax/poa_erp.git /var/www/poaerp
+cd /var/www/poaerp
 ```
 
 If the repo already exists and was cloned with HTTPS, fix it:
 
 ```bash
-git remote set-url origin git@github.com:Mabonax/AB4IR_ERP.git
+git remote set-url origin git@github.com:Mabonax/poa_erp.git
 ```
 
 Verify SSH access:
@@ -113,7 +113,7 @@ cp .env.example .env
 
 Minimum production values:
 
-- `APP_NAME=AB4IRERP`
+- `APP_NAME=Programme of Action ERP`
 - `APP_ENV=production`
 - `APP_DEBUG=false`
 - `APP_URL=https://your-final-hostname`
@@ -205,8 +205,8 @@ What it does:
 When using SHA-pinned GHCR images:
 
 ```bash
-APP_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-app:sha-<commit-sha> \
-WEB_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-web:sha-<commit-sha> \
+APP_RUNTIME_IMAGE=ghcr.io/mabonax/poa_erp-app:sha-<commit-sha> \
+WEB_RUNTIME_IMAGE=ghcr.io/mabonax/poa_erp-web:sha-<commit-sha> \
 GHCR_USERNAME=<ghcr-user> \
 GHCR_TOKEN=<ghcr-token> \
 bash scripts/deployment/deploy-release.sh
@@ -217,8 +217,8 @@ bash scripts/deployment/deploy-release.sh
 Rollback is image-tag based. Reuse a previously known-good SHA tag:
 
 ```bash
-APP_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-app:sha-<old-sha> \
-WEB_RUNTIME_IMAGE=ghcr.io/mabonax/ab4ir_erp-web:sha-<old-sha> \
+APP_RUNTIME_IMAGE=ghcr.io/mabonax/poa_erp-app:sha-<old-sha> \
+WEB_RUNTIME_IMAGE=ghcr.io/mabonax/poa_erp-web:sha-<old-sha> \
 GHCR_USERNAME=<ghcr-user> \
 GHCR_TOKEN=<ghcr-token> \
 bash scripts/deployment/deploy-release.sh
@@ -397,7 +397,7 @@ Only use the following when you intentionally want to destroy the current Docker
 
 ```bash
 docker compose down -v
-docker volume ls | grep ab4irerp
+docker volume ls | grep poaerp
 docker compose up -d mysql redis
 ```
 
