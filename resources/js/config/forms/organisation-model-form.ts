@@ -1,0 +1,123 @@
+import { CirclePlus } from "lucide-react";
+
+export const OrganisationModelFormConfig = {
+  title: "Organisation Registry Form",
+  description: "Register or update the legal entities operating inside Programme of Action ERP.",
+  addButton: {
+    id: "add-organisation-button",
+    label: "Add Organisation",
+    className: "rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700",
+    icon: CirclePlus,
+    type: "button",
+    variant: "default",
+  },
+  fields: [
+    {
+      id: "organisation-name",
+      name: "name",
+      label: "Organisation Name",
+      type: "text",
+      required: true,
+      autoFocus: true,
+    },
+    {
+      id: "organisation-registration-number",
+      name: "registration_number",
+      label: "Registration Number",
+      type: "text",
+      required: true,
+    },
+    {
+      id: "organisation-type",
+      name: "organisation_type",
+      label: "Organisation Type",
+      type: "select",
+      required: true,
+      options: [
+        { label: "NPC", value: "NPC" },
+        { label: "NPO", value: "NPO" },
+        { label: "PBO", value: "PBO" },
+        { label: "Hybrid", value: "Hybrid" },
+      ],
+    },
+    {
+      id: "organisation-status",
+      name: "status",
+      label: "Status",
+      type: "select",
+      required: true,
+      options: [
+        { label: "Active", value: "active" },
+        { label: "Inactive", value: "inactive" },
+        { label: "Pending", value: "pending" },
+        { label: "Suspended", value: "suspended" },
+      ],
+    },
+    {
+      id: "organisation-npo-number",
+      name: "npo_number",
+      label: "NPO Number",
+      type: "text",
+    },
+    {
+      id: "organisation-pbo-number",
+      name: "pbo_number",
+      label: "PBO Number",
+      type: "text",
+    },
+    {
+      id: "organisation-tax-reference",
+      name: "tax_reference_number",
+      label: "Tax Reference Number",
+      type: "text",
+    },
+    {
+      id: "organisation-constitution-version",
+      name: "constitution_version",
+      label: "Constitution Version",
+      type: "text",
+    },
+    {
+      id: "organisation-registered-at",
+      name: "registered_at",
+      label: "Registered At",
+      type: "date",
+    },
+    {
+      id: "organisation-npo-registered-at",
+      name: "npo_registered_at",
+      label: "NPO Registered At",
+      type: "date",
+    },
+    {
+      id: "organisation-pbo-registered-at",
+      name: "pbo_registered_at",
+      label: "PBO Registered At",
+      type: "date",
+    },
+    {
+      id: "organisation-contact-person",
+      name: "contact_details.contact_person",
+      label: "Contact Person",
+      type: "text",
+    },
+    {
+      id: "organisation-contact-email",
+      name: "contact_details.email",
+      label: "Contact Email",
+      type: "email",
+    },
+    {
+      id: "organisation-contact-phone",
+      name: "contact_details.phone",
+      label: "Contact Phone",
+      type: "text",
+    },
+    {
+      id: "organisation-contact-address",
+      name: "contact_details.address",
+      label: "Contact Address",
+      type: "textarea",
+    },
+  ],
+};

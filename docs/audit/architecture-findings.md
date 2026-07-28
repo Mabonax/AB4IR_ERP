@@ -2,7 +2,7 @@
 
 ## 1. The DDD Direction Is Real
 
-The project is clearly no longer a flat Laravel app. Repositories are bound centrally in [AppServiceProvider.php](/C:/xampp/htdocs/AB4IRERP/app/Providers/AppServiceProvider.php:49), most operational domains have service layers, and route ownership is organized around domain controllers in [routes/web.php](/C:/xampp/htdocs/AB4IRERP/routes/web.php:33).
+The project is clearly no longer a flat Laravel app. Repositories are bound centrally in [AppServiceProvider.php](/C:/xampp/program-of-action-erp/app/Providers/AppServiceProvider.php:49), most operational domains have service layers, and route ownership is organized around domain controllers in [routes/web.php](/C:/xampp/program-of-action-erp/routes/web.php:33).
 
 Assessment:
 
@@ -12,9 +12,9 @@ Assessment:
 
 ## 2. Authorization Is Broad But Not Yet Uniform
 
-Route-level permission gates are consistently applied across the app in [routes/web.php](/C:/xampp/htdocs/AB4IRERP/routes/web.php:33). Access control seeding is also thoughtful and domain-based in [AccessControlSeeder.php](/C:/xampp/htdocs/AB4IRERP/database/seeders/AccessControlSeeder.php:19).
+Route-level permission gates are consistently applied across the app in [routes/web.php](/C:/xampp/program-of-action-erp/routes/web.php:33). Access control seeding is also thoughtful and domain-based in [AccessControlSeeder.php](/C:/xampp/program-of-action-erp/database/seeders/AccessControlSeeder.php:19).
 
-However, explicit model policy enforcement is narrow. The clearest policy implementation is adjudication, registered in [AppServiceProvider.php](/C:/xampp/htdocs/AB4IRERP/app/Providers/AppServiceProvider.php:127).
+However, explicit model policy enforcement is narrow. The clearest policy implementation is adjudication, registered in [AppServiceProvider.php](/C:/xampp/program-of-action-erp/app/Providers/AppServiceProvider.php:127).
 
 Implication:
 
@@ -38,14 +38,14 @@ This is a strong sign that the codebase is already thinking in workflow units, n
 
 Examples:
 
-- [BeneficiaryService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Beneficiaries/Services/BeneficiaryService.php:48)
-- [ProjectService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Projects/Services/ProjectService.php:37)
-- [AssetService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Assets/Services/AssetService.php:40)
-- [AdjudicationAssessmentService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/BusinessDevelopment/Adjudication/Services/AdjudicationAssessmentService.php:55)
+- [BeneficiaryService.php](/C:/xampp/program-of-action-erp/app/Domains/Beneficiaries/Services/BeneficiaryService.php:48)
+- [ProjectService.php](/C:/xampp/program-of-action-erp/app/Domains/Projects/Services/ProjectService.php:37)
+- [AssetService.php](/C:/xampp/program-of-action-erp/app/Domains/Assets/Services/AssetService.php:40)
+- [AdjudicationAssessmentService.php](/C:/xampp/program-of-action-erp/app/Domains/BusinessDevelopment/Adjudication/Services/AdjudicationAssessmentService.php:55)
 
 ## 4. Controller Leakage Still Exists
 
-Some domains still carry substantial workflow logic inside controllers. The biggest example is leave management in [LeaveRequestController.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Leave/Controllers/LeaveRequestController.php:20). Attendance control also mixes authorization, validation, and workflow orchestration inside [ProjectAttendanceController.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Projects/Controllers/ProjectAttendanceController.php:126).
+Some domains still carry substantial workflow logic inside controllers. The biggest example is leave management in [LeaveRequestController.php](/C:/xampp/program-of-action-erp/app/Domains/Leave/Controllers/LeaveRequestController.php:20). Attendance control also mixes authorization, validation, and workflow orchestration inside [ProjectAttendanceController.php](/C:/xampp/program-of-action-erp/app/Domains/Projects/Controllers/ProjectAttendanceController.php:126).
 
 Implication:
 
@@ -58,8 +58,8 @@ The shared React abstractions are useful, but typing has drifted from actual pag
 
 High-signal hotspots:
 
-- [custom-model-form.tsx](/C:/xampp/htdocs/AB4IRERP/resources/js/components/custom-model-form.tsx:22)
-- [custom-table.tsx](/C:/xampp/htdocs/AB4IRERP/resources/js/components/custom-table.tsx:5)
+- [custom-model-form.tsx](/C:/xampp/program-of-action-erp/resources/js/components/custom-model-form.tsx:22)
+- [custom-table.tsx](/C:/xampp/program-of-action-erp/resources/js/components/custom-table.tsx:5)
 
 Observed consequences from `npm run types`:
 
@@ -75,12 +75,12 @@ This is now a platform issue, not a page issue.
 The most visible failures come from settings/profile tests that assume unrestricted authenticated access. That assumption no longer holds because routes now require explicit permissions.
 
 Reference:
-- [ProfileUpdateTest.php](/C:/xampp/htdocs/AB4IRERP/tests/Feature/Settings/ProfileUpdateTest.php:7)
+- [ProfileUpdateTest.php](/C:/xampp/program-of-action-erp/tests/Feature/Settings/ProfileUpdateTest.php:7)
 
 At the same time, adjudication tests show the newer architecture pattern is testable and already partially covered.
 
 Reference:
-- [BusinessDevelopmentAdjudicationAssessmentTest.php](/C:/xampp/htdocs/AB4IRERP/tests/Feature/BusinessDevelopmentAdjudicationAssessmentTest.php:81)
+- [BusinessDevelopmentAdjudicationAssessmentTest.php](/C:/xampp/program-of-action-erp/tests/Feature/BusinessDevelopmentAdjudicationAssessmentTest.php:81)
 
 Implication:
 

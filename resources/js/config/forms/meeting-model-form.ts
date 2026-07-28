@@ -1,0 +1,87 @@
+import { CirclePlus } from "lucide-react";
+
+export const MeetingModelFormConfig = {
+  description: "Schedule formal governance meetings and maintain their records.",
+  addButton: {
+    id: "add-meeting-button",
+    label: "Add Meeting",
+    className: "rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700",
+    icon: CirclePlus,
+    type: "button",
+    variant: "default",
+  },
+  fields: [
+    {
+      id: "meeting-organisation-id",
+      name: "organisation_id",
+      label: "Organisation",
+      type: "select",
+      required: true,
+      optionsSource: "organisations",
+      optionLabel: "name",
+      optionValue: "id",
+    },
+    {
+      id: "meeting-committee-id",
+      name: "committee_id",
+      label: "Committee",
+      type: "select",
+      optionsSource: "committees",
+      optionLabel: "name",
+      optionValue: "id",
+    },
+    {
+      id: "meeting-number",
+      name: "meeting_number",
+      label: "Meeting Number",
+      type: "text",
+      required: true,
+      autoFocus: true,
+    },
+    {
+      id: "meeting-title",
+      name: "title",
+      label: "Title",
+      type: "text",
+      required: true,
+    },
+    {
+      id: "meeting-date",
+      name: "meeting_date",
+      label: "Meeting Date",
+      type: "date",
+      required: true,
+    },
+    {
+      id: "meeting-location",
+      name: "location",
+      label: "Location",
+      type: "text",
+    },
+    {
+      id: "meeting-status",
+      name: "status",
+      label: "Status",
+      type: "select",
+      required: true,
+      options: [
+        { label: "Draft", value: "draft" },
+        { label: "Scheduled", value: "scheduled" },
+        { label: "Completed", value: "completed" },
+        { label: "Cancelled", value: "cancelled" },
+      ],
+    },
+    {
+      id: "meeting-agenda",
+      name: "agenda",
+      label: "Agenda",
+      type: "textarea",
+    },
+    {
+      id: "meeting-minutes",
+      name: "minutes",
+      label: "Minutes",
+      type: "textarea",
+    },
+  ],
+};

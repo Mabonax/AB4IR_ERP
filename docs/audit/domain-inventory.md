@@ -27,8 +27,8 @@ This inventory focuses on delivery maturity, enforcement maturity, and the likel
 - `ProjectAttendanceController` contains substantial access and workflow logic that should eventually be partially moved into dedicated policies/services.
 
 References:
-- [ProjectService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Projects/Services/ProjectService.php:35)
-- [ProjectAttendanceController.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Projects/Controllers/ProjectAttendanceController.php:126)
+- [ProjectService.php](/C:/xampp/program-of-action-erp/app/Domains/Projects/Services/ProjectService.php:35)
+- [ProjectAttendanceController.php](/C:/xampp/program-of-action-erp/app/Domains/Projects/Controllers/ProjectAttendanceController.php:126)
 
 ## Business Development
 
@@ -37,9 +37,9 @@ References:
 - This is currently the best example of transactional workflow plus explicit policy enforcement.
 
 References:
-- [BdsApplicationService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/BusinessDevelopment/Services/BdsApplicationService.php:40)
-- [AdjudicationAssessmentService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/BusinessDevelopment/Adjudication/Services/AdjudicationAssessmentService.php:47)
-- [AdjudicationAssessmentPolicy.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/BusinessDevelopment/Adjudication/Policies/AdjudicationAssessmentPolicy.php:8)
+- [BdsApplicationService.php](/C:/xampp/program-of-action-erp/app/Domains/BusinessDevelopment/Services/BdsApplicationService.php:40)
+- [AdjudicationAssessmentService.php](/C:/xampp/program-of-action-erp/app/Domains/BusinessDevelopment/Adjudication/Services/AdjudicationAssessmentService.php:47)
+- [AdjudicationAssessmentPolicy.php](/C:/xampp/program-of-action-erp/app/Domains/BusinessDevelopment/Adjudication/Policies/AdjudicationAssessmentPolicy.php:8)
 
 ## Assets
 
@@ -48,7 +48,7 @@ References:
 - Good candidate for transaction-policy hardening because the workflow is already explicit.
 
 Reference:
-- [AssetService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Assets/Services/AssetService.php:38)
+- [AssetService.php](/C:/xampp/program-of-action-erp/app/Domains/Assets/Services/AssetService.php:38)
 
 ## Beneficiaries
 
@@ -57,7 +57,7 @@ Reference:
 - Important because it likely sits near the center of incubator beneficiary operations.
 
 Reference:
-- [BeneficiaryService.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Beneficiaries/Services/BeneficiaryService.php:42)
+- [BeneficiaryService.php](/C:/xampp/program-of-action-erp/app/Domains/Beneficiaries/Services/BeneficiaryService.php:42)
 
 ## Staff and Leave
 
@@ -66,7 +66,7 @@ Reference:
 - This area should be treated as a workflow-hardening pass, not just a refactor pass.
 
 Reference:
-- [LeaveRequestController.php](/C:/xampp/htdocs/AB4IRERP/app/Domains/Leave/Controllers/LeaveRequestController.php:20)
+- [LeaveRequestController.php](/C:/xampp/program-of-action-erp/app/Domains/Leave/Controllers/LeaveRequestController.php:20)
 
 ## Supporting Domains
 
