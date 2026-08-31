@@ -222,7 +222,7 @@ class LeaveRequestController extends Controller
             'document_kind' => 'nullable|in:signed_leave_form,medical_certificate,manager_support,other',
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:25600',
+            'file' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:51200',
         ]);
 
         $this->leaveRequestDocumentService->upload($leave, $data, $request->user());

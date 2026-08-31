@@ -17,7 +17,7 @@ class EventClosureAssetUploadRequest extends FormRequest
         return [
             'category' => ['required', Rule::in(['supporting_document', 'photo'])],
             'description' => 'nullable|string|max:2000',
-            'file' => 'required|file|max:20480|mimes:pdf,doc,docx,xls,xlsx,csv,txt,png,jpg,jpeg,webp',
+            'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,csv,txt,png,jpg,jpeg,webp',
         ];
     }
 }

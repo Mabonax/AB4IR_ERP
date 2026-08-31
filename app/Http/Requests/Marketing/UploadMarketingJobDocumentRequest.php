@@ -17,7 +17,7 @@ class UploadMarketingJobDocumentRequest extends FormRequest
             'title' => ['nullable', 'string', 'max:255'],
             'document_kind' => ['required', 'in:supporting,concept,delivery,review_feedback,revised_submission,approval_reference'],
             'notes' => ['nullable', 'string', 'max:4000'],
-            'file' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,png,jpg,jpeg,webp,txt,xlsx,xls,ppt,pptx,zip'],
+            'file' => ['required', 'file', 'max:51200', 'mimes:pdf,doc,docx,png,jpg,jpeg,webp,txt,xlsx,xls,ppt,pptx,zip'],
         ];
     }
 }

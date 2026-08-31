@@ -681,7 +681,7 @@ class EventController extends Controller
             'status' => 'required|in:pending,in_progress,completed,on_going,blocked,cancelled',
             'comment' => 'nullable|string|max:4000',
             'evidence_url' => 'nullable|url|max:2048',
-            'evidence_file' => 'nullable|file|max:20480|mimes:pdf,doc,docx,xls,xlsx,csv,txt,png,jpg,jpeg,webp',
+            'evidence_file' => 'nullable|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,csv,txt,png,jpg,jpeg,webp',
             'remove_evidence_file' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:1|max:1000',
             'is_custom' => 'nullable|boolean',

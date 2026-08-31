@@ -16,7 +16,7 @@ class StoreDeliverableVersionRequest extends FormRequest
         return [
             'change_notes' => ['nullable', 'string', 'max:4000'],
             'external_reference' => ['nullable', 'url', 'max:2048'],
-            'asset_file' => ['nullable', 'file', 'max:20480'],
+            'asset_file' => ['nullable', 'file', 'max:51200'],
         ];
     }
 }

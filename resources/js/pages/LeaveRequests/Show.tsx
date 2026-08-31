@@ -264,7 +264,7 @@ export default function LeaveRequestShow({
                         required
                       />
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Accepted: PDF, Word, JPG, PNG. Maximum 25 MB.
+                        Accepted: PDF, Word, JPG, PNG. Maximum 50 MB.
                       </div>
                     </div>
                     <button type="submit" className="rounded-md bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800 md:col-span-2">

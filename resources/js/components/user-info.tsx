@@ -15,12 +15,12 @@ export function UserInfo({
         return (
             <>
                 <Avatar className="h-8 w-8 overflow-hidden rounded-full">
-                    <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                    <AvatarFallback className="rounded-lg bg-muted text-foreground dark:bg-white/10 dark:text-white">
                         ?
                     </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">Guest</span>
+                    <span className="truncate font-medium text-foreground dark:text-white">Guest</span>
                 </div>
             </>
         );
@@ -30,14 +30,14 @@ export function UserInfo({
         <>
             <Avatar className="h-8 w-8 overflow-hidden rounded-full">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
+                <AvatarFallback className="rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-900 text-xs font-semibold text-white">
                     {getInitials(user.name)}
                 </AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate font-medium text-foreground dark:text-white">{user.name}</span>
                 {showEmail && (
-                    <span className="truncate text-xs text-muted-foreground">
+                    <span className="truncate text-xs text-muted-foreground dark:text-white/55">
                         {user.email}
                     </span>
                 )}

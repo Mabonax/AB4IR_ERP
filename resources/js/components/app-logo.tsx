@@ -1,13 +1,15 @@
-import AppLogoIcon from './app-logo-icon';
-
 export default function AppLogo() {
     return (
         <>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-gradient-to-br from-red-600 to-orange-500 text-white">
-                <AppLogoIcon className="size-5 fill-current text-white" />
+            <div className="flex aspect-square size-10 items-center justify-center">
+                <img
+                    src="/logo.png"
+                    alt=""
+                    className="size-10 object-contain"
+                />
             </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-tight font-semibold">
+            <div className="ml-2 grid flex-1 text-left text-sm">
+                <span className="mb-0.5 truncate leading-tight font-semibold text-sidebar-foreground dark:text-white">
                     AB4IR ERP
                 </span>
             </div>

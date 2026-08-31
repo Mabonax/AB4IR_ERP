@@ -27,7 +27,7 @@ export function NavUser() {
         return (
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton asChild className="text-sidebar-accent-foreground">
+                    <SidebarMenuButton asChild className="text-sidebar-foreground/85 hover:bg-sidebar-accent dark:text-white/85 dark:hover:bg-white/[0.04]">
                         <Link href={login()} prefetch>
                             <UserInfo user={null} />
                             <span>Sign in</span>
@@ -45,11 +45,11 @@ export function NavUser() {
                     <DropdownMenuTrigger asChild>
                         <SidebarMenuButton
                             size="lg"
-                            className="group text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
+                            className="group h-14 rounded-xl bg-sidebar-accent text-sidebar-foreground data-[state=open]:bg-sidebar-accent hover:bg-sidebar-accent/80 dark:bg-white/[0.045] dark:text-white dark:data-[state=open]:bg-white/[0.07] dark:hover:bg-white/[0.07]"
                             data-test="sidebar-menu-button"
                         >
                             <UserInfo user={auth.user} />
-                            <ChevronsUpDown className="ml-auto size-4" />
+                            <ChevronsUpDown className="ml-auto size-4 text-muted-foreground dark:text-white/60" />
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent

@@ -169,11 +169,11 @@ export function AppSidebar() {
     );
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+        <Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground dark:border-white/[0.08] dark:bg-[#080d13]">
+            <SidebarHeader className="px-3 py-5">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton size="lg" asChild className="h-12 text-sidebar-foreground hover:bg-sidebar-accent dark:text-white dark:hover:bg-white/[0.04] dark:data-[active=true]:bg-white/[0.04]">
                             <Link href={dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
@@ -182,11 +182,11 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="gap-4 px-1">
                 <NavMain items={visibleMainNavItems} />
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="px-3 pb-4">
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

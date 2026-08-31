@@ -17,7 +17,7 @@ class UploadMarketingRequestDocumentRequest extends FormRequest
             'title' => ['nullable', 'string', 'max:255'],
             'document_kind' => ['required', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:4000'],
-            'file' => ['required', 'file', 'max:20480'],
+            'file' => ['required', 'file', 'max:51200'],
         ];
     }
 }

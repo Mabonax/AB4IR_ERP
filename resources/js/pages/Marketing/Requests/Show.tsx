@@ -155,8 +155,14 @@ function PublishAssetToVaultForm({
         <input type="checkbox" name="is_active" value="1" defaultChecked />
         Active immediately
       </label>
-      <input name="effective_from" type="date" className="rounded-md border bg-background px-3 py-2 text-sm" />
-      <input name="effective_until" type="date" className="rounded-md border bg-background px-3 py-2 text-sm" />
+      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+        Available from
+        <input name="effective_from" type="date" className="rounded-md border bg-background px-3 py-2 text-sm font-normal text-slate-900" />
+      </label>
+      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+        Retire after
+        <input name="effective_until" type="date" className="rounded-md border bg-background px-3 py-2 text-sm font-normal text-slate-900" />
+      </label>
       <textarea name="description" rows={2} placeholder="How staff should use this approved asset." className="rounded-md border bg-background px-3 py-2 text-sm" />
       <div className="grid gap-2 md:grid-cols-2">
         {users.map((user) => (
