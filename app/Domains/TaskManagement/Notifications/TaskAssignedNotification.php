@@ -4,10 +4,9 @@ namespace App\Domains\TaskManagement\Notifications;
 
 use App\Domains\TaskManagement\Models\WorkTask;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class TaskAssignedNotification extends Notification implements ShouldQueue
+class TaskAssignedNotification extends Notification
 {
     use Queueable;
 

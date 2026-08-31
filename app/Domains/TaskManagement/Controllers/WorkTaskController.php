@@ -14,8 +14,9 @@ use App\Http\Requests\TaskManagement\ReviewWorkTaskCompletionRequest;
 use App\Http\Requests\TaskManagement\StoreWorkTaskCommentRequest;
 use App\Http\Requests\TaskManagement\StoreWorkTaskRequest;
 use App\Http\Requests\TaskManagement\SubmitWorkTaskReviewRequest;
-use App\Http\Requests\TaskManagement\UploadWorkTaskDocumentRequest;
+use App\Http\Requests\TaskManagement\UpdateWorkTaskDocumentRequest;
 use App\Http\Requests\TaskManagement\UpdateWorkTaskStatusRequest;
+use App\Http\Requests\TaskManagement\UploadWorkTaskDocumentRequest;
 use App\Domains\TaskManagement\Models\WorkTaskDocument;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -143,6 +144,16 @@ class WorkTaskController extends Controller
             ->with('success', 'Task approved and completed.');
     }
 
+    public function finalizeCompletion(ReviewWorkTaskCompletionRequest $request, WorkTask $task): RedirectResponse
+    {
+        $this->authorize('approveCompletion', $task);
+
+        $this->service->finalizeCompletion($task, $request->validated(), $request->user());
+
+        return redirect()->route('task-management.tasks.show', $task)
+            ->with('success', 'Task approved, finalized, and closed.');
+    }
+
     public function returnForAmendments(ReviewWorkTaskCompletionRequest $request, WorkTask $task): RedirectResponse
     {
         $this->authorize('returnForAmendments', $task);
@@ -183,11 +194,40 @@ class WorkTaskController extends Controller
             ->with('success', 'Task document uploaded.');
     }
 
+    public function updateDocument(UpdateWorkTaskDocumentRequest $request, WorkTask $task, WorkTaskDocument $document): RedirectResponse
+    {
+        $this->authorize('comment', $task);
+        abort_unless((int) $document->work_task_id === (int) $task->id, 404);
+
+        $this->service->updateDocument($document, $request->validated(), $request->user());
+
+        return redirect()->route('task-management.tasks.show', $task)
+            ->with('success', 'Supporting evidence updated.');
+    }
+
+    public function deleteDocument(Request $request, WorkTask $task, WorkTaskDocument $document): RedirectResponse
+    {
+        $this->authorize('comment', $task);
+        abort_unless((int) $document->work_task_id === (int) $task->id, 404);
+
+        $this->service->deleteDocument($document, $request->user());
+
+        return redirect()->route('task-management.tasks.show', $task)
+            ->with('success', 'Supporting evidence deleted.');
+    }
+
     public function downloadProof(Request $request, WorkTask $task): HttpResponse
     {
         $this->authorize('view', $task);
 
         return $this->service->downloadProof($task);
+    }
+
+    public function previewProof(Request $request, WorkTask $task): HttpResponse
+    {
+        $this->authorize('view', $task);
+
+        return $this->service->previewProof($task);
     }
 
     public function downloadDocument(Request $request, WorkTask $task, WorkTaskDocument $document): HttpResponse
@@ -196,5 +236,13 @@ class WorkTaskController extends Controller
         abort_unless((int) $document->work_task_id === (int) $task->id, 404);
 
         return $this->service->downloadDocument($document);
+    }
+
+    public function previewDocument(Request $request, WorkTask $task, WorkTaskDocument $document): HttpResponse
+    {
+        $this->authorize('view', $task);
+        abort_unless((int) $document->work_task_id === (int) $task->id, 404);
+
+        return $this->service->previewDocument($document);
     }
 }

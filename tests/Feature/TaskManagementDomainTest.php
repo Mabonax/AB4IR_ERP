@@ -101,6 +101,7 @@ test('department manager can assign task to a direct report', function () {
     ]);
 
     Notification::assertSentTo($report, TaskAssignedNotification::class);
+    Notification::assertSentTo($manager, TaskAssignedNotification::class);
 });
 
 test('department queue tasks notify the responsible department managers instead of blasting all staff', function () {
@@ -708,6 +709,8 @@ test('manager can reassign task and record workflow history and comments', funct
 });
 
 test('assigned task user can update status and comment but cannot reassign the task', function () {
+    Notification::fake();
+
     $operations = makeDepartment('Operations');
     [$manager, $managerStaff] = makeStaffUser($operations, 'assignee.manager@example.test', asManager: true);
     [$assignee] = makeStaffUser($operations, 'assignee.user@example.test', manager: $managerStaff);
@@ -760,9 +763,13 @@ test('assigned task user can update status and comment but cannot reassign the t
         'user_id' => $assignee->id,
         'message' => 'Waiting on stakeholder response.',
     ]);
+
+    Notification::assertSentTo($manager, TaskActivityNotification::class);
+    Notification::assertSentTo($assignee, TaskActivityNotification::class);
 });
 
 test('assigned user can submit proof for review and manager can approve final completion', function () {
+    Notification::fake();
     Storage::fake('local');
 
     $operations = makeDepartment('Operations');
@@ -782,6 +789,16 @@ test('assigned user can submit proof for review and manager can approve final co
 
     $this->actingAs($assignee)
         ->post(route('task-management.tasks.submit-review', $task), [
+            'completion_notes' => 'Completed the document pack but forgot the deliverable.',
+        ])
+        ->assertSessionHasErrors('proof_file');
+
+    $task->refresh();
+    expect($task->status)->toBe('in_progress')
+        ->and($task->submitted_for_review_at)->toBeNull();
+
+    $this->actingAs($assignee)
+        ->post(route('task-management.tasks.submit-review', $task), [
             'completion_notes' => 'Completed the document pack and attached the signed PDF.',
             'proof_url' => 'https://mail.example.test/thread/123',
             'proof_file' => UploadedFile::fake()->create('signed-pack.pdf', 120, 'application/pdf'),
@@ -798,10 +815,26 @@ test('assigned user can submit proof for review and manager can approve final co
         ->and($task->closed_by_user_id)->toBeNull();
 
     Storage::disk('local')->assertExists($task->proof_path);
+    expect($task->documents()->count())->toBe(0);
 
     $this->actingAs($manager)
-        ->post(route('task-management.tasks.approve', $task), [
-            'manager_review_notes' => 'Evidence reviewed and accepted.',
+        ->get(route('task-management.tasks.show', $task))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('task.proof_file_name', 'signed-pack.pdf')
+            ->where('task.proof_mime_type', 'application/pdf')
+            ->where('task.can_preview_proof', true)
+            ->where('task.proof_download_url', route('task-management.tasks.proof', $task))
+            ->where('task.proof_preview_url', route('task-management.tasks.proof.preview', $task))
+        );
+
+    $this->actingAs($manager)
+        ->get(route('task-management.tasks.proof.preview', $task))
+        ->assertOk()
+        ->assertHeader('content-disposition', 'inline; filename="signed-pack.pdf"');
+
+    $this->actingAs($manager)
+        ->post(route('task-management.tasks.finalize', $task), [
+            'manager_review_notes' => '',
         ])
         ->assertRedirect(route('task-management.tasks.show', $task));
 
@@ -809,7 +842,7 @@ test('assigned user can submit proof for review and manager can approve final co
         'id' => $task->id,
         'status' => 'completed',
         'reviewed_by_user_id' => $manager->id,
-        'manager_review_notes' => 'Evidence reviewed and accepted.',
+        'manager_review_notes' => null,
         'closed_by_user_id' => $manager->id,
     ]);
 
@@ -820,8 +853,11 @@ test('assigned user can submit proof for review and manager can approve final co
 
     $this->assertDatabaseHas('work_task_history', [
         'work_task_id' => $task->id,
-        'action' => 'approved_completion',
+        'action' => 'finalized_completion',
     ]);
+
+    Notification::assertSentTo($manager, TaskActivityNotification::class);
+    Notification::assertSentTo($assignee, TaskActivityNotification::class);
 });
 
 test('manager can return a submitted task for amendments and assignee cannot self approve it', function () {
@@ -947,29 +983,86 @@ test('task workflow supports document uploads and downloads for review work', fu
             'title' => 'Board pack draft',
             'document_kind' => 'supporting',
             'notes' => 'Initial editable draft for manager review.',
-            'file' => UploadedFile::fake()->create('board-pack.docx', 96, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            'file' => UploadedFile::fake()->create('board-pack.pdf', 96, 'application/pdf'),
         ])
         ->assertRedirect(route('task-management.tasks.show', $task));
 
     $document = $task->documents()->firstOrFail();
+    $originalPath = $document->path;
 
+    Storage::disk('local')->assertExists($document->path);
+
+    $this->actingAs($assignee)
+        ->patch(route('task-management.tasks.documents.update', [$task, $document]), [
+            'title' => 'Board pack final reference',
+            'document_kind' => 'approval_reference',
+            'notes' => 'Updated reference pack for manager review.',
+            'file' => UploadedFile::fake()->create('board-pack-final.pdf', 128, 'application/pdf'),
+        ])
+        ->assertRedirect(route('task-management.tasks.show', $task));
+
+    $document->refresh();
+
+    expect($document->title)->toBe('Board pack final reference')
+        ->and($document->document_kind)->toBe('approval_reference')
+        ->and($document->notes)->toBe('Updated reference pack for manager review.')
+        ->and($document->file_name)->toBe('board-pack-final.pdf');
+
+    Storage::disk('local')->assertMissing($originalPath);
     Storage::disk('local')->assertExists($document->path);
 
     $this->actingAs($manager)
         ->get(route('task-management.tasks.documents.download', [$task, $document]))
         ->assertOk();
 
+    $this->actingAs($manager)
+        ->get(route('task-management.tasks.documents.preview', [$task, $document]))
+        ->assertOk()
+        ->assertHeader('content-disposition', 'inline; filename="board-pack-final.pdf"');
+
+    $this->actingAs($manager)
+        ->get(route('task-management.tasks.show', $task))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('task.documents.data.0.file_name', 'board-pack-final.pdf')
+            ->where('task.documents.data.0.mime_type', 'application/pdf')
+            ->where('task.documents.data.0.can_preview', true)
+            ->where('task.documents.data.0.download_url', route('task-management.tasks.documents.download', [$task, $document]))
+            ->where('task.documents.data.0.preview_url', route('task-management.tasks.documents.preview', [$task, $document]))
+        );
+
     $this->assertDatabaseHas('work_task_documents', [
         'id' => $document->id,
         'work_task_id' => $task->id,
         'uploaded_by_user_id' => $assignee->id,
-        'document_kind' => 'supporting',
-        'title' => 'Board pack draft',
+        'document_kind' => 'approval_reference',
+        'title' => 'Board pack final reference',
     ]);
 
     $this->assertDatabaseHas('work_task_history', [
         'work_task_id' => $task->id,
         'action' => 'document_uploaded',
+    ]);
+
+    $this->assertDatabaseHas('work_task_history', [
+        'work_task_id' => $task->id,
+        'action' => 'document_updated',
+    ]);
+
+    $deletedPath = $document->path;
+
+    $this->actingAs($assignee)
+        ->delete(route('task-management.tasks.documents.destroy', [$task, $document]))
+        ->assertRedirect(route('task-management.tasks.show', $task));
+
+    Storage::disk('local')->assertMissing($deletedPath);
+
+    $this->assertDatabaseMissing('work_task_documents', [
+        'id' => $document->id,
+    ]);
+
+    $this->assertDatabaseHas('work_task_history', [
+        'work_task_id' => $task->id,
+        'action' => 'document_deleted',
     ]);
 });
 

@@ -32,7 +32,12 @@ class WorkTaskResource extends JsonResource
             'completion_notes' => $this->completion_notes,
             'proof_url' => $this->proof_url,
             'proof_file_name' => $this->proof_file_name,
+            'proof_mime_type' => $this->proof_mime_type,
+            'proof_file_size' => $this->proof_file_size,
             'has_proof_file' => filled($this->proof_path),
+            'proof_download_url' => filled($this->proof_path) ? route('task-management.tasks.proof', $this->resource) : null,
+            'proof_preview_url' => filled($this->proof_path) ? route('task-management.tasks.proof.preview', $this->resource) : null,
+            'can_preview_proof' => filled($this->proof_path) && $this->isPreviewableFile($this->proof_mime_type, $this->proof_file_name),
             'submitted_for_review_at' => $this->submitted_for_review_at?->toDateTimeString(),
             'submitted_by_name' => $this->submittedBy?->name,
             'manager_review_notes' => $this->manager_review_notes,
@@ -59,5 +64,16 @@ class WorkTaskResource extends JsonResource
                 'upload_document' => $user?->can('comment', $this->resource) ?? false,
             ],
         ];
+    }
+
+    protected function isPreviewableFile(?string $mimeType, ?string $fileName): bool
+    {
+        $extension = strtolower(pathinfo((string) $fileName, PATHINFO_EXTENSION));
+        $mimeType = (string) $mimeType;
+
+        return str_contains($mimeType, 'pdf')
+            || str_starts_with($mimeType, 'image/')
+            || str_starts_with($mimeType, 'text/')
+            || in_array($extension, ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'md', 'csv'], true);
     }
 }

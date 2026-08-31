@@ -97,7 +97,7 @@ class WorkTaskService
                     ?? 'the target queue'
             ));
 
-            $this->notifyAssignmentRecipients($task, 'A new task has been assigned to your work queue.', $actor);
+            $this->notifyAssignmentRecipients($task, 'A new task has been assigned to your work queue.');
 
             return $this->loadTaskRelations($task);
         });
@@ -134,7 +134,7 @@ class WorkTaskService
                 );
 
                 $this->notifyUsers(
-                    $this->interactionRecipients($task, $actor),
+                    $this->interactionRecipients($task),
                     new TaskActivityNotification(
                         $task,
                         'Task status updated',
@@ -184,19 +184,8 @@ class WorkTaskService
                 'proof_file_name' => $task->proof_file_name,
             ]);
 
-            if (($data['proof_file'] ?? null) instanceof UploadedFile) {
-                $this->recordDocumentUpload(
-                    $task,
-                    $actor,
-                    $data['proof_file'],
-                    'delivery',
-                    $data['completion_notes'] ?? null,
-                    title: $task->title.' delivery proof'
-                );
-            }
-
             $this->notifyUsers(
-                $this->interactionRecipients($task, $actor),
+                $this->interactionRecipients($task),
                 new TaskActivityNotification(
                     $task,
                     'Task submitted for review',
@@ -210,12 +199,46 @@ class WorkTaskService
 
     public function approveCompletion(WorkTask $task, array $data, User $actor): WorkTask
     {
-        return DB::transaction(function () use ($task, $data, $actor) {
+        return $this->completeTaskTransaction(
+            $task,
+            $data,
+            $actor,
+            'approved_completion',
+            'approved the submitted work and completed the task',
+            'Task approved and completed',
+            'approved task "%s" and marked it complete.'
+        );
+    }
+
+    public function finalizeCompletion(WorkTask $task, array $data, User $actor): WorkTask
+    {
+        return $this->completeTaskTransaction(
+            $task,
+            $data,
+            $actor,
+            'finalized_completion',
+            'approved the submitted work, finalized the task, and closed the transaction',
+            'Task finalized and closed',
+            'approved, finalized, and closed task "%s".'
+        );
+    }
+
+    protected function completeTaskTransaction(
+        WorkTask $task,
+        array $data,
+        User $actor,
+        string $historyAction,
+        string $historyVerb,
+        string $notificationTitle,
+        string $notificationTemplate,
+    ): WorkTask
+    {
+        return DB::transaction(function () use ($task, $data, $actor, $historyAction, $historyVerb, $notificationTitle, $notificationTemplate) {
             $this->assertReviewableTask($task);
 
             $task = $this->repository->update($task, [
                 'status' => 'completed',
-                'manager_review_notes' => $data['manager_review_notes'],
+                'manager_review_notes' => $data['manager_review_notes'] ?? null,
                 'reviewed_at' => now(),
                 'reviewed_by_user_id' => $actor->id,
                 'returned_for_amendments_at' => null,
@@ -224,17 +247,17 @@ class WorkTaskService
                 'closed_by_user_id' => $actor->id,
             ]);
 
-            $summary = sprintf('%s approved the submitted work and completed the task.', $actor->name);
-            $this->recordHistory($task, $actor, 'approved_completion', $summary, [
-                'manager_review_notes' => $data['manager_review_notes'],
+            $summary = sprintf('%s %s.', $actor->name, $historyVerb);
+            $this->recordHistory($task, $actor, $historyAction, $summary, [
+                'manager_review_notes' => $data['manager_review_notes'] ?? null,
             ]);
 
             $this->notifyUsers(
-                $this->interactionRecipients($task, $actor),
+                $this->interactionRecipients($task),
                 new TaskActivityNotification(
                     $task,
-                    'Task approved and completed',
-                    sprintf('%s approved task "%s" and marked it complete.', $actor->name, $task->title)
+                    $notificationTitle,
+                    sprintf('%s '.$notificationTemplate, $actor->name, $task->title)
                 )
             );
 
@@ -249,7 +272,7 @@ class WorkTaskService
 
             $task = $this->repository->update($task, [
                 'status' => 'changes_requested',
-                'manager_review_notes' => $data['manager_review_notes'],
+                'manager_review_notes' => $data['manager_review_notes'] ?? null,
                 'reviewed_at' => now(),
                 'reviewed_by_user_id' => $actor->id,
                 'returned_for_amendments_at' => now(),
@@ -260,11 +283,11 @@ class WorkTaskService
 
             $summary = sprintf('%s returned the task for further amendments.', $actor->name);
             $this->recordHistory($task, $actor, 'returned_for_amendments', $summary, [
-                'manager_review_notes' => $data['manager_review_notes'],
+                'manager_review_notes' => $data['manager_review_notes'] ?? null,
             ]);
 
             $this->notifyUsers(
-                $this->interactionRecipients($task, $actor),
+                $this->interactionRecipients($task),
                 new TaskActivityNotification(
                     $task,
                     'Task returned for amendments',
@@ -287,7 +310,7 @@ class WorkTaskService
             $this->recordHistory($task, $actor, 'comment_added', 'Task comment added.');
 
             $this->notifyUsers(
-                $this->interactionRecipients($task, $actor),
+                $this->interactionRecipients($task),
                 new TaskActivityNotification(
                     $task,
                     'New task comment',
@@ -386,7 +409,7 @@ class WorkTaskService
             ]);
 
             $this->notifyUsers(
-                $this->interactionRecipients($task, $actor),
+                $this->interactionRecipients($task),
                 new TaskActivityNotification(
                     $task,
                     'Task document uploaded',
@@ -398,9 +421,106 @@ class WorkTaskService
         });
     }
 
+    public function updateDocument(WorkTaskDocument $document, array $data, User $actor): WorkTaskDocument
+    {
+        return DB::transaction(function () use ($document, $data, $actor) {
+            $task = $document->task()->firstOrFail();
+            $updates = [
+                'title' => filled($data['title'] ?? null) ? trim((string) $data['title']) : $document->title,
+                'document_kind' => $data['document_kind'],
+                'notes' => $data['notes'] ?? null,
+            ];
+
+            if (($data['file'] ?? null) instanceof UploadedFile) {
+                /** @var UploadedFile $file */
+                $file = $data['file'];
+
+                if ($document->path && $document->disk) {
+                    Storage::disk($document->disk)->delete($document->path);
+                }
+
+                $path = $file->store("work-task-documents/{$task->id}", 'local');
+
+                $updates = array_merge($updates, [
+                    'disk' => 'local',
+                    'path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getClientMimeType(),
+                    'file_size' => $file->getSize(),
+                ]);
+            }
+
+            $document->forceFill($updates)->save();
+
+            $this->recordHistory($task, $actor, 'document_updated', sprintf(
+                '%s updated supporting evidence "%s".',
+                $actor->name,
+                $document->title
+            ), [
+                'document_id' => $document->id,
+                'document_kind' => $document->document_kind,
+                'file_name' => $document->file_name,
+            ]);
+
+            $this->notifyUsers(
+                $this->interactionRecipients($task),
+                new TaskActivityNotification(
+                    $task,
+                    'Supporting evidence updated',
+                    sprintf('%s updated supporting evidence "%s" on task "%s".', $actor->name, $document->title, $task->title)
+                )
+            );
+
+            return $document->fresh(['uploader:id,name']);
+        });
+    }
+
+    public function deleteDocument(WorkTaskDocument $document, User $actor): void
+    {
+        DB::transaction(function () use ($document, $actor): void {
+            $task = $document->task()->firstOrFail();
+            $meta = [
+                'document_id' => $document->id,
+                'document_kind' => $document->document_kind,
+                'file_name' => $document->file_name,
+            ];
+            $title = $document->title;
+
+            if ($document->path && $document->disk) {
+                Storage::disk($document->disk)->delete($document->path);
+            }
+
+            $document->delete();
+
+            $this->recordHistory($task, $actor, 'document_deleted', sprintf(
+                '%s deleted supporting evidence "%s".',
+                $actor->name,
+                $title
+            ), $meta);
+
+            $this->notifyUsers(
+                $this->interactionRecipients($task),
+                new TaskActivityNotification(
+                    $task,
+                    'Supporting evidence deleted',
+                    sprintf('%s deleted supporting evidence "%s" from task "%s".', $actor->name, $title, $task->title)
+                )
+            );
+        });
+    }
+
     public function downloadDocument(WorkTaskDocument $document)
     {
         return Storage::disk($document->disk)->download($document->path, $document->file_name);
+    }
+
+    public function previewDocument(WorkTaskDocument $document)
+    {
+        abort_unless($this->isPreviewableFile($document->mime_type, $document->file_name), 404);
+
+        return Storage::disk($document->disk)->response($document->path, $document->file_name, [
+            'Content-Disposition' => 'inline; filename="'.$document->file_name.'"',
+        ]);
     }
 
     public function dashboardSummary(User $actor, array $filters = []): array
@@ -614,6 +734,16 @@ class WorkTaskService
         return Storage::disk($task->proof_disk)->download($task->proof_path, $task->proof_file_name);
     }
 
+    public function previewProof(WorkTask $task)
+    {
+        abort_if(! $task->proof_path || ! $task->proof_disk, 404);
+        abort_unless($this->isPreviewableFile($task->proof_mime_type, $task->proof_file_name), 404);
+
+        return Storage::disk($task->proof_disk)->response($task->proof_path, $task->proof_file_name, [
+            'Content-Disposition' => 'inline; filename="'.$task->proof_file_name.'"',
+        ]);
+    }
+
     public function sendOverdueReminders(): int
     {
         $tasks = WorkTask::query()
@@ -788,7 +918,7 @@ class WorkTaskService
 
     protected function notifyAssignmentRecipients(WorkTask $task, string $context, ?User $exclude = null): void
     {
-        foreach ($this->assignmentRecipients($task, $exclude) as $recipient) {
+        foreach ($this->interactionRecipients($task, $exclude) as $recipient) {
             $recipient->notify(new TaskAssignedNotification($task, $context));
         }
 
@@ -969,6 +1099,17 @@ class WorkTaskService
         $task->forceFill([
             'proof_url' => filled($data['proof_url'] ?? null) ? trim((string) $data['proof_url']) : null,
         ])->save();
+    }
+
+    protected function isPreviewableFile(?string $mimeType, ?string $fileName): bool
+    {
+        $extension = strtolower(pathinfo((string) $fileName, PATHINFO_EXTENSION));
+        $mimeType = (string) $mimeType;
+
+        return str_contains($mimeType, 'pdf')
+            || str_starts_with($mimeType, 'image/')
+            || str_starts_with($mimeType, 'text/')
+            || in_array($extension, ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'md', 'csv'], true);
     }
 
     protected function isTaskManager(User $user): bool

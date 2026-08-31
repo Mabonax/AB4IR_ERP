@@ -1,4 +1,4 @@
-import { Head, router, usePage } from "@inertiajs/react";
+import { Head, router, useForm, usePage } from "@inertiajs/react";
 import { useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
@@ -7,7 +7,7 @@ import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem, type SharedData } from "@/types";
 
 type TaskStatus = "open" | "in_progress" | "blocked" | "pending_review" | "changes_requested" | "completed" | "cancelled";
-type TaskTab = "overview" | "evidence" | "finalization" | "documents" | "reassign" | "comments" | "history";
+type TaskTab = "overview" | "evidence" | "finalization" | "reassign" | "comments" | "history";
 
 type TaskDocument = {
   id: number;
@@ -17,6 +17,9 @@ type TaskDocument = {
   file_name: string;
   mime_type: string | null;
   file_size: number | null;
+  download_url: string;
+  preview_url: string;
+  can_preview: boolean;
   uploaded_by_name: string | null;
   created_at: string | null;
 };
@@ -56,7 +59,12 @@ type TaskDetail = {
   completion_notes: string | null;
   proof_url: string | null;
   proof_file_name: string | null;
+  proof_mime_type: string | null;
+  proof_file_size: number | null;
   has_proof_file: boolean;
+  proof_download_url: string | null;
+  proof_preview_url: string | null;
+  can_preview_proof: boolean;
   submitted_for_review_at: string | null;
   submitted_by_name: string | null;
   manager_review_notes: string | null;
@@ -108,6 +116,77 @@ const transactionBadgeClass = (state: "open" | "closed") =>
 
 const documentKindLabel = (kind: string) => kind.replaceAll("_", " ");
 
+function formatBytes(value: number | null): string {
+  if (!value) return "-";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isImageFile(mimeType: string | null, fileName: string | null): boolean {
+  const extension = fileName?.split(".").pop()?.toLowerCase() ?? "";
+
+  return Boolean(mimeType?.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension));
+}
+
+function FieldError({ message }: { message?: string }) {
+  return message ? <p className="text-sm text-red-600">{message}</p> : null;
+}
+
+function EvidenceReviewPanel({
+  title,
+  fileName,
+  mimeType,
+  fileSize,
+  previewUrl,
+  downloadUrl,
+  canPreview,
+}: {
+  title: string;
+  fileName: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
+  previewUrl: string | null;
+  downloadUrl: string | null;
+  canPreview: boolean;
+}) {
+  if (!fileName || !downloadUrl) {
+    return null;
+  }
+
+  const image = isImageFile(mimeType, fileName);
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-lg border bg-slate-50">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-white px-3 py-2">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{title}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {fileName} | {mimeType ?? "unknown type"} | {formatBytes(fileSize)}
+          </div>
+        </div>
+        <a href={downloadUrl} className="rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+          Download
+        </a>
+      </div>
+
+      {canPreview && previewUrl ? (
+        image ? (
+          <div className="bg-white p-3">
+            <img src={previewUrl} alt={fileName} className="max-h-[34rem] w-full rounded-md border bg-white object-contain" />
+          </div>
+        ) : (
+          <iframe title={title} src={previewUrl} className="h-[34rem] w-full bg-white" />
+        )
+      ) : (
+        <div className="p-4 text-sm text-muted-foreground">
+          In-page review is available for images, PDFs, text, and CSV evidence. Download this file to review it in its native application.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TaskManagementTaskShow({
   task,
   assignees,
@@ -123,6 +202,46 @@ export default function TaskManagementTaskShow({
   const documents = Array.isArray(task.documents) ? task.documents : (task.documents.data ?? []);
   const comments = Array.isArray(task.comments) ? task.comments : (task.comments.data ?? []);
   const history = Array.isArray(task.history) ? task.history : (task.history.data ?? []);
+  const supportingDocuments = documents.filter((document) => {
+    const generatedProofTitle = `${task.title} delivery proof`;
+
+    return !(
+      task.has_proof_file
+      && document.document_kind === "delivery"
+      && document.file_name === task.proof_file_name
+      && document.title === generatedProofTitle
+    );
+  });
+  const evidenceForm = useForm({
+    completion_notes: task.completion_notes ?? "",
+    proof_url: task.proof_url ?? "",
+    proof_file: null as File | null,
+    remove_proof_file: false,
+  });
+  const documentForm = useForm({
+    title: "",
+    document_kind: "supporting",
+    notes: "",
+    file: null as File | null,
+  });
+  const documentEditForm = useForm({
+    _method: "patch",
+    title: "",
+    document_kind: "supporting",
+    notes: "",
+    file: null as File | null,
+  });
+  const finalizeForm = useForm({
+    manager_review_notes: task.manager_review_notes ?? "",
+  });
+  const returnForm = useForm({
+    manager_review_notes: task.manager_review_notes ?? "",
+  });
+  const [editingDocumentId, setEditingDocumentId] = useState<number | null>(null);
+  const evidenceErrors = Object.values(evidenceForm.errors).filter(Boolean);
+  const documentEditErrors = Object.values(documentEditForm.errors).filter(Boolean);
+  const finalizeErrors = Object.values(finalizeForm.errors).filter(Boolean);
+  const returnErrors = Object.values(returnForm.errors).filter(Boolean);
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Task Management", href: "/task-management/tasks" },
@@ -134,18 +253,28 @@ export default function TaskManagementTaskShow({
   const showEvidenceSubmission = task.can.submit_for_review && !["pending_review", "completed", "cancelled"].includes(task.status);
   const showStatusUpdate = task.can.update_status && !["pending_review", "completed", "cancelled"].includes(task.status);
   const canManageFinalization = task.can.approve_completion || task.can.return_for_amendments;
-  const hasEvidenceVisibility = showEvidenceSubmission || task.has_proof_file || Boolean(task.proof_url) || Boolean(task.submitted_for_review_at) || Boolean(task.completion_notes);
-  const hasDocumentsVisibility = task.can.upload_document || documents.length > 0;
+  const hasEvidenceVisibility = showEvidenceSubmission || task.can.upload_document || task.has_proof_file || supportingDocuments.length > 0 || Boolean(task.proof_url) || Boolean(task.submitted_for_review_at) || Boolean(task.completion_notes);
   const hasCommentsVisibility = task.can.comment || comments.length > 0;
   const visibleTabs: Array<{ key: TaskTab; label: string }> = [
     { key: "overview", label: "Overview" },
-    ...(hasEvidenceVisibility ? [{ key: "evidence" as const, label: showEvidenceSubmission ? "Upload Evidence" : "Evidence" }] : []),
+    ...(hasEvidenceVisibility ? [{ key: "evidence" as const, label: "Evidence" }] : []),
     ...(canManageFinalization ? [{ key: "finalization" as const, label: "Finalization" }] : []),
-    ...(hasDocumentsVisibility ? [{ key: "documents" as const, label: "Documents" }] : []),
     ...(task.can.reassign ? [{ key: "reassign" as const, label: "Reassign" }] : []),
     ...(hasCommentsVisibility ? [{ key: "comments" as const, label: "Comments" }] : []),
     { key: "history", label: "History" },
   ];
+
+  const startEditingDocument = (document: TaskDocument) => {
+    setEditingDocumentId(document.id);
+    documentEditForm.setData({
+      _method: "patch",
+      title: document.title,
+      document_kind: document.document_kind,
+      notes: document.notes ?? "",
+      file: null,
+    });
+    documentEditForm.clearErrors();
+  };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -331,47 +460,87 @@ export default function TaskManagementTaskShow({
             ) : null}
 
             {activeTab === "evidence" ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="rounded-lg border p-4">
-                  <h3 className="text-sm font-semibold">Evidence Submission</h3>
+              <div className="space-y-4">
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-lg border p-4">
+                  <h3 className="text-sm font-semibold">Final Task Deliverable</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Use this section for the assignee’s actual completion pack, proof link, or email evidence before manager review.
+                    Upload the completed work that the manager must review and approve. For a poster task, upload the poster here.
                   </p>
                   {showEvidenceSubmission ? (
                     <form
                       className="mt-3 grid gap-3"
                       onSubmit={(e) => {
                         e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        router.post(`/task-management/tasks/${task.id}/submit-review`, formData, {
+                        evidenceForm.post(`/task-management/tasks/${task.id}/submit-review`, {
                           preserveScroll: true,
                           forceFormData: true,
+                          onSuccess: () => evidenceForm.reset("proof_file", "remove_proof_file"),
+                          onError: () => setActiveTab("evidence"),
                         });
                       }}
                     >
+                      {evidenceErrors.length > 0 ? (
+                        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                          {evidenceErrors.map((error, index) => (
+                            <div key={`${error}-${index}`}>{error}</div>
+                          ))}
+                        </div>
+                      ) : null}
                       <textarea
                         name="completion_notes"
                         rows={4}
-                        defaultValue={task.completion_notes ?? ""}
-                        placeholder="Summarise what was completed and what the evidence proves."
+                        value={evidenceForm.data.completion_notes}
+                        onChange={(event) => evidenceForm.setData("completion_notes", event.currentTarget.value)}
+                        placeholder="Summarise what was completed and what the manager should check."
                         className="rounded-md border bg-background px-3 py-2 text-sm"
                       />
+                      <FieldError message={evidenceForm.errors.completion_notes} />
                       <input
                         name="proof_url"
                         type="url"
-                        defaultValue={task.proof_url ?? ""}
-                        placeholder="Proof link or email reference URL"
+                        value={evidenceForm.data.proof_url}
+                        onChange={(event) => evidenceForm.setData("proof_url", event.currentTarget.value)}
+                        placeholder="Deliverable link, shared design URL, or email reference URL"
                         className="rounded-md border bg-background px-3 py-2 text-sm"
                       />
-                      <input name="proof_file" type="file" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                      <FieldError message={evidenceForm.errors.proof_url} />
+                      <input
+                        name="proof_file"
+                        type="file"
+                        onChange={(event) => evidenceForm.setData("proof_file", event.currentTarget.files?.[0] ?? null)}
+                        className="rounded-md border bg-background px-3 py-2 text-sm"
+                      />
+                      <FieldError message={evidenceForm.errors.proof_file} />
+                      {evidenceForm.progress ? (
+                        <div className="rounded-md border bg-slate-50 p-2">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Uploading final deliverable</span>
+                            <span>{evidenceForm.progress.percentage}%</span>
+                          </div>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${evidenceForm.progress.percentage}%` }} />
+                          </div>
+                        </div>
+                      ) : null}
                       {task.has_proof_file ? (
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <input name="remove_proof_file" type="checkbox" value="1" />
-                          Remove current uploaded proof file
+                          <input
+                            name="remove_proof_file"
+                            type="checkbox"
+                            checked={evidenceForm.data.remove_proof_file}
+                            onChange={(event) => evidenceForm.setData("remove_proof_file", event.currentTarget.checked)}
+                          />
+                          Remove current final deliverable file
                         </label>
                       ) : null}
-                      <button type="submit" className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">
-                        Submit For Review
+                      <FieldError message={evidenceForm.errors.remove_proof_file} />
+                      <button
+                        type="submit"
+                        disabled={evidenceForm.processing}
+                        className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {evidenceForm.processing ? "Uploading..." : "Submit Final Deliverable For Review"}
                       </button>
                     </form>
                   ) : (
@@ -379,34 +548,277 @@ export default function TaskManagementTaskShow({
                       Evidence submission is not available in the current task state.
                     </div>
                   )}
-                </div>
+                  </div>
 
-                <div className="rounded-lg border p-4">
-                  <h3 className="text-sm font-semibold">Current Evidence Record</h3>
+                  <div className="rounded-lg border p-4">
+                  <h3 className="text-sm font-semibold">Current Deliverable Record</h3>
                   <div className="mt-3 space-y-3 text-sm">
                     <div>
                       <div className="font-medium">Submitted by</div>
                       <div className="mt-1 text-muted-foreground">{task.submitted_by_name ?? task.assignee_name ?? "Not submitted yet."}</div>
                     </div>
                     <div>
-                      <div className="font-medium">Proof link</div>
+                      <div className="font-medium">Deliverable link</div>
                       <div className="mt-1 text-muted-foreground">
-                        {task.proof_url ? <a href={task.proof_url} className="text-blue-700 underline" target="_blank" rel="noreferrer">Open linked proof</a> : "No linked proof."}
+                        {task.proof_url ? <a href={task.proof_url} className="text-blue-700 underline" target="_blank" rel="noreferrer">Open linked deliverable</a> : "No linked deliverable."}
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium">Proof file</div>
+                      <div className="font-medium">Final deliverable file</div>
                       <div className="mt-1 text-muted-foreground">
                         {task.has_proof_file ? (
-                          <a href={`/task-management/tasks/${task.id}/proof`} className="text-blue-700 underline">
-                            {task.proof_file_name ?? "Download proof"}
+                          <a href={task.proof_download_url ?? `/task-management/tasks/${task.id}/proof`} className="text-blue-700 underline">
+                            {task.proof_file_name ?? "Download final deliverable"}
                           </a>
-                        ) : "No uploaded proof file."}
+                        ) : "No uploaded final deliverable file."}
                       </div>
+                      <EvidenceReviewPanel
+                        title="Final Deliverable Review"
+                        fileName={task.proof_file_name}
+                        mimeType={task.proof_mime_type}
+                        fileSize={task.proof_file_size}
+                        previewUrl={task.proof_preview_url}
+                        downloadUrl={task.proof_download_url ?? (task.has_proof_file ? `/task-management/tasks/${task.id}/proof` : null)}
+                        canPreview={task.can_preview_proof}
+                      />
                     </div>
                     <div>
                       <div className="font-medium">Completion notes</div>
                       <div className="mt-1 text-muted-foreground">{task.completion_notes ?? "No notes captured yet."}</div>
+                    </div>
+                  </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-lg border p-4">
+                    <h3 className="text-sm font-semibold">Supporting Evidence Files</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Upload additional material that supports the deliverable, such as briefs, source PDFs, screenshots, feedback packs, or approval references.
+                    </p>
+                    {task.can.upload_document ? (
+                      <form
+                        className="mt-3 grid gap-3"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          documentForm.post(`/task-management/tasks/${task.id}/documents`, {
+                            preserveScroll: true,
+                            forceFormData: true,
+                            onSuccess: () => documentForm.reset(),
+                          });
+                        }}
+                      >
+                        <input
+                          name="title"
+                          value={documentForm.data.title}
+                          onChange={(event) => documentForm.setData("title", event.currentTarget.value)}
+                          placeholder="Evidence title"
+                          className="rounded-md border bg-background px-3 py-2 text-sm"
+                        />
+                        <FieldError message={documentForm.errors.title} />
+                        <select
+                          name="document_kind"
+                          value={documentForm.data.document_kind}
+                          onChange={(event) => documentForm.setData("document_kind", event.currentTarget.value)}
+                          className="rounded-md border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="supporting">Supporting evidence</option>
+                          <option value="review_feedback">Review feedback</option>
+                          <option value="approval_reference">Approval reference</option>
+                        </select>
+                        <FieldError message={documentForm.errors.document_kind} />
+                        <textarea
+                          name="notes"
+                          rows={3}
+                          value={documentForm.data.notes}
+                          onChange={(event) => documentForm.setData("notes", event.currentTarget.value)}
+                          placeholder="What does this file prove or support?"
+                          className="rounded-md border bg-background px-3 py-2 text-sm"
+                        />
+                        <FieldError message={documentForm.errors.notes} />
+                        <input
+                          name="file"
+                          type="file"
+                          onChange={(event) => documentForm.setData("file", event.currentTarget.files?.[0] ?? null)}
+                          className="rounded-md border bg-background px-3 py-2 text-sm"
+                        />
+                        <FieldError message={documentForm.errors.file} />
+                        {documentForm.progress ? (
+                          <div className="rounded-md border bg-slate-50 p-2">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>Uploading evidence file</span>
+                              <span>{documentForm.progress.percentage}%</span>
+                            </div>
+                            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                              <div className="h-full rounded-full bg-slate-800 transition-all" style={{ width: `${documentForm.progress.percentage}%` }} />
+                            </div>
+                          </div>
+                        ) : null}
+                        <button
+                          type="submit"
+                          disabled={documentForm.processing}
+                          className="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {documentForm.processing ? "Uploading..." : "Upload Supporting Evidence"}
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        You do not currently have supporting evidence upload rights on this task.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border p-4">
+                    <h3 className="text-sm font-semibold">Supporting Evidence Review</h3>
+                    <div className="mt-3 space-y-3">
+                      {supportingDocuments.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No supporting evidence files uploaded yet.</p>
+                      ) : supportingDocuments.map((document) => (
+                        <div key={document.id} className="rounded-md border p-3">
+                          {editingDocumentId === document.id ? (
+                            <form
+                              className="grid gap-3"
+                              onSubmit={(event) => {
+                                event.preventDefault();
+                                documentEditForm.post(`/task-management/tasks/${task.id}/documents/${document.id}`, {
+                                  preserveScroll: true,
+                                  forceFormData: true,
+                                  onSuccess: () => {
+                                    setEditingDocumentId(null);
+                                    documentEditForm.reset();
+                                  },
+                                  onError: () => setActiveTab("evidence"),
+                                });
+                              }}
+                            >
+                              {documentEditErrors.length > 0 ? (
+                                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                  {documentEditErrors.map((error, index) => (
+                                    <div key={`${error}-${index}`}>{error}</div>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <input
+                                name="title"
+                                value={documentEditForm.data.title}
+                                onChange={(event) => documentEditForm.setData("title", event.currentTarget.value)}
+                                placeholder="Supporting evidence title"
+                                className="rounded-md border bg-background px-3 py-2 text-sm"
+                              />
+                              <FieldError message={documentEditForm.errors.title} />
+                              <select
+                                name="document_kind"
+                                value={documentEditForm.data.document_kind}
+                                onChange={(event) => documentEditForm.setData("document_kind", event.currentTarget.value)}
+                                className="rounded-md border bg-background px-3 py-2 text-sm"
+                              >
+                                {["delivery", "revised_submission"].includes(document.document_kind) ? (
+                                  <option value={document.document_kind}>{documentKindLabel(document.document_kind)}</option>
+                                ) : null}
+                                <option value="supporting">Supporting evidence</option>
+                                <option value="review_feedback">Review feedback</option>
+                                <option value="approval_reference">Approval reference</option>
+                              </select>
+                              <FieldError message={documentEditForm.errors.document_kind} />
+                              <textarea
+                                name="notes"
+                                rows={3}
+                                value={documentEditForm.data.notes}
+                                onChange={(event) => documentEditForm.setData("notes", event.currentTarget.value)}
+                                placeholder="What does this file prove or support?"
+                                className="rounded-md border bg-background px-3 py-2 text-sm"
+                              />
+                              <FieldError message={documentEditForm.errors.notes} />
+                              <input
+                                name="file"
+                                type="file"
+                                onChange={(event) => documentEditForm.setData("file", event.currentTarget.files?.[0] ?? null)}
+                                className="rounded-md border bg-background px-3 py-2 text-sm"
+                              />
+                              <FieldError message={documentEditForm.errors.file} />
+                              {documentEditForm.progress ? (
+                                <div className="rounded-md border bg-slate-50 p-2">
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>Replacing supporting evidence file</span>
+                                    <span>{documentEditForm.progress.percentage}%</span>
+                                  </div>
+                                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                                    <div className="h-full rounded-full bg-slate-800 transition-all" style={{ width: `${documentEditForm.progress.percentage}%` }} />
+                                  </div>
+                                </div>
+                              ) : null}
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="submit"
+                                  disabled={documentEditForm.processing}
+                                  className="rounded-md bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {documentEditForm.processing ? "Saving..." : "Save Supporting Evidence"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingDocumentId(null);
+                                    documentEditForm.reset();
+                                    documentEditForm.clearErrors();
+                                  }}
+                                  className="rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <>
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="font-medium">{document.title}</div>
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    {documentKindLabel(document.document_kind)} | {document.uploaded_by_name ?? "-"} | {document.created_at ?? "-"}
+                                  </div>
+                                  <div className="mt-1 text-xs text-muted-foreground">{document.file_name}</div>
+                                </div>
+                                {task.can.upload_document ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditingDocument(document)}
+                                      className="rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (window.confirm(`Delete supporting evidence "${document.title}"?`)) {
+                                          router.delete(`/task-management/tasks/${task.id}/documents/${document.id}`, {
+                                            preserveScroll: true,
+                                            onError: () => setActiveTab("evidence"),
+                                          });
+                                        }
+                                      }}
+                                      className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </div>
+                              {document.notes ? <div className="mt-2 text-sm text-muted-foreground">{document.notes}</div> : null}
+                              <EvidenceReviewPanel
+                                title={`${document.title} Review`}
+                                fileName={document.file_name}
+                                mimeType={document.mime_type}
+                                fileSize={document.file_size}
+                                previewUrl={document.preview_url}
+                                downloadUrl={document.download_url ?? `/task-management/tasks/${task.id}/documents/${document.id}`}
+                                canPreview={document.can_preview}
+                              />
+                            </>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -437,21 +849,34 @@ export default function TaskManagementTaskShow({
                           className="grid gap-3"
                           onSubmit={(e) => {
                             e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            router.post(`/task-management/tasks/${task.id}/approve`, {
-                              manager_review_notes: formData.get("manager_review_notes"),
-                            }, { preserveScroll: true });
+                            finalizeForm.post(`/task-management/tasks/${task.id}/finalize`, {
+                              preserveScroll: true,
+                              onError: () => setActiveTab("finalization"),
+                            });
                           }}
                         >
+                          {finalizeErrors.length > 0 ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                              {finalizeErrors.map((error, index) => (
+                                <div key={`${error}-${index}`}>{error}</div>
+                              ))}
+                            </div>
+                          ) : null}
                           <textarea
                             name="manager_review_notes"
                             rows={4}
-                            defaultValue={task.manager_review_notes ?? ""}
-                            placeholder="Manager notes confirming the work is accepted and can be closed."
+                            value={finalizeForm.data.manager_review_notes}
+                            onChange={(event) => finalizeForm.setData("manager_review_notes", event.currentTarget.value)}
+                            placeholder="Optional manager notes confirming the work is accepted and can be closed."
                             className="rounded-md border bg-background px-3 py-2 text-sm"
                           />
-                          <button type="submit" className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700">
-                            Mark Task As Complete
+                          <FieldError message={finalizeForm.errors.manager_review_notes} />
+                          <button
+                            type="submit"
+                            disabled={finalizeForm.processing}
+                            className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {finalizeForm.processing ? "Finalizing..." : "Approve, Finalize, and Close Task"}
                           </button>
                         </form>
                       ) : null}
@@ -461,21 +886,34 @@ export default function TaskManagementTaskShow({
                           className="grid gap-3"
                           onSubmit={(e) => {
                             e.preventDefault();
-                            const formData = new FormData(e.currentTarget);
-                            router.post(`/task-management/tasks/${task.id}/return`, {
-                              manager_review_notes: formData.get("manager_review_notes"),
-                            }, { preserveScroll: true });
+                            returnForm.post(`/task-management/tasks/${task.id}/return`, {
+                              preserveScroll: true,
+                              onError: () => setActiveTab("finalization"),
+                            });
                           }}
                         >
+                          {returnErrors.length > 0 ? (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                              {returnErrors.map((error, index) => (
+                                <div key={`${error}-${index}`}>{error}</div>
+                              ))}
+                            </div>
+                          ) : null}
                           <textarea
                             name="manager_review_notes"
                             rows={4}
-                            defaultValue={task.manager_review_notes ?? ""}
+                            value={returnForm.data.manager_review_notes}
+                            onChange={(event) => returnForm.setData("manager_review_notes", event.currentTarget.value)}
                             placeholder="List the amendments required before the task can be completed."
                             className="rounded-md border bg-background px-3 py-2 text-sm"
                           />
-                          <button type="submit" className="rounded-md bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700">
-                            Return For Amendments
+                          <FieldError message={returnForm.errors.manager_review_notes} />
+                          <button
+                            type="submit"
+                            disabled={returnForm.processing}
+                            className="rounded-md bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {returnForm.processing ? "Returning..." : "Return For Amendments"}
                           </button>
                         </form>
                       ) : null}
@@ -508,73 +946,6 @@ export default function TaskManagementTaskShow({
                       <div className="font-medium">Manager review notes</div>
                       <div className="mt-1 text-muted-foreground">{task.manager_review_notes ?? "No review notes recorded yet."}</div>
                     </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {activeTab === "documents" && hasDocumentsVisibility ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="rounded-lg border p-4">
-                  <h3 className="text-sm font-semibold">Task Documents</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Use this area for supporting files, feedback packs, editable versions, revised drafts, and approval references.
-                  </p>
-                  {task.can.upload_document ? (
-                    <form
-                      className="mt-3 grid gap-3"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        router.post(`/task-management/tasks/${task.id}/documents`, formData, {
-                          preserveScroll: true,
-                          forceFormData: true,
-                        });
-                      }}
-                    >
-                      <input name="title" placeholder="Document title" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                      <select name="document_kind" defaultValue="supporting" className="rounded-md border bg-background px-3 py-2 text-sm">
-                        <option value="supporting">Supporting document</option>
-                        <option value="delivery">Delivery evidence</option>
-                        <option value="review_feedback">Review feedback</option>
-                        <option value="revised_submission">Revised submission</option>
-                        <option value="approval_reference">Approval reference</option>
-                      </select>
-                      <textarea name="notes" rows={3} placeholder="What is this document for?" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                      <input name="file" type="file" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                      <button type="submit" className="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-900">
-                        Upload Document
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                      You do not currently have document upload rights on this task.
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border p-4">
-                  <h3 className="text-sm font-semibold">Uploaded Documents</h3>
-                  <div className="mt-3 space-y-3">
-                    {documents.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No task documents uploaded yet.</p>
-                    ) : documents.map((document) => (
-                      <div key={document.id} className="rounded-md border p-3">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <div className="font-medium">{document.title}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {documentKindLabel(document.document_kind)} | {document.uploaded_by_name ?? "-"} | {document.created_at ?? "-"}
-                            </div>
-                            <div className="mt-1 text-xs text-muted-foreground">{document.file_name}</div>
-                            {document.notes ? <div className="mt-2 text-sm text-muted-foreground">{document.notes}</div> : null}
-                          </div>
-                          <a href={`/task-management/tasks/${task.id}/documents/${document.id}`} className="rounded-md border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-                            Download
-                          </a>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
               </div>
