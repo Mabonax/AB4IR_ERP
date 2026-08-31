@@ -65,6 +65,11 @@ class Project extends Model
         return $this->hasMany(ProjectLocation::class);
     }
 
+    public function learningMappings()
+    {
+        return $this->hasMany(ProjectLearningMapping::class);
+    }
+
     public function enrollments()
     {
         return $this->hasMany(ProjectEnrollment::class);

@@ -1,4 +1,5 @@
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
+import { useState } from "react";
 
 import {
   HorizontalBarChart,
@@ -67,14 +68,45 @@ export default function ProgramShow({
   yearlyImpact,
   projects,
   documentRepository,
+  brochureRepository,
 }: {
   program: { data: ProgramPayload } | ProgramPayload;
   stats: Record<string, number>;
   yearlyImpact: YearlyImpact[];
   projects: ProgramProject[];
   documentRepository: { folder_id: number; href: string } | null;
+  brochureRepository: {
+    folder_id: number;
+    href: string;
+    upload_url: string;
+    can_publish_to_vault: boolean;
+  } | null;
 }) {
   const programData = (program as { data?: ProgramPayload }).data ?? (program as ProgramPayload);
+  const [brochureVaultBusy, setBrochureVaultBusy] = useState(false);
+  const [brochureUploadProgress, setBrochureUploadProgress] = useState<number | null>(null);
+
+  const handleBrochureVaultUpload = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!brochureRepository?.upload_url) {
+      return;
+    }
+
+    const form = event.currentTarget;
+    setBrochureVaultBusy(true);
+    setBrochureUploadProgress(0);
+    router.post(brochureRepository.upload_url, new FormData(form), {
+      forceFormData: true,
+      preserveScroll: true,
+      onProgress: (progress) => setBrochureUploadProgress(progress?.percentage ?? 0),
+      onFinish: () => {
+        setBrochureVaultBusy(false);
+        setBrochureUploadProgress(null);
+      },
+      onSuccess: () => form.reset(),
+    });
+  };
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -251,6 +283,64 @@ export default function ProgramShow({
             ) : (
               <span className="text-muted-foreground">Repository not provisioned.</span>
             )}
+            {brochureRepository?.can_publish_to_vault ? (
+              <form
+                onSubmit={handleBrochureVaultUpload}
+                className="grid w-full gap-3 rounded-md border border-slate-200 bg-slate-50 p-3"
+              >
+                <input type="hidden" name="folder_id" value={brochureRepository.folder_id} />
+                <input type="hidden" name="document_type" value="brochure" />
+                <input type="hidden" name="audience_scope" value="all_staff" />
+                <input type="hidden" name="is_active" value="1" />
+                <div className="font-medium text-slate-900">Upload Brochure To Vault</div>
+                <input
+                  name="title"
+                  placeholder="Brochure title"
+                  className="rounded-md border bg-background px-3 py-2 text-sm"
+                  required
+                />
+                <textarea
+                  name="description"
+                  placeholder="Description"
+                  className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm"
+                />
+                <input
+                  name="file"
+                  type="file"
+                  className="rounded-md border bg-background px-3 py-2 text-sm"
+                  required
+                />
+                {brochureUploadProgress !== null ? (
+                  <div className="rounded-md border bg-white p-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Uploading brochure</span>
+                      <span>{brochureUploadProgress}%</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-red-600 transition-all"
+                        style={{ width: `${brochureUploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={brochureVaultBusy}
+                    className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {brochureVaultBusy ? "Uploading..." : "Upload And Publish"}
+                  </button>
+                  <Link
+                    href={brochureRepository.href}
+                    className="text-sm font-medium text-slate-700 hover:text-slate-900"
+                  >
+                    Open brochures
+                  </Link>
+                </div>
+              </form>
+            ) : null}
           </CardContent>
         </Card>
 

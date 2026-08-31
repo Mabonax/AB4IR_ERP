@@ -3,6 +3,7 @@
 namespace App\Domains\Programs\Controllers;
 
 use App\Domains\Documents\Services\DocumentFolderService;
+use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Programs\Requests\StoreProgramRequest;
 use App\Domains\Programs\Requests\UpdateProgramRequest;
@@ -10,6 +11,7 @@ use App\Domains\Programs\Resources\ProgramResource;
 use App\Domains\Programs\Services\ProgramService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
@@ -41,10 +43,11 @@ class ProgramController extends Controller
         return redirect()->back()->with('success', 'Program created');
     }
 
-    public function show(int $program)
+    public function show(Request $request, int $program)
     {
         $overview = $this->service->getOverview($program);
         $repositoryRoot = $this->documentFolderService->findOwnedRootFolder(Program::class, $overview['program']->id);
+        $brochureFolder = $repositoryRoot?->children()->where('name', 'Brochures & Posters')->first();
 
         return Inertia::render('Programs/Show', [
             'program' => new ProgramResource($overview['program']),
@@ -54,6 +57,12 @@ class ProgramController extends Controller
             'documentRepository' => $repositoryRoot ? [
                 'folder_id' => $repositoryRoot->id,
                 'href' => route('organization.document-library.index', ['folder' => $repositoryRoot->id]),
+            ] : null,
+            'brochureRepository' => $brochureFolder ? [
+                'folder_id' => $brochureFolder->id,
+                'href' => route('organization.document-library.index', ['folder' => $brochureFolder->id]),
+                'upload_url' => route('organization.document-library.files.publish-upload'),
+                'can_publish_to_vault' => (bool) $request->user()?->can('create', OrganizationDocument::class),
             ] : null,
         ]);
     }

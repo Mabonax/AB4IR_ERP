@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'lms_bridge' => [
+        'token' => env('LMS_BRIDGE_TOKEN'),
+    ],
+
+    'lms' => [
+        'app_url' => env('LMS_APP_URL', 'http://127.0.0.1:8016'),
+    ],
+
 ];

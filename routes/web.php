@@ -8,6 +8,7 @@
 use App\Domains\Assets\Controllers\AssetCategoryController;
 use App\Domains\Assets\Controllers\AssetController;
 use App\Domains\Beneficiaries\Controllers\BeneficiaryController;
+use App\Domains\Beneficiaries\Controllers\LmsBeneficiaryLookupController;
 use App\Domains\BusinessDevelopment\Controllers\BdsApplicationController;
 use App\Domains\BusinessDevelopment\Controllers\BdsDashboardController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeController;
@@ -16,6 +17,7 @@ use App\Domains\BusinessDevelopment\Controllers\BdsPitchSessionController;
 use App\Domains\Documents\Controllers\DocumentLibraryController;
 use App\Domains\Events\Controllers\EventController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
+use App\Domains\Facilitators\Controllers\LmsFacilitatorLookupController;
 use App\Domains\Finance\Controllers\TravelClaimController;
 use App\Domains\HumanResources\Controllers\HumanResourcesController;
 use App\Domains\Leave\Controllers\LeaveRequestController;
@@ -25,9 +27,11 @@ use App\Domains\Organization\Controllers\OrganizationProfileController;
 use App\Domains\Organization\Controllers\OrganizationDocumentController;
 use App\Domains\Programs\Controllers\ProgramController;
 use App\Domains\Projects\Controllers\MilestoneTemplateController;
+use App\Domains\Projects\Controllers\LmsTeachingEligibilityController;
 use App\Domains\Projects\Controllers\ProjectAttendanceController;
 use App\Domains\Projects\Controllers\ProjectController;
 use App\Domains\Projects\Controllers\ProjectEnrollmentController;
+use App\Domains\Projects\Controllers\ProjectLearningDeliveryController;
 use App\Domains\Projects\Controllers\ProjectLocationController;
 use App\Domains\Projects\Controllers\ProjectMilestoneAssessmentController;
 use App\Domains\Staff\Controllers\StaffController;
@@ -44,6 +48,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', 'dashboard')->name('home');
 
+Route::get('integrations/lms/beneficiaries/lookup', LmsBeneficiaryLookupController::class)
+    ->name('integrations.lms.beneficiaries.lookup');
+Route::get('integrations/lms/facilitators/lookup', LmsFacilitatorLookupController::class)
+    ->name('integrations.lms.facilitators.lookup');
+Route::get('integrations/lms/projects/{project}/facilitators/{facilitator}/teaching-eligibility', LmsTeachingEligibilityController::class)
+    ->whereNumber(['project', 'facilitator'])
+    ->name('integrations.lms.teaching-eligibility');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     $viewPermission = static fn (string $domain): string => "permission:domain.{$domain}.view|domain.{$domain}.manage";
     $managePermission = static fn (string $domain): string => "permission:domain.{$domain}.manage";
@@ -51,6 +63,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     $adjudicationManagePermission = 'permission:domain.business-development.manage|business-development.adjudications.score';
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('learning', static function () {
+        return inertia_location(rtrim((string) config('services.lms.app_url'), '/') . '/dashboard');
+    })->name('learning.redirect');
     Route::get('notifications', [NotificationController::class, 'index'])
         ->name('notifications.index');
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
@@ -71,6 +86,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware($managePermission('beneficiaries'))
         ->whereNumber('beneficiary')
         ->name('beneficiaries.reinstate');
+    Route::post('beneficiaries/{beneficiary}/lms-invitation/resend', [BeneficiaryController::class, 'resendLmsInvitation'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.lms-invitation.resend');
+    Route::post('beneficiaries/{beneficiary}/lms-access/provision', [BeneficiaryController::class, 'provisionLmsAccess'])
+        ->middleware($managePermission('beneficiaries'))
+        ->whereNumber('beneficiary')
+        ->name('beneficiaries.lms-access.provision');
     Route::post('beneficiaries/{beneficiary}/graduate', [BeneficiaryController::class, 'graduate'])
         ->middleware($managePermission('beneficiaries'))
         ->whereNumber('beneficiary')
@@ -280,6 +303,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.task-management.manage')
         ->whereNumber('task')
         ->name('task-management.tasks.approve');
+    Route::post('task-management/tasks/{task}/finalize', [WorkTaskController::class, 'finalizeCompletion'])
+        ->middleware('permission:domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.finalize');
     Route::post('task-management/tasks/{task}/return', [WorkTaskController::class, 'returnForAmendments'])
         ->middleware('permission:domain.task-management.manage')
         ->whereNumber('task')
@@ -292,6 +319,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.task-management.view|domain.task-management.manage')
         ->whereNumber('task')
         ->name('task-management.tasks.documents.store');
+    Route::patch('task-management/tasks/{task}/documents/{document}', [WorkTaskController::class, 'updateDocument'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->whereNumber('document')
+        ->name('task-management.tasks.documents.update');
+    Route::delete('task-management/tasks/{task}/documents/{document}', [WorkTaskController::class, 'deleteDocument'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->whereNumber('document')
+        ->name('task-management.tasks.documents.destroy');
     Route::post('task-management/tasks/{task}/reassign', [WorkTaskController::class, 'reassign'])
         ->middleware('permission:domain.task-management.manage')
         ->whereNumber('task')
@@ -300,11 +337,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.task-management.view|domain.task-management.manage')
         ->whereNumber('task')
         ->name('task-management.tasks.proof');
+    Route::get('task-management/tasks/{task}/proof/preview', [WorkTaskController::class, 'previewProof'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->name('task-management.tasks.proof.preview');
     Route::get('task-management/tasks/{task}/documents/{document}', [WorkTaskController::class, 'downloadDocument'])
         ->middleware('permission:domain.task-management.view|domain.task-management.manage')
         ->whereNumber('task')
         ->whereNumber('document')
         ->name('task-management.tasks.documents.download');
+    Route::get('task-management/tasks/{task}/documents/{document}/preview', [WorkTaskController::class, 'previewDocument'])
+        ->middleware('permission:domain.task-management.view|domain.task-management.manage')
+        ->whereNumber('task')
+        ->whereNumber('document')
+        ->name('task-management.tasks.documents.preview');
     Route::get('task-management/tickets', [SupportTicketController::class, 'index'])
         ->name('task-management.tickets.index');
     Route::post('task-management/tickets', [SupportTicketController::class, 'store'])
@@ -463,6 +509,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('organization/document-library/files', [DocumentLibraryController::class, 'storeFile'])
         ->middleware('auth')
         ->name('organization.document-library.files.store');
+    Route::post('organization/document-library/files/publish-upload', [DocumentLibraryController::class, 'storeFileAndPublishToVault'])
+        ->middleware('auth')
+        ->name('organization.document-library.files.publish-upload');
     Route::get('organization/document-library/files/{file}/preview', [DocumentLibraryController::class, 'previewFile'])
         ->middleware('auth')
         ->whereNumber('file')
@@ -709,6 +758,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('facilitators', FacilitatorController::class)
         ->middlewareFor(['index', 'show'], $viewPermission('facilitators'))
         ->middlewareFor(['create', 'store', 'edit', 'update', 'destroy'], $managePermission('facilitators'));
+    Route::post('facilitators/{facilitator}/lms-invitation/resend', [FacilitatorController::class, 'resendLmsInvitation'])
+        ->middleware($managePermission('facilitators'))
+        ->whereNumber('facilitator')
+        ->name('facilitators.lms-invitation.resend');
+    Route::post('facilitators/{facilitator}/lms-access/provision', [FacilitatorController::class, 'provisionLmsAccess'])
+        ->middleware($managePermission('facilitators'))
+        ->whereNumber('facilitator')
+        ->name('facilitators.lms-access.provision');
 
     Route::get('programs/list', [ProgramController::class, 'list'])
         ->middleware($viewPermission('programs'))
@@ -857,6 +914,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.projects.view|domain.projects.manage')
         ->whereNumber('project')
         ->name('projects.finalization');
+    Route::get('projects/learning/offerings', [ProjectLearningDeliveryController::class, 'offerings'])
+        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->name('projects.learning.offerings');
+    Route::get('projects/{project}/learning/mappings', fn (int $project) => redirect()
+        ->route('projects.show', $project)
+        ->with('error', 'Use Configure Learning Delivery from the project page to map LMS delivery.'))
+        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.learning.mappings.show');
+    Route::post('projects/{project}/learning/mappings', [ProjectLearningDeliveryController::class, 'map'])
+        ->middleware('permission:domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.learning.mappings.store');
+    Route::get('projects/{project}/learning/provision-learners', fn (int $project) => redirect()
+        ->route('projects.show', $project)
+        ->with('error', 'Use Provision eligible from the project page to provision LMS learners.'))
+        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.learning.provision-learners.show');
+    Route::post('projects/{project}/learning/provision-learners', [ProjectLearningDeliveryController::class, 'learners'])
+        ->middleware('permission:domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.learning.provision-learners');
+    Route::get('projects/{project}/learning/provision-facilitators', fn (int $project) => redirect()
+        ->route('projects.show', $project)
+        ->with('error', 'Use Provision eligible from the project page to provision LMS facilitators.'))
+        ->middleware('permission:domain.projects.view|domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.learning.provision-facilitators.show');
+    Route::post('projects/{project}/learning/provision-facilitators', [ProjectLearningDeliveryController::class, 'facilitators'])
+        ->middleware('permission:domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.learning.provision-facilitators');
+    Route::post('projects/{project}/learning/teaching-assignments', [ProjectLearningDeliveryController::class, 'assignFacilitator'])
+        ->middleware('permission:domain.projects.manage')
+        ->whereNumber('project')
+        ->name('projects.learning.teaching-assignments');
     Route::post('projects/{project}/milestones', [ProjectController::class, 'addMilestone'])
         ->middleware('permission:domain.projects.manage')
         ->whereNumber('project')

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 
 import AppLayout from "@/layouts/app-layout";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
@@ -10,9 +10,11 @@ export default function BeneficiaryShow({
   beneficiary,
   canManageBeneficiary,
   lifecycleOptions,
+  learningSummary,
 }: {
   beneficiary: any;
   canManageBeneficiary: boolean;
+  learningSummary: any;
   lifecycleOptions: {
     outcomeTypes: Array<{ value: string; label: string }>;
     projects: Array<{ id: number; name: string; program_id: number; status: string }>;
@@ -26,6 +28,7 @@ export default function BeneficiaryShow({
   const [outcomeNotes, setOutcomeNotes] = useState("");
   const [transferProjectId, setTransferProjectId] = useState("");
   const [transferLocationId, setTransferLocationId] = useState("");
+  const flashActivationUrl = (usePage<any>().props?.flash?.activation_url as string | null) ?? null;
 
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Beneficiaries", href: beneficiaries.index() },
@@ -73,6 +76,20 @@ export default function BeneficiaryShow({
       preserveScroll: true,
       onSuccess: () => resetLifecycleForm(),
     });
+  };
+
+  const resendLmsInvitation = () => {
+    router.post(`/beneficiaries/${beneficiary.id}/lms-invitation/resend`, {}, { preserveScroll: true });
+  };
+
+  const provisionLmsAccess = () => {
+    router.post(`/beneficiaries/${beneficiary.id}/lms-access/provision`, {}, { preserveScroll: true });
+  };
+
+  const copyActivationUrl = () => {
+    if (flashActivationUrl) {
+      navigator.clipboard.writeText(flashActivationUrl);
+    }
   };
 
   return (
@@ -247,6 +264,90 @@ export default function BeneficiaryShow({
             ) : null}
           </section>
         ) : null}
+
+        <section className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Learning</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Read-only LMS activity for this ERP beneficiary.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+            {flashActivationUrl ? (
+              <button
+                type="button"
+                onClick={copyActivationUrl}
+                className="rounded-md border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+              >
+                Copy Activation Link
+              </button>
+            ) : null}
+            {canManageBeneficiary && String(learningSummary?.access_state ?? learningSummary?.lms_access) === "not_provisioned" ? (
+              <button
+                type="button"
+                onClick={provisionLmsAccess}
+                className="rounded-md border border-indigo-200 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+              >
+                Provision LMS Access
+              </button>
+            ) : null}
+            {canManageBeneficiary && ["invitation_pending", "invitation_expired"].includes(String(learningSummary?.access_state ?? learningSummary?.lms_access)) ? (
+              <button
+                type="button"
+                onClick={resendLmsInvitation}
+                className="rounded-md border border-amber-200 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50"
+              >
+                Resend Invitation
+              </button>
+            ) : null}
+            {learningSummary?.deep_link ? (
+              <a
+                href={learningSummary.deep_link}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border border-sky-200 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-50"
+              >
+                Open Learner in LMS
+              </a>
+            ) : null}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              ["LMS Access", String(learningSummary?.access_state ?? learningSummary?.lms_access ?? "No LMS data").replaceAll("_", " ")],
+              ["Invitation", learningSummary?.invitation?.expires_at ? `${learningSummary?.invitation_status ?? "-"} until ${learningSummary.invitation.expires_at}` : learningSummary?.invitation_status ?? "No invitation"],
+              ["Activated", learningSummary?.activated_at ?? "Not activated"],
+              ["Last Login", learningSummary?.last_login_at ?? "Never"],
+              ["Progress", learningSummary?.progress?.percentage === null ? "Not tracked" : learningSummary?.progress?.percentage !== undefined ? `${learningSummary.progress.percentage}%` : "No data"],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-md border bg-slate-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+                <div className="mt-1 font-semibold text-slate-900">{value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 space-y-2 text-sm">
+            {(learningSummary?.current_offerings ?? []).length === 0 ? (
+              <p className="text-muted-foreground">
+                {learningSummary?.lms_access === "not_provisioned"
+                  ? "This beneficiary does not currently have LMS access."
+                  : "No current LMS cohort data is available."}
+              </p>
+            ) : (
+              learningSummary.current_offerings.map((offering: any) => (
+                <div key={offering.id} className="rounded-md border p-3">
+                  <div className="font-medium">{offering.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {offering.programme?.name ?? "No programme"} | {offering.status}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="rounded-xl border bg-card p-4 shadow-sm lg:col-span-2">

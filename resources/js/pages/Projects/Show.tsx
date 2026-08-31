@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 
 import {
     ComparisonBarsChart,
@@ -28,6 +29,34 @@ const readinessTone = (ready: boolean) =>
         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
         : 'border-amber-200 bg-amber-50 text-amber-700';
 
+const learningActionMessage = (data: any) => {
+    if (data?.offering?.name) {
+        return `Mapped to LMS offering: ${data.offering.name}.`;
+    }
+
+    if (Array.isArray(data?.items)) {
+        const counts = data.items.reduce((summary: Record<string, number>, item: any) => {
+            const status = String(item.status ?? 'unknown').replaceAll('_', ' ');
+            summary[status] = (summary[status] ?? 0) + 1;
+            return summary;
+        }, {});
+        const rendered = Object.entries(counts)
+            .map(([status, count]) => `${count} ${status}`)
+            .join(', ');
+
+        return rendered ? `LMS provisioning processed: ${rendered}.` : 'LMS provisioning completed with no changed records.';
+    }
+
+    return data?.reason || data?.status || 'Learning action completed.';
+};
+
+type LearningActionStatus = {
+    message: string;
+    phase: string;
+    progress: number;
+    type: 'idle' | 'running' | 'success' | 'error';
+};
+
 export default function ProjectShow({
     project,
     milestones,
@@ -38,6 +67,8 @@ export default function ProjectShow({
     canManageProjects,
     finalization,
     documentRepository,
+    brochureRepository,
+    learningDelivery,
 }: {
     project: any;
     milestones: any[];
@@ -55,16 +86,132 @@ export default function ProjectShow({
         can_manage: boolean;
     };
     documentRepository: { folder_id: number; href: string } | null;
+    brochureRepository: {
+        folder_id: number;
+        href: string;
+        upload_url: string;
+        can_publish_to_vault: boolean;
+    } | null;
+    learningDelivery: any;
 }) {
     const projectData = project?.data ?? project;
     const statusSummary = projectData.status_summary;
     const summary = progress?.summary ?? {};
+    const learningSummary = learningDelivery?.summary ?? {};
+    const learnerItems = learningDelivery?.learnerProvisioning?.items ?? [];
+    const facilitatorItems =
+        learningDelivery?.facilitatorProvisioning?.items ?? [];
+    const [selectedOfferingId, setSelectedOfferingId] = useState('');
+    const [learningStatus, setLearningStatus] =
+        useState<LearningActionStatus | null>(null);
+    const [learningBusy, setLearningBusy] = useState(false);
+    const [brochureVaultBusy, setBrochureVaultBusy] = useState(false);
+    const [brochureUploadProgress, setBrochureUploadProgress] = useState<number | null>(null);
 
     const handleSyncMilestones = (e: React.FormEvent) => {
         e.preventDefault();
 
         router.post(`/projects/${projectData.id}/milestones/sync`, {});
     };
+
+    const handleBrochureVaultUpload = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!brochureRepository?.upload_url) {
+            return;
+        }
+
+        const form = event.currentTarget;
+        setBrochureVaultBusy(true);
+        setBrochureUploadProgress(0);
+        router.post(brochureRepository.upload_url, new FormData(form), {
+            forceFormData: true,
+            preserveScroll: true,
+            onProgress: (progress) => setBrochureUploadProgress(progress?.percentage ?? 0),
+            onFinish: () => {
+                setBrochureVaultBusy(false);
+                setBrochureUploadProgress(null);
+            },
+            onSuccess: () => form.reset(),
+        });
+    };
+
+    const csrfToken =
+        document
+            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? '';
+
+    const postLearningAction = async (url: string, payload: any) => {
+        setLearningBusy(true);
+        setLearningStatus({
+            message: 'Preparing learning delivery request...',
+            phase: 'Preparing',
+            progress: 15,
+            type: 'running',
+        });
+
+        try {
+            setLearningStatus({
+                message: 'Sending request to ERP learning delivery service...',
+                phase: 'ERP request',
+                progress: 35,
+                type: 'running',
+            });
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            setLearningStatus({
+                message: 'ERP is waiting for the LMS bridge response...',
+                phase: 'LMS bridge',
+                progress: 70,
+                type: 'running',
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.reason || data.message || 'Learning action failed.');
+            }
+
+            setLearningStatus({
+                message: learningActionMessage(data),
+                phase: 'Completed',
+                progress: 100,
+                type: 'success',
+            });
+            router.reload({ only: ['learningDelivery', 'history'] });
+        } catch (error) {
+            const message = error instanceof Error
+                ? error.message
+                : 'Learning action failed.';
+
+            setLearningStatus({
+                message: message === 'LMS could not be reached.'
+                    ? 'LMS could not be reached. Confirm the LMS server is running on port 8016, then retry.'
+                    : message,
+                phase: 'Failed',
+                progress: 100,
+                type: 'error',
+            });
+        } finally {
+            setLearningBusy(false);
+        }
+    };
+
+    const eligibleBeneficiaryIds = learnerItems
+        .filter((item: any) => item.eligible)
+        .map((item: any) => item.erp_beneficiary_id);
+    const eligibleFacilitatorIds = facilitatorItems
+        .filter((item: any) => item.eligible)
+        .map((item: any) => item.erp_facilitator_id);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -224,6 +371,344 @@ export default function ProjectShow({
                     </Card>
                 </div>
 
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <CardTitle>Learning Delivery</CardTitle>
+                                <CardDescription>
+                                    ERP project connection to LMS cohort delivery
+                                </CardDescription>
+                            </div>
+                            <span
+                                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                                    learningSummary.integration_state ===
+                                    'connected'
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-amber-200 bg-amber-50 text-amber-700'
+                                }`}
+                            >
+                                {learningSummary.integration_state ===
+                                'connected'
+                                    ? 'Connected'
+                                    : learningSummary.integration_state ??
+                                      'No LMS data'}
+                            </span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                        {learningSummary.integration_state === 'connected' ? (
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                {[
+                                    [
+                                        'Mapped LMS cohorts',
+                                        learningSummary.metrics
+                                            ?.mapped_offerings,
+                                    ],
+                                    [
+                                        'LMS learners',
+                                        learningSummary.metrics?.lms_learners,
+                                    ],
+                                    [
+                                        'LMS facilitators',
+                                        learningSummary.metrics
+                                            ?.lms_facilitators,
+                                    ],
+                                    [
+                                        'Certificates issued',
+                                        learningSummary.metrics
+                                            ?.certificates_issued,
+                                    ],
+                                    [
+                                        'Average progress',
+                                        learningSummary.metrics
+                                            ?.average_progress === null
+                                            ? 'Not tracked'
+                                            : `${learningSummary.metrics?.average_progress}%`,
+                                    ],
+                                    [
+                                        'Average attendance',
+                                        learningSummary.metrics
+                                            ?.average_attendance === null
+                                            ? 'Not tracked'
+                                            : `${learningSummary.metrics?.average_attendance}%`,
+                                    ],
+                                    [
+                                        'Active learners',
+                                        learningSummary.metrics
+                                            ?.active_learners,
+                                    ],
+                                    [
+                                        'Teaching assignments',
+                                        learningSummary.metrics
+                                            ?.active_teaching_assignments,
+                                    ],
+                                ].map(([label, value]) => (
+                                    <div
+                                        key={label}
+                                        className="rounded-md border bg-slate-50 p-3"
+                                    >
+                                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                            {label}
+                                        </div>
+                                        <div className="mt-1 text-lg font-semibold text-slate-900">
+                                            {value ?? 'No data yet'}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                {learningSummary.message ??
+                                    learningSummary.reason ??
+                                    'No LMS learning delivery is currently mapped to this project.'}
+                            </div>
+                        )}
+
+                        {canManageProjects ? (
+                            <div className="grid gap-4 lg:grid-cols-[1fr,auto]">
+                                <select
+                                    value={selectedOfferingId}
+                                    onChange={(event) =>
+                                        setSelectedOfferingId(
+                                            event.currentTarget.value,
+                                        )
+                                    }
+                                    className="rounded-md border bg-background px-3 py-2 text-sm"
+                                >
+                                    <option value="">
+                                        Select LMS cohort/offering
+                                    </option>
+                                    {(
+                                        learningDelivery?.availableOfferings ??
+                                        []
+                                    ).map((offering: any) => (
+                                        <option
+                                            key={offering.id}
+                                            value={offering.id}
+                                        >
+                                            {offering.name} ·{' '}
+                                            {offering.programme?.name ??
+                                                'No programme'}{' '}
+                                            · {offering.status}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    disabled={!selectedOfferingId || learningBusy}
+                                    onClick={() =>
+                                        postLearningAction(
+                                            `/projects/${projectData.id}/learning/mappings`,
+                                            {
+                                                lms_offering_id:
+                                                    selectedOfferingId,
+                                            },
+                                        )
+                                    }
+                                    className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                                >
+                                    Configure Learning Delivery
+                                </button>
+                            </div>
+                        ) : null}
+
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="rounded-md border p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <div className="font-semibold">
+                                            Learner provisioning
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {eligibleBeneficiaryIds.length}{' '}
+                                            eligible of {learnerItems.length}{' '}
+                                            project beneficiaries
+                                        </div>
+                                        {learningDelivery?.learnerProvisioning?.metrics ? (
+                                            <div className="mt-1 text-[11px] text-muted-foreground">
+                                                Active {learningDelivery.learnerProvisioning.metrics.active} · Pending {learningDelivery.learnerProvisioning.metrics.invitation_pending} · Expired {learningDelivery.learnerProvisioning.metrics.invitation_expired} · Not provisioned {learningDelivery.learnerProvisioning.metrics.not_provisioned}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    {canManageProjects ? (
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                learningBusy ||
+                                                eligibleBeneficiaryIds.length ===
+                                                    0
+                                            }
+                                            onClick={() =>
+                                                postLearningAction(
+                                                    `/projects/${projectData.id}/learning/provision-learners`,
+                                                    {
+                                                        beneficiary_ids:
+                                                            eligibleBeneficiaryIds,
+                                                    },
+                                                )
+                                            }
+                                            className="rounded-md border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                                        >
+                                            Provision eligible
+                                        </button>
+                                    ) : null}
+                                </div>
+                                <div className="mt-3 max-h-56 space-y-2 overflow-y-auto text-xs">
+                                    {learnerItems.length === 0 ? (
+                                        <p className="text-muted-foreground">
+                                            No project beneficiaries available.
+                                        </p>
+                                    ) : (
+                                        learnerItems.map((item: any) => (
+                                            <div
+                                                key={item.erp_beneficiary_id}
+                                                className="rounded border bg-slate-50 p-2"
+                                            >
+                                                <div className="font-medium text-slate-900">
+                                                    {item.name}
+                                                </div>
+                                                <div className="text-muted-foreground">
+                                                    {item.eligible
+                                                        ? 'Ready to provision'
+                                                        : item.reason}
+                                                </div>
+                                                <div className="mt-1 text-[11px] font-medium capitalize text-slate-600">
+                                                    LMS: {String(item.lms_status ?? 'unknown').replaceAll('_', ' ')}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="rounded-md border p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <div className="font-semibold">
+                                            Facilitator provisioning
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {eligibleFacilitatorIds.length}{' '}
+                                            eligible of {facilitatorItems.length}{' '}
+                                            project facilitators
+                                        </div>
+                                        {learningDelivery?.facilitatorProvisioning?.metrics ? (
+                                            <div className="mt-1 text-[11px] text-muted-foreground">
+                                                Active {learningDelivery.facilitatorProvisioning.metrics.active} · Pending {learningDelivery.facilitatorProvisioning.metrics.invitation_pending} · Expired {learningDelivery.facilitatorProvisioning.metrics.invitation_expired} · Not provisioned {learningDelivery.facilitatorProvisioning.metrics.not_provisioned}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    {canManageProjects ? (
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                learningBusy ||
+                                                eligibleFacilitatorIds.length ===
+                                                    0
+                                            }
+                                            onClick={() =>
+                                                postLearningAction(
+                                                    `/projects/${projectData.id}/learning/provision-facilitators`,
+                                                    {
+                                                        facilitator_ids:
+                                                            eligibleFacilitatorIds,
+                                                    },
+                                                )
+                                            }
+                                            className="rounded-md border border-sky-200 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-50 disabled:opacity-50"
+                                        >
+                                            Provision eligible
+                                        </button>
+                                    ) : null}
+                                </div>
+                                <div className="mt-3 max-h-56 space-y-2 overflow-y-auto text-xs">
+                                    {facilitatorItems.length === 0 ? (
+                                        <p className="text-muted-foreground">
+                                            No project facilitators available.
+                                        </p>
+                                    ) : (
+                                        facilitatorItems.map((item: any) => (
+                                            <div
+                                                key={item.erp_facilitator_id}
+                                                className="flex items-center justify-between gap-2 rounded border bg-slate-50 p-2"
+                                            >
+                                                <div>
+                                                    <div className="font-medium text-slate-900">
+                                                        {item.name}
+                                                    </div>
+                                                    <div className="text-muted-foreground">
+                                                        {item.eligible
+                                                            ? 'Eligible for LMS teaching'
+                                                            : item.reason}
+                                                    </div>
+                                                    <div className="mt-1 text-[11px] font-medium capitalize text-slate-600">
+                                                        LMS: {String(item.lms_status ?? 'unknown').replaceAll('_', ' ')}
+                                                    </div>
+                                                </div>
+                                                {canManageProjects &&
+                                                item.eligible &&
+                                                String(item.lms_status ?? '') === 'active' ? (
+                                                    <button
+                                                        type="button"
+                                                        disabled={learningBusy}
+                                                        onClick={() =>
+                                                            postLearningAction(
+                                                                `/projects/${projectData.id}/learning/teaching-assignments`,
+                                                                {
+                                                                    facilitator_id:
+                                                                        item.erp_facilitator_id,
+                                                                },
+                                                            )
+                                                        }
+                                                        className="rounded-md border px-2 py-1 text-[11px] font-medium hover:bg-white"
+                                                    >
+                                                        Assign
+                                                    </button>
+                                                ) : canManageProjects && item.eligible ? (
+                                                    <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700">
+                                                        {['invitation_pending', 'invitation_expired'].includes(String(item.lms_status ?? ''))
+                                                            ? 'Awaiting LMS activation'
+                                                            : 'Provision LMS access first'}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {learningStatus ? (
+                            <div className={`rounded-md border px-3 py-3 text-sm ${
+                                learningStatus.type === 'error'
+                                    ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                    : learningStatus.type === 'running'
+                                        ? 'border-sky-200 bg-sky-50 text-sky-700'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            }`}>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="font-medium">{learningStatus.phase}</div>
+                                    <div className="text-xs">{learningStatus.progress}%</div>
+                                </div>
+                                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70">
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-300 ${
+                                            learningStatus.type === 'error'
+                                                ? 'bg-rose-500'
+                                                : learningStatus.type === 'running'
+                                                    ? 'bg-sky-500'
+                                                    : 'bg-emerald-500'
+                                        }`}
+                                        style={{ width: `${learningStatus.progress}%` }}
+                                    />
+                                </div>
+                                <div className="mt-2">{learningStatus.message}</div>
+                            </div>
+                        ) : null}
+                    </CardContent>
+                </Card>
+
                 <div className="grid gap-6 xl:grid-cols-[1.55fr,1fr]">
                     <ComparisonBarsChart
                         title="Location Delivery Comparison"
@@ -346,6 +831,64 @@ export default function ProjectShow({
                                     Repository not provisioned.
                                 </p>
                             )}
+                            {brochureRepository?.can_publish_to_vault ? (
+                                <form
+                                    onSubmit={handleBrochureVaultUpload}
+                                    className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3"
+                                >
+                                    <input type="hidden" name="folder_id" value={brochureRepository.folder_id} />
+                                    <input type="hidden" name="document_type" value="brochure" />
+                                    <input type="hidden" name="audience_scope" value="all_staff" />
+                                    <input type="hidden" name="is_active" value="1" />
+                                    <div className="font-medium text-slate-900">Upload Brochure To Vault</div>
+                                    <input
+                                        name="title"
+                                        placeholder="Brochure title"
+                                        className="rounded-md border bg-background px-3 py-2 text-sm"
+                                        required
+                                    />
+                                    <textarea
+                                        name="description"
+                                        placeholder="Description"
+                                        className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm"
+                                    />
+                                    <input
+                                        name="file"
+                                        type="file"
+                                        className="rounded-md border bg-background px-3 py-2 text-sm"
+                                        required
+                                    />
+                                    {brochureUploadProgress !== null ? (
+                                        <div className="rounded-md border bg-white p-2">
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                <span>Uploading brochure</span>
+                                                <span>{brochureUploadProgress}%</span>
+                                            </div>
+                                            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                                                <div
+                                                    className="h-full rounded-full bg-red-600 transition-all"
+                                                    style={{ width: `${brochureUploadProgress}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <button
+                                            type="submit"
+                                            disabled={brochureVaultBusy}
+                                            className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {brochureVaultBusy ? 'Uploading...' : 'Upload And Publish'}
+                                        </button>
+                                        <Link
+                                            href={brochureRepository.href}
+                                            className="text-sm font-medium text-slate-700 hover:text-slate-900"
+                                        >
+                                            Open brochures
+                                        </Link>
+                                    </div>
+                                </form>
+                            ) : null}
                         </CardContent>
                     </Card>
 

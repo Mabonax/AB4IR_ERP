@@ -16,8 +16,11 @@ use App\Domains\Projects\Requests\StoreProjectRequest;
 use App\Domains\Projects\Requests\UpdateProjectRequest;
 use App\Domains\Projects\Resources\ProjectResource;
 use App\Domains\Projects\Services\ProjectGovernanceService;
+use App\Domains\Projects\Services\LmsLearningDeliveryClient;
+use App\Domains\Projects\Services\ProjectLearningDeliveryService;
 use App\Domains\Projects\Services\ProjectProgressService;
 use App\Domains\Projects\Services\ProjectService;
+use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Stakeholders\Models\Stakeholder;
 use App\Http\Controllers\Controller;
@@ -33,6 +36,8 @@ class ProjectController extends Controller
         protected ProjectProgressService $progressService,
         protected ProjectGovernanceService $governanceService,
         protected DocumentFolderService $documentFolderService,
+        protected LmsLearningDeliveryClient $lmsLearningClient,
+        protected ProjectLearningDeliveryService $learningDeliveryService,
     ) {}
 
     public function index(Request $request)
@@ -124,12 +129,19 @@ class ProjectController extends Controller
             ->get();
         $progress = $this->progressService->summarizeProject($model);
         $repositoryRoot = $this->documentFolderService->findOwnedRootFolder(Project::class, $model->id);
+        $brochureFolder = $repositoryRoot?->children()->where('name', 'Brochures')->first();
 
         return Inertia::render('Projects/Show', [
             'project' => new ProjectResource($model),
             'milestones' => $milestones,
             'progress' => $progress,
             'locations' => $progress['locations'],
+            'learningDelivery' => [
+                'summary' => $this->lmsLearningClient->projectSummary($model),
+                'learnerProvisioning' => $this->learningDeliveryService->learnerProvisioningWorkspace($model),
+                'facilitatorProvisioning' => $this->learningDeliveryService->facilitatorProvisioningWorkspace($model),
+                'availableOfferings' => $this->lmsLearningClient->offerings(),
+            ],
             'attendanceTrend' => $this->attendanceTrend($model),
             'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
             'canManageProjects' => (bool) $request->user()?->can('update', $model),
@@ -144,6 +156,12 @@ class ProjectController extends Controller
             'documentRepository' => $repositoryRoot ? [
                 'folder_id' => $repositoryRoot->id,
                 'href' => route('organization.document-library.index', ['folder' => $repositoryRoot->id]),
+            ] : null,
+            'brochureRepository' => $brochureFolder ? [
+                'folder_id' => $brochureFolder->id,
+                'href' => route('organization.document-library.index', ['folder' => $brochureFolder->id]),
+                'upload_url' => route('organization.document-library.files.publish-upload'),
+                'can_publish_to_vault' => (bool) $request->user()?->can('create', OrganizationDocument::class),
             ] : null,
         ]);
     }
@@ -304,7 +322,7 @@ class ProjectController extends Controller
             'category' => 'nullable|in:evidence,registers',
             'title' => 'required|string|max:255',
             'notes' => 'nullable|string|max:2000',
-            'file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg,xlsx,csv|max:10240',
+            'file' => 'required|file|mimes:pdf,doc,docx,png,jpg,jpeg,xlsx,csv|max:51200',
         ]);
 
         $this->governanceService->uploadClosureEvidence($projectModel, $data, $request->file('file'), $request->user());
@@ -379,6 +397,7 @@ class ProjectController extends Controller
             'locations.province',
             'locations.enrollments.beneficiary',
             'locations.attendanceRegisters.entries',
+            'learningMappings',
             'milestones',
         ])->findOrFail($project);
     }

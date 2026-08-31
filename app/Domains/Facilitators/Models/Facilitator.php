@@ -44,4 +44,9 @@ class Facilitator extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function projectLocations()
+    {
+        return $this->hasMany(\App\Domains\Projects\Models\ProjectLocation::class);
+    }
 }

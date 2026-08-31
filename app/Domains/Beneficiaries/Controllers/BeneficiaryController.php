@@ -14,6 +14,8 @@ use App\Domains\Beneficiaries\Services\BeneficiaryService;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectLocation;
+use App\Domains\Projects\Services\LmsLearningDeliveryClient;
+use App\Domains\Projects\Services\ProjectLearningDeliveryService;
 use App\Http\Controllers\Controller;
 use App\Models\Provinces;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +28,8 @@ class BeneficiaryController extends Controller
     public function __construct(
         protected BeneficiaryService $service,
         protected BeneficiaryLifecycleService $lifecycleService,
+        protected LmsLearningDeliveryClient $lmsLearningClient,
+        protected ProjectLearningDeliveryService $projectLearningDelivery,
     ) {}
 
     public function index(Request $request): Response
@@ -139,6 +143,7 @@ class BeneficiaryController extends Controller
         return Inertia::render('Beneficiaries/Show', [
             'beneficiary' => $resource->resolve(),
             'canManageBeneficiary' => $request->user()?->can('update', $model) ?? false,
+            'learningSummary' => $this->lmsLearningClient->beneficiarySummary($model),
             'lifecycleOptions' => [
                 'outcomeTypes' => collect(\App\Domains\Beneficiaries\Models\BeneficiaryOutcome::TYPES)
                     ->map(fn ($type) => [
@@ -212,8 +217,14 @@ class BeneficiaryController extends Controller
         $this->authorize('manageLifecycle', $model);
 
         $this->lifecycleService->suspendBeneficiary($model, $request->user(), $request->string('reason')->toString());
+        $lmsResult = $this->lmsLearningClient->applyBeneficiaryLifecycle($model, 'suspend');
 
-        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Beneficiary suspended.');
+        return redirect()->route('beneficiaries.show', $beneficiary)->with(
+            'success',
+            ($lmsResult['status'] ?? null) === 'suspended'
+                ? 'Beneficiary suspended and LMS access suspended.'
+                : 'Beneficiary suspended. LMS access sync did not apply because the learner is not active or LMS is unavailable.'
+        );
     }
 
     public function reinstate(BeneficiaryLifecycleActionRequest $request, int $beneficiary): RedirectResponse
@@ -222,8 +233,68 @@ class BeneficiaryController extends Controller
         $this->authorize('manageLifecycle', $model);
 
         $this->lifecycleService->reactivateBeneficiary($model, $request->user(), $request->string('reason')->toString());
+        $lmsResult = $this->lmsLearningClient->applyBeneficiaryLifecycle($model, 'reactivate');
 
-        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Beneficiary reinstated.');
+        return redirect()->route('beneficiaries.show', $beneficiary)->with(
+            'success',
+            ($lmsResult['status'] ?? null) === 'active'
+                ? 'Beneficiary reinstated and LMS access reactivated.'
+                : 'Beneficiary reinstated. LMS access sync did not apply because the learner is not active or LMS is unavailable.'
+        );
+    }
+
+    public function resendLmsInvitation(Request $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('update', $model);
+
+        $result = $this->lmsLearningClient->resendBeneficiaryInvitation($model);
+
+        if (($result['status'] ?? null) === 'invitation_resent') {
+            return redirect()
+                ->route('beneficiaries.show', $beneficiary)
+                ->with('success', 'LMS invitation resent.')
+                ->with('activation_url', $result['activation_url'] ?? null);
+        }
+
+        return redirect()
+            ->route('beneficiaries.show', $beneficiary)
+            ->with('error', $result['reason'] ?? 'LMS invitation could not be resent.');
+    }
+
+    public function provisionLmsAccess(Request $request, int $beneficiary): RedirectResponse
+    {
+        $model = $this->service->getById($beneficiary);
+        $this->authorize('update', $model);
+
+        $projectId = (int) ($model->project_id ?: $model->projectEnrollments()->latest('enrolled_at')->value('project_id'));
+        $project = $projectId > 0 ? Project::query()->find($projectId) : null;
+
+        if (! $project) {
+            return redirect()
+                ->route('beneficiaries.show', $beneficiary)
+                ->with('error', 'This beneficiary is not linked to a project that can be mapped to LMS.');
+        }
+
+        $result = $this->projectLearningDelivery->provisionLearners($project, [$model->id], $request->user());
+        $item = $result['items'][0] ?? null;
+
+        if (($result['status'] ?? null) === 'rejected') {
+            return redirect()
+                ->route('beneficiaries.show', $beneficiary)
+                ->with('error', $result['reason'] ?? 'LMS access could not be provisioned.');
+        }
+
+        if (($item['status'] ?? null) === 'rejected') {
+            return redirect()
+                ->route('beneficiaries.show', $beneficiary)
+                ->with('error', $item['reason'] ?? 'LMS access could not be provisioned.');
+        }
+
+        return redirect()
+            ->route('beneficiaries.show', $beneficiary)
+            ->with('success', $item['reason'] ?? 'LMS access provisioning requested.')
+            ->with('activation_url', $item['activation_url'] ?? null);
     }
 
     public function graduate(BeneficiaryLifecycleActionRequest $request, int $beneficiary): RedirectResponse
