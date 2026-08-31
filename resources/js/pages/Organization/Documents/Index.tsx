@@ -98,6 +98,7 @@ export default function OrganizationDocumentsIndex({
   const [statusFilter, setStatusFilter] = useState("all");
   const [publishOpen, setPublishOpen] = useState(false);
   const [previewDocumentId, setPreviewDocumentId] = useState<number | null>(null);
+  const [vaultUploadProgress, setVaultUploadProgress] = useState<number | null>(null);
 
   const filteredSlots = useMemo(
     () => slotOptions.filter((slot) => slot.document_type === documentType),
@@ -171,11 +172,15 @@ export default function OrganizationDocumentsIndex({
                 className="grid gap-3 border-t p-4 md:grid-cols-2 xl:grid-cols-4"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  router.post("/organization/documents", new FormData(event.currentTarget), {
+                  const form = event.currentTarget;
+                  setVaultUploadProgress(0);
+                  router.post("/organization/documents", new FormData(form), {
                     forceFormData: true,
                     preserveScroll: true,
+                    onProgress: (progress) => setVaultUploadProgress(progress?.percentage ?? 0),
+                    onFinish: () => setVaultUploadProgress(null),
                     onSuccess: () => {
-                      event.currentTarget.reset();
+                      form.reset();
                       setPublishOpen(false);
                     },
                   });
@@ -223,8 +228,14 @@ export default function OrganizationDocumentsIndex({
                   <input type="checkbox" name="is_active" value="1" defaultChecked />
                   Active immediately
                 </label>
-                <input name="effective_from" type="date" className="rounded-md border bg-background px-3 py-2 text-sm" />
-                <input name="effective_until" type="date" className="rounded-md border bg-background px-3 py-2 text-sm" />
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Available from
+                  <input name="effective_from" type="date" className="rounded-md border bg-background px-3 py-2 text-sm font-normal text-slate-900" />
+                </label>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Retire after
+                  <input name="effective_until" type="date" className="rounded-md border bg-background px-3 py-2 text-sm font-normal text-slate-900" />
+                </label>
                 <textarea name="description" rows={3} placeholder="What is this document for?" className="rounded-md border bg-background px-3 py-2 text-sm md:col-span-2 xl:col-span-4" />
 
                 <div className="rounded-lg border p-3 md:col-span-2 xl:col-span-4">
@@ -244,6 +255,21 @@ export default function OrganizationDocumentsIndex({
                     {uploadErrors.map((message) => (
                       <div key={message}>{message}</div>
                     ))}
+                  </div>
+                ) : null}
+
+                {vaultUploadProgress !== null ? (
+                  <div className="rounded-md border bg-slate-50 p-3 md:col-span-2 xl:col-span-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Uploading vault document</span>
+                      <span>{vaultUploadProgress}%</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-slate-900 transition-all"
+                        style={{ width: `${vaultUploadProgress}%` }}
+                      />
+                    </div>
                   </div>
                 ) : null}
 

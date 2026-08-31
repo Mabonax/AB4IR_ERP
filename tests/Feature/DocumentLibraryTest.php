@@ -445,6 +445,52 @@ test('approved files can publish to the organization vault by reference', functi
     expect($document->path)->toBe($file->file_path);
 });
 
+test('brochure folders can upload directly to the organization vault', function () {
+    Storage::fake('document_library');
+
+    [$user] = makeDocumentUser([
+        'domain.projects.view',
+        'domain.projects.manage',
+        'domain.organization.view',
+        'domain.organization.manage',
+    ], isManager: true, email: 'direct-brochure-vault.docs@example.test');
+
+    $program = makeProgramForDocuments($user);
+    $project = makeProjectForDocuments($user, $program);
+    $brochures = DocumentFolder::query()
+        ->where('owner_type', Project::class)
+        ->where('owner_id', $project->id)
+        ->where('name', 'Brochures')
+        ->firstOrFail();
+
+    $this->actingAs($user)
+        ->post(route('organization.document-library.files.publish-upload'), [
+            'folder_id' => $brochures->id,
+            'title' => 'Digital Youth Brochure',
+            'description' => 'Approved brochure uploaded from the project brochure workspace.',
+            'document_type' => 'brochure',
+            'audience_scope' => 'all_staff',
+            'is_active' => true,
+            'file' => UploadedFile::fake()->create('digital-youth-brochure.pdf', 40960, 'application/pdf'),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $file = DocumentFile::query()->where('folder_id', $brochures->id)->firstOrFail();
+    $document = OrganizationDocument::query()->firstOrFail();
+
+    Storage::disk('document_library')->assertExists($file->file_path);
+    expect($file->title)->toBe('Digital Youth Brochure');
+    expect($file->size_bytes)->toBe(41943040);
+    expect($document->title)->toBe('Digital Youth Brochure');
+    expect($document->document_type)->toBe('brochure');
+    expect($document->audience_scope)->toBe('all_staff');
+    expect($document->source_type)->toBe(DocumentFile::class);
+    expect((int) $document->source_id)->toBe($file->id);
+    expect($document->disk)->toBe('document_library');
+    expect($document->path)->toBe($file->file_path);
+});
+
 test('document links can connect a single file to multiple records without duplicating storage', function () {
     Storage::fake('document_library');
 

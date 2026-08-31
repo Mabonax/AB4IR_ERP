@@ -55,7 +55,7 @@ class OrganizationDocumentController extends Controller
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
             'selected_user_ids' => ['nullable', 'array'],
             'selected_user_ids.*' => ['integer', 'exists:users,id'],
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', 'max:51200'],
         ]);
 
         $this->service->storeUpload($data, $request->user());

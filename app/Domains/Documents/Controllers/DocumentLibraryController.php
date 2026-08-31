@@ -22,6 +22,7 @@ use App\Domains\Documents\Requests\StoreDocumentRootFolderRequest;
 use App\Domains\Documents\Requests\StoreDocumentFolderRequest;
 use App\Domains\Documents\Requests\StoreDocumentTemplateRequest;
 use App\Domains\Documents\Requests\UploadDocumentFileRequest;
+use App\Domains\Documents\Requests\UploadDocumentFileToVaultRequest;
 use App\Domains\Documents\Requests\UploadDocumentVersionRequest;
 use App\Domains\Documents\Resources\DocumentFileResource;
 use App\Domains\Documents\Resources\DocumentFolderResource;
@@ -208,6 +209,18 @@ class DocumentLibraryController extends Controller
 
         return redirect()->route('organization.document-library.index', ['folder' => $folder->id])
             ->with('success', 'File uploaded.');
+    }
+
+    public function storeFileAndPublishToVault(UploadDocumentFileToVaultRequest $request)
+    {
+        $folder = DocumentFolder::query()->findOrFail((int) $request->validated('folder_id'));
+        $this->authorize('view', $folder);
+        $this->authorize('create', OrganizationDocument::class);
+
+        $file = $this->fileService->uploadFile($folder, $request->validated(), $request->user());
+        $this->vaultService->publishFromDocumentFile($file, $request->validated(), $request->user());
+
+        return redirect()->back()->with('success', 'File uploaded to this folder and published to the organization vault.');
     }
 
     public function uploadVersion(UploadDocumentVersionRequest $request, DocumentFile $file)

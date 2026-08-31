@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Documents\Models\DocumentFolder;
+use App\Domains\Events\Models\Event;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Stakeholders\Models\Stakeholder;
@@ -66,5 +67,40 @@ test('stakeholder manager can create a stakeholder workspace from library root',
     ]);
 
     $group = DocumentFolder::query()->where('name', 'Stakeholders')->whereNull('parent_id')->first();
+    expect($group)->not->toBeNull();
+});
+
+test('event manager can create an event workspace from library root', function () {
+    $user = grantPermissions(User::factory()->create([
+        'email' => 'event.workspace.docs@example.test',
+        'name' => 'event.workspace.docs',
+    ]), ['domain.events.view', 'domain.events.manage']);
+
+    $event = Event::query()->create([
+        'title' => 'Founder Breakfast',
+        'event_type' => 'networking',
+        'event_format' => 'in_person',
+        'location' => 'Johannesburg',
+        'start_date' => now()->toDateString(),
+        'status' => 'planned',
+        'description' => 'Workspace validation coverage.',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('organization.document-library.root-folders.store'), [
+            'name' => 'Founder Breakfast Workspace',
+            'owner_type' => Event::class,
+            'owner_id' => $event->id,
+        ])
+        ->assertRedirect()
+        ->assertSessionDoesntHaveErrors();
+
+    $this->assertDatabaseHas('document_folders', [
+        'name' => 'Founder Breakfast Workspace',
+        'owner_type' => Event::class,
+        'owner_id' => $event->id,
+    ]);
+
+    $group = DocumentFolder::query()->where('name', 'Events')->whereNull('parent_id')->first();
     expect($group)->not->toBeNull();
 });

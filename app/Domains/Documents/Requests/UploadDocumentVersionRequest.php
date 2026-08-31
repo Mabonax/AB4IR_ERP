@@ -14,7 +14,7 @@ class UploadDocumentVersionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,webp,txt,md,csv,json', 'max:25600'],
+            'file' => ['required', 'file', 'mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,webp,txt,md,csv,json', 'max:51200'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
