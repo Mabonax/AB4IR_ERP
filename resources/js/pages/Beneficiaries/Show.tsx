@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
+import { ArrowLeft, BookOpenCheck, CalendarClock, GraduationCap, Mail, MapPin, Phone, UserRound, UsersRound } from "lucide-react";
 
 import AppLayout from "@/layouts/app-layout";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
@@ -96,25 +97,31 @@ export default function BeneficiaryShow({
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title={beneficiary.full_name ?? "Beneficiary File"} />
 
-      <div className="space-y-6 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">
-              <Link href={beneficiaries.index().url} className="hover:underline">
+      <div className="space-y-6 bg-white p-4 text-slate-950 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="grid h-16 w-16 place-items-center rounded-full bg-red-50 text-red-600">
+              <UserRound className="h-8 w-8" />
+            </div>
+            <div className="space-y-1">
+            <div className="text-sm text-slate-500">
+              <Link href={beneficiaries.index().url} className="inline-flex items-center gap-1 hover:underline">
+                <ArrowLeft className="h-3.5 w-3.5" />
                 Back to beneficiaries
               </Link>
             </div>
-            <h1 className="text-2xl font-semibold">{beneficiary.full_name ?? "-"}</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-3xl font-semibold tracking-normal">{beneficiary.full_name ?? "-"}</h1>
+            <p className="text-sm text-slate-500">
               {beneficiary.program_title ?? "No current program"} | {beneficiary.project_name ?? "No current project"}
             </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {canManageBeneficiary ? (
               <Link
                 href={beneficiaries.edit(beneficiary.id).url}
-                className="rounded-md border border-orange-500 px-4 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+                className="rounded-lg border border-orange-500 px-4 py-2 text-sm font-semibold text-orange-600 hover:bg-orange-500 hover:text-white"
               >
                 Edit Beneficiary
               </Link>
@@ -123,7 +130,7 @@ export default function BeneficiaryShow({
               <button
                 type="button"
                 onClick={() => setDeleteOpen(true)}
-                className="rounded-md border border-red-600 px-4 py-2 text-sm text-red-600 hover:bg-red-600 hover:text-white"
+                className="rounded-lg border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-600 hover:text-white"
               >
                 Delete Beneficiary
               </button>
@@ -131,38 +138,34 @@ export default function BeneficiaryShow({
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="text-sm text-muted-foreground">Current Program</div>
-            <div className="mt-1 text-xl font-semibold">{beneficiary.current_participation?.program_title ?? "-"}</div>
-          </section>
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="text-sm text-muted-foreground">Current Project</div>
-            <div className="mt-1 text-xl font-semibold">{beneficiary.current_participation?.project_name ?? "-"}</div>
-          </section>
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="text-sm text-muted-foreground">Current Site</div>
-            <div className="mt-1 text-xl font-semibold">{beneficiary.current_participation?.location_name ?? "-"}</div>
-          </section>
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="text-sm text-muted-foreground">Lifecycle Status</div>
-            <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-medium capitalize ${statusChipClass}`}>
-              {String(beneficiary.status ?? "enrolled").replaceAll("_", " ")}
-            </div>
-            <div className="mt-2 text-xs text-muted-foreground">{beneficiary.status_reason ?? "No lifecycle reason recorded yet."}</div>
-          </section>
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="text-sm text-muted-foreground">Attendance Status</div>
-            <div className="mt-1 text-xl font-semibold capitalize">{beneficiary.attendance_status ?? "-"}</div>
-          </section>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            ["Current Program", beneficiary.current_participation?.program_title ?? "-", GraduationCap, "bg-red-50 text-red-600"],
+            ["Current Project", beneficiary.current_participation?.project_name ?? "-", UsersRound, "bg-orange-50 text-orange-600"],
+            ["Current Site", beneficiary.current_participation?.location_name ?? "-", MapPin, "bg-blue-50 text-blue-600"],
+            ["Lifecycle Status", String(beneficiary.status ?? "enrolled").replaceAll("_", " "), BookOpenCheck, "bg-emerald-50 text-emerald-600"],
+            ["Attendance Status", beneficiary.attendance_status ?? "-", CalendarClock, "bg-violet-50 text-violet-600"],
+          ].map(([label, value, Icon, tone]) => (
+            <section key={String(label)} className="rounded-lg border bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-slate-500">{label}</div>
+                  <div className="mt-2 truncate text-xl font-semibold capitalize">{String(value)}</div>
+                </div>
+                <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}>
+                  <Icon className="h-5 w-5" />
+                </span>
+              </div>
+            </section>
+          ))}
         </div>
 
         {canManageBeneficiary ? (
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold">Lifecycle Actions</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <h2 className="text-lg font-semibold">Lifecycle Actions</h2>
+                <p className="mt-1 text-sm text-slate-500">
                   Govern beneficiary transitions through explicit transactions with reason capture and audit history.
                 </p>
               </div>
@@ -265,11 +268,11 @@ export default function BeneficiaryShow({
           </section>
         ) : null}
 
-        <section className="rounded-xl border bg-card p-4 shadow-sm">
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold">Learning</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <h2 className="text-lg font-semibold">LMS Summary</h2>
+              <p className="mt-1 text-sm text-slate-500">
                 Read-only LMS activity for this ERP beneficiary.
               </p>
             </div>
@@ -322,8 +325,8 @@ export default function BeneficiaryShow({
               ["Last Login", learningSummary?.last_login_at ?? "Never"],
               ["Progress", learningSummary?.progress?.percentage === null ? "Not tracked" : learningSummary?.progress?.percentage !== undefined ? `${learningSummary.progress.percentage}%` : "No data"],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-md border bg-slate-50 p-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+              <div key={label} className="rounded-lg border bg-slate-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
                 <div className="mt-1 font-semibold text-slate-900">{value}</div>
               </div>
             ))}
@@ -350,8 +353,8 @@ export default function BeneficiaryShow({
         </section>
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <section className="rounded-xl border bg-card p-4 shadow-sm lg:col-span-2">
-            <h2 className="text-base font-semibold">Beneficiary Profile</h2>
+          <section className="rounded-lg border bg-white p-5 shadow-sm lg:col-span-2">
+            <h2 className="text-lg font-semibold">Beneficiary Profile</h2>
             <dl className="mt-3 grid gap-3 text-sm md:grid-cols-2">
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Full Name</dt>
@@ -378,18 +381,18 @@ export default function BeneficiaryShow({
                 <dd>{beneficiary.highest_qualification ?? "-"}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Email</dt>
+                <dt className="inline-flex items-center gap-1 text-muted-foreground"><Mail className="h-3.5 w-3.5" />Email</dt>
                 <dd>{beneficiary.email ?? "-"}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Phone</dt>
+                <dt className="inline-flex items-center gap-1 text-muted-foreground"><Phone className="h-3.5 w-3.5" />Phone</dt>
                 <dd>{beneficiary.phone ?? "-"}</dd>
               </div>
             </dl>
           </section>
 
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Current Placement</h2>
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Current Placement</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Lifecycle Status</dt>
@@ -420,8 +423,8 @@ export default function BeneficiaryShow({
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Address and Contact</h2>
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Address and Contact</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Street Address</dt>
@@ -442,8 +445,8 @@ export default function BeneficiaryShow({
             </dl>
           </section>
 
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Next of Kin</h2>
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Next of Kin</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Full Name</dt>
@@ -468,8 +471,8 @@ export default function BeneficiaryShow({
             </dl>
           </section>
 
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Latest Outcome</h2>
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Latest Outcome</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Outcome</dt>
@@ -490,9 +493,9 @@ export default function BeneficiaryShow({
           </section>
         </div>
 
-        <section className="rounded-xl border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-semibold">Participation History</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Participation History</h2>
+          <p className="mt-1 text-sm text-slate-500">
             Historical participation across programs, project iterations, and delivery sites.
           </p>
 
@@ -533,9 +536,9 @@ export default function BeneficiaryShow({
           </div>
         </section>
 
-        <section className="rounded-xl border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-semibold">Lifecycle Timeline</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Lifecycle Timeline</h2>
+          <p className="mt-1 text-sm text-slate-500">
             Creation, transfers, suspensions, outcomes, and other lifecycle transitions are recorded here.
           </p>
 

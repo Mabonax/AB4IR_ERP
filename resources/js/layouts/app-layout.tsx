@@ -8,6 +8,7 @@ import { type BreadcrumbItem } from '@/types';
 interface AppLayoutProps {
     children: ReactNode;
     breadcrumbs?: BreadcrumbItem[];
+    headerActions?: ReactNode;
 }
 
 export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => (

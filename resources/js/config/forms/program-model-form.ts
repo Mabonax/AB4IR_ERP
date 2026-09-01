@@ -3,7 +3,7 @@ import { CirclePlus } from "lucide-react";
 export const ProgramModelFormConfig = {
   moduleTitle: "Programs",
   title: "Program Form",
-  description: "Fill in the details to add or edit a program.",
+  description: "Fill in the details to add a new program to the system.",
 
   addButton: {
     id: "add-program-button",
@@ -30,7 +30,7 @@ export const ProgramModelFormConfig = {
       label: "Description",
       type: "textarea",
       rows: 3,
-      placeholder: "Enter description",
+      placeholder: "Enter a brief description of the program",
       required: true,
     },
     {
@@ -38,7 +38,8 @@ export const ProgramModelFormConfig = {
       name: "slug",
       label: "Slug",
       type: "text",
-      placeholder: "Optional slug",
+      placeholder: "Enter program slug (URL-friendly)",
+      required: true,
     },
   ],
 };

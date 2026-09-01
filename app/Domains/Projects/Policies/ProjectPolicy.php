@@ -3,12 +3,17 @@
 namespace App\Domains\Projects\Policies;
 
 use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Policies\Concerns\InteractsWithProjectWorkflow;
 use App\Models\User;
 use App\Policies\Concerns\InteractsWithDomainPermissions;
 
 class ProjectPolicy
 {
     use InteractsWithDomainPermissions;
+    use InteractsWithProjectWorkflow {
+        InteractsWithProjectWorkflow::canViewDomain insteadof InteractsWithDomainPermissions;
+        InteractsWithProjectWorkflow::canManageDomain insteadof InteractsWithDomainPermissions;
+    }
 
     public function viewAny(User $user): bool
     {
@@ -28,6 +33,17 @@ class ProjectPolicy
     public function update(User $user, Project $project): bool
     {
         return $this->canManageDomain($user, 'projects');
+    }
+
+    public function attachMilestones(User $user, Project $project): bool
+    {
+        if ($this->canManageDomain($user, 'projects') || $this->isProjectManager($user, $project)) {
+            return true;
+        }
+
+        $project->loadMissing('locations.facilitator');
+
+        return $project->locations->contains(fn ($location) => $this->isAssignedFacilitator($user, $location));
     }
 
     public function delete(User $user, Project $project): bool

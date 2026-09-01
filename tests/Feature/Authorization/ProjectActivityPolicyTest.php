@@ -3,6 +3,7 @@
 use App\Domains\Facilitators\Models\Facilitator;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\AttendanceRegister;
+use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Projects\Models\ProjectLocation;
 use App\Domains\Projects\Models\ProjectMilestoneAssessment;
@@ -96,6 +97,7 @@ test('assigned facilitator can view and manage attendance plus assessments for a
     expect(Gate::forUser($graph['facilitatorUser'])->allows('manageLocation', [AttendanceRegister::class, $graph['location']]))->toBeTrue();
     expect(Gate::forUser($graph['facilitatorUser'])->allows('markHoliday', [AttendanceRegister::class, $graph['location']]))->toBeFalse();
     expect(Gate::forUser($graph['facilitatorUser'])->allows('store', [ProjectMilestoneAssessment::class, $graph['location']]))->toBeTrue();
+    expect(Gate::forUser($graph['facilitatorUser'])->allows('attachMilestones', $graph['project']))->toBeTrue();
 });
 
 test('project manager can view attendance context and mark holidays but not capture registers', function () {
@@ -105,6 +107,7 @@ test('project manager can view attendance context and mark holidays but not capt
     expect(Gate::forUser($graph['managerUser'])->allows('markHoliday', [AttendanceRegister::class, $graph['location']]))->toBeTrue();
     expect(Gate::forUser($graph['managerUser'])->allows('manageLocation', [AttendanceRegister::class, $graph['location']]))->toBeFalse();
     expect(Gate::forUser($graph['managerUser'])->allows('viewAttendanceSummary', $graph['project']))->toBeTrue();
+    expect(Gate::forUser($graph['managerUser'])->allows('attachMilestones', $graph['project']))->toBeTrue();
 });
 
 test('operational mutations are blocked once a project is no longer active', function () {
@@ -122,4 +125,31 @@ test('project viewers can inspect attendance but cannot run workflow mutations',
     expect(Gate::forUser($graph['registerViewer'])->allows('export', $graph['register']->fresh('location.project', 'location.facilitator')))->toBeTrue();
     expect(Gate::forUser($graph['registerViewer'])->allows('manageLocation', [AttendanceRegister::class, $graph['location']]))->toBeFalse();
     expect(Gate::forUser($graph['registerViewer'])->allows('store', [ProjectMilestoneAssessment::class, $graph['location']]))->toBeFalse();
+    expect(Gate::forUser($graph['registerViewer'])->allows('attachMilestones', $graph['project']))->toBeFalse();
+});
+
+test('assigned facilitator with project activity management can attach program milestones to project', function () {
+    $graph = makeProjectActivityGraph('active');
+    grantPermissions($graph['facilitatorUser'], ['project-activities.manage']);
+
+    $template = ProgramMilestoneTemplate::query()->create([
+        'program_id' => $graph['project']->program_id,
+        'title' => 'Facilitator Managed Milestone',
+        'description' => 'Milestone attached by the assigned facilitator.',
+        'sort_order' => 1,
+        'max_score' => 100,
+    ]);
+
+    $this->actingAs($graph['facilitatorUser'])
+        ->post(route('projects.milestones.store', $graph['project']), [
+            'milestone_template_id' => $template->id,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Milestone added');
+
+    $this->assertDatabaseHas('project_milestones', [
+        'project_id' => $graph['project']->id,
+        'program_milestone_template_id' => $template->id,
+        'title' => 'Facilitator Managed Milestone',
+    ]);
 });

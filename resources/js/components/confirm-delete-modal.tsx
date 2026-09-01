@@ -1,5 +1,6 @@
 import { router } from "@inertiajs/react";
 import type { Method } from "@inertiajs/core";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,17 +41,26 @@ export function ConfirmDeleteModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
+      <DialogContent className="overflow-hidden p-0 sm:max-w-[520px]">
+        <DialogHeader className="px-7 pb-4 pt-7">
+          <div className="flex items-start gap-4 pr-10">
+            <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-100 to-orange-100 text-red-600 ring-8 ring-orange-50">
+              <Trash2 className="h-7 w-7" />
+            </span>
+            <div className="pt-1">
+              <DialogTitle className="text-2xl font-semibold tracking-normal">{title}</DialogTitle>
+              <DialogDescription className="mt-1">
+                {description ?? "This action cannot be undone. Confirm that you want to delete this record."}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="border-t px-7 py-5">
+          <Button variant="outline" className="rounded-lg border-slate-200 bg-white px-4 text-slate-700 hover:bg-slate-50" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={handleDelete}>
+          <Button variant="destructive" className="rounded-lg px-5 font-semibold" onClick={handleDelete}>
             Delete
           </Button>
         </DialogFooter>

@@ -12,6 +12,7 @@ class ProjectProgressService
     public function summarizeProject(Project $project): array
     {
         $project->loadMissing([
+            'program',
             'projectManager',
             'locations.facilitator',
             'locations.province',
@@ -85,9 +86,12 @@ class ProjectProgressService
                     'id' => $project->id,
                     'name' => $project->name,
                     'status' => $project->status,
+                    'status_label' => ucfirst(str_replace('_', ' ', (string) $project->status)),
+                    'program_title' => $project->program?->title,
                     'project_manager_name' => $progress['summary']['project_manager_name'],
                     'total_locations' => $progress['summary']['total_locations'],
                     'active_beneficiaries' => $progress['summary']['active_beneficiaries'],
+                    'total_milestones' => $progress['summary']['total_milestones'],
                     'milestone_completion_rate' => $progress['summary']['milestone_completion_rate'],
                     'beneficiary_completion_rate' => $progress['summary']['beneficiary_completion_rate'],
                     'attendance_rate' => $progress['summary']['attendance_rate'],

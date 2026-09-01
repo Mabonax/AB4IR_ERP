@@ -24,6 +24,16 @@ class OrganizationProfileController extends Controller
         ]);
     }
 
+    public function edit()
+    {
+        $profile = $this->service->getProfile();
+        $this->authorize('update', $profile);
+
+        return Inertia::render('Organization/Edit', [
+            'profile' => $this->service->mapProfile($profile),
+        ]);
+    }
+
     public function update(Request $request)
     {
         $profile = $this->service->getProfile();

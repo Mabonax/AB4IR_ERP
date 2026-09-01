@@ -1,12 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { Upload } from "lucide-react";
+import { Eye, Pencil, Search, Trash2, Upload, UserCheck, UserRoundPlus, UsersRound } from "lucide-react";
 
 import AppLayout from "@/layouts/app-layout";
-import {
-  HorizontalBarChart,
-} from "@/components/charts/dashboard-charts";
-import { CustomTable } from "@/components/custom-table";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,21 +15,71 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 import beneficiaries from "@/routes/beneficiaries";
 import { type BreadcrumbItem, type SharedData } from "@/types";
-
-/* =========================================================
-| BREADCRUMBS
-========================================================= */
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Beneficiaries", href: beneficiaries.index() },
 ];
 
-/* =========================================================
-| PAGE
-========================================================= */
+const pct = (value: number, total: number) => (total > 0 ? Math.round((value / total) * 100) : 0);
+
+function MetricCard({ label, value, note, icon: Icon, tone }: { label: string; value: number | string; note: string; icon: any; tone: string }) {
+  return (
+    <section className="rounded-lg border bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{label}</p>
+          <p className="mt-2 text-3xl font-semibold">{value}</p>
+          <p className="mt-2 text-xs text-slate-500">{note}</p>
+        </div>
+        <span className={`inline-flex h-11 w-11 items-center justify-center rounded-full ${tone}`}>
+          <Icon className="h-5 w-5" />
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function LifecycleDonut({ metrics, total }: { metrics: any; total: number }) {
+  const graduated = pct(metrics?.graduated_beneficiaries ?? 0, total);
+  const exited = pct(metrics?.exited_beneficiaries ?? 0, total);
+  const unknown = Math.max(0, 100 - graduated - exited);
+
+  return (
+    <section className="rounded-lg border bg-white p-5 shadow-sm">
+      <h2 className="text-lg font-semibold">Lifecycle Overview</h2>
+      <p className="text-sm text-slate-500">Current outcome state for the selected cohort.</p>
+      <div className="mt-6 flex flex-col items-center gap-5 md:flex-row md:justify-center xl:flex-col">
+        <div
+          className="grid h-48 w-48 place-items-center rounded-full"
+          style={{ background: `conic-gradient(#16a34a 0 ${graduated}%, #ef4444 ${graduated}% ${graduated + exited}%, #3b82f6 ${graduated + exited}% ${graduated + exited + unknown}%, #e2e8f0 0 100%)` }}
+        >
+          <div className="grid h-28 w-28 place-items-center rounded-full bg-white text-center shadow-inner">
+            <div>
+              <div className="text-3xl font-semibold">{total}</div>
+              <div className="text-xs text-slate-500">Total</div>
+            </div>
+          </div>
+        </div>
+        <div className="w-full max-w-xs space-y-3 text-sm">
+          {[
+            ["Graduated", metrics?.graduated_beneficiaries ?? 0, "bg-emerald-500"],
+            ["Exited", metrics?.exited_beneficiaries ?? 0, "bg-red-500"],
+            ["Employment", metrics?.employment_outcomes ?? 0, "bg-blue-500"],
+            ["Further education", metrics?.further_education_outcomes ?? 0, "bg-orange-500"],
+            ["Unknown", metrics?.unknown_outcomes ?? 0, "bg-slate-300"],
+          ].map(([label, value, color]) => (
+            <div key={label} className="flex items-center justify-between gap-4">
+              <span className="inline-flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${color}`} />{label}</span>
+              <span className="font-semibold">{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function BeneficiaryIndex({
   beneficiary,
@@ -69,71 +115,31 @@ export default function BeneficiaryIndex({
   const [importLocationId, setImportLocationId] = useState<string>(selectedProjectLocations[0] ? String(selectedProjectLocations[0].id) : "");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const importErrors = Array.isArray(flash?.import_errors) ? (flash.import_errors as string[]) : [];
+  const rows = beneficiary.data;
+
   const locationChartData = useMemo(() => {
-    const counts = beneficiary.data.reduce((carry: Record<string, number>, item: any) => {
+    const counts = rows.reduce((carry: Record<string, number>, item: any) => {
       const key = item.project_location ?? "Unassigned location";
       carry[key] = (carry[key] ?? 0) + 1;
 
       return carry;
     }, {});
 
-    return Object.entries(counts)
-      .map(([label, value]) => ({
-        label,
-        value,
-        colorClass: "bg-red-500",
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [beneficiary.data]);
-
-  const columns = useMemo(
-    () => [
-      {
-        label: "Beneficiary",
-        key: "full_name",
-        className: "px-4 py-2 text-left",
-        render: (row: any) => (
-          <Link href={`/beneficiaries/${row.id}`} className="font-medium text-red-600 hover:underline">
-            {row.full_name ?? (`${row.name ?? ""} ${row.surname ?? ""}`.trim() || "-")}
-          </Link>
-        ),
-      },
-      { label: "Email", key: "email", className: "px-4 py-2 text-left" },
-      { label: "Program", key: "program_title", className: "px-4 py-2 text-left" },
-      { label: "Project", key: "project_name", className: "px-4 py-2 text-left" },
-      { label: "Location", key: "project_location", className: "px-4 py-2 text-left" },
-      {
-        label: "Lifecycle",
-        key: "status",
-        className: "px-4 py-2 text-left",
-        render: (row: any) => <span className="capitalize">{String(row.status ?? "enrolled").replaceAll("_", " ")}</span>,
-      },
-      { label: "Actions", key: "actions", isAction: true, className: "px-4 py-2 text-left" },
-    ],
-    []
-  );
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [rows]);
 
   const applyFilters = (programId: string, projectId: string) => {
     const query: Record<string, string> = {};
-    if (programId) {
-      query.program_id = programId;
-    }
-    if (projectId) {
-      query.project_id = projectId;
-    }
+    if (programId) query.program_id = programId;
+    if (projectId) query.project_id = projectId;
 
-    router.get("/beneficiaries", query, {
-      preserveScroll: true,
-      preserveState: true,
-    });
+    router.get("/beneficiaries", query, { preserveScroll: true, preserveState: true });
   };
 
   const submitImport = () => {
     const file = fileInputRef.current?.files?.[0];
 
-    if (!selectedProject || !importLocationId || !file) {
-      return;
-    }
+    if (!selectedProject || !importLocationId || !file) return;
 
     router.post("/beneficiaries/import", {
       file,
@@ -144,73 +150,66 @@ export default function BeneficiaryIndex({
       preserveScroll: true,
       onSuccess: () => {
         setImportDialogOpen(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+        if (fileInputRef.current) fileInputRef.current.value = "";
       },
     });
   };
-
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Beneficiaries" />
 
-      <div className="p-4 space-y-4">
+      <div className="space-y-6 bg-white p-4 text-slate-950 md:p-6">
         {importErrors.length > 0 ? (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
             <div className="font-semibold">Import errors</div>
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              {importErrors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
+              {importErrors.map((error) => <li key={error}>{error}</li>)}
             </ul>
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold">Beneficiaries</h1>
-            <p className="text-sm text-muted-foreground">
-              Drill down by program and project to open the right beneficiary cohort.
-            </p>
+            <h1 className="text-3xl font-semibold tracking-normal">Beneficiaries</h1>
+            <p className="mt-1 text-sm text-slate-500">Program cohort, placement, and lifecycle overview.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={beneficiaries.create().url} className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+              <UserRoundPlus className="h-4 w-4" />
+              Add Beneficiary
+            </Link>
+            <Button type="button" variant="outline" disabled={!selectedProject || selectedProjectLocations.length === 0} onClick={() => {
+              setImportLocationId(selectedProjectLocations[0] ? String(selectedProjectLocations[0].id) : "");
+              setImportDialogOpen(true);
+            }}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Button>
           </div>
         </div>
 
-        <div className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm lg:grid-cols-[1fr_1fr_auto]">
+        <section className="grid gap-4 rounded-lg border bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_auto]">
           <div>
             <label className="mb-1 block text-sm font-medium">Program</label>
-            <select
-              className="w-full rounded-md border bg-card px-3 py-2 text-sm"
-              value={selectedProgram}
-              onChange={(e) => {
-                const nextProgram = e.target.value;
-                setSelectedProgram(nextProgram);
-                setSelectedProject("");
-                applyFilters(nextProgram, "");
-              }}
-            >
+            <select className="w-full rounded-lg border bg-white px-3 py-2 text-sm" value={selectedProgram} onChange={(e) => {
+              const nextProgram = e.target.value;
+              setSelectedProgram(nextProgram);
+              setSelectedProject("");
+              applyFilters(nextProgram, "");
+            }}>
               <option value="">Select program</option>
-              {programs.map((program) => (
-                <option key={program.id} value={program.id}>
-                  {program.title}
-                </option>
-              ))}
+              {programs.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
             </select>
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium">Project Iteration</label>
-            <select
-              className="w-full rounded-md border bg-card px-3 py-2 text-sm"
-              value={selectedProject}
-              disabled={!selectedProgram}
-              onChange={(e) => {
-                const nextProject = e.target.value;
-                setSelectedProject(nextProject);
-                applyFilters(selectedProgram, nextProject);
-              }}
-            >
+            <select className="w-full rounded-lg border bg-white px-3 py-2 text-sm" value={selectedProject} disabled={!selectedProgram} onChange={(e) => {
+              const nextProject = e.target.value;
+              setSelectedProject(nextProject);
+              applyFilters(selectedProgram, nextProject);
+            }}>
               <option value="">{selectedProgram ? "Select project" : "Choose a program first"}</option>
               {filterProjects.map((project) => (
                 <option key={project.id} value={project.id}>
@@ -221,139 +220,107 @@ export default function BeneficiaryIndex({
           </div>
 
           <div className="flex items-end">
-            <button
-              type="button"
-              className="rounded-md border px-3 py-2 text-sm hover:bg-accent"
-              onClick={() => {
-                setSelectedProgram("");
-                setSelectedProject("");
-                router.get("/beneficiaries", {}, { preserveScroll: true, preserveState: true });
-              }}
-            >
+            <button type="button" className="h-10 rounded-lg border px-4 text-sm font-medium hover:bg-slate-50" onClick={() => {
+              setSelectedProgram("");
+              setSelectedProject("");
+              router.get("/beneficiaries", {}, { preserveScroll: true, preserveState: true });
+            }}>
               Reset
             </button>
           </div>
+        </section>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Tracked Beneficiaries" value={rows.length} note="Current filtered cohort" icon={UsersRound} tone="bg-red-50 text-red-600" />
+          <MetricCard label="Graduated" value={lifecycleMetrics?.graduated_beneficiaries ?? 0} note="Completed lifecycle" icon={UserCheck} tone="bg-emerald-50 text-emerald-600" />
+          <MetricCard label="Exited" value={lifecycleMetrics?.exited_beneficiaries ?? 0} note="Exited cohort" icon={Trash2} tone="bg-orange-50 text-orange-600" />
+          <MetricCard label="Locations" value={locationChartData.length} note="Active delivery sites" icon={Search} tone="bg-blue-50 text-blue-600" />
         </div>
 
-        {selectedProjectSummary ? (
-          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-4">
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-              <div className="text-sm text-muted-foreground">Selected Project</div>
-              <div className="mt-1 text-lg font-semibold">{selectedProjectSummary.name}</div>
+        <div className="grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Location Distribution</h2>
+            <p className="text-sm text-slate-500">Beneficiaries by selected delivery location.</p>
+            <div className="mt-5 space-y-4">
+              {locationChartData.length ? locationChartData.map(([label, value]) => (
+                <div key={label}>
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="font-medium">{label}</span>
+                    <span className="text-slate-500">{value}</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-slate-100">
+                    <div className="h-3 rounded-full bg-red-500" style={{ width: `${Math.max(8, pct(value, rows.length))}%` }} />
+                  </div>
+                </div>
+              )) : <div className="rounded-lg border border-dashed p-6 text-sm text-slate-500">Select a program and project to view cohort distribution.</div>}
             </div>
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-              <div className="text-sm text-muted-foreground">Project Window</div>
-              <div className="mt-1 text-lg font-semibold">
-                {selectedProjectSummary.start_date ?? "-"} to {selectedProjectSummary.end_date ?? "ongoing"}
-              </div>
-            </div>
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-              <div className="text-sm text-muted-foreground">Status</div>
-              <div className="mt-1 text-lg font-semibold capitalize">{selectedProjectSummary.status ?? "-"}</div>
-            </div>
-            <div className="rounded-xl border bg-card p-4 shadow-sm">
-              <div className="text-sm text-muted-foreground">Tracked Beneficiaries</div>
-              <div className="mt-1 text-lg font-semibold">{beneficiary.data.length}</div>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed bg-card p-6 text-sm text-muted-foreground">
-            Select a program, then choose a project iteration to see that project&apos;s beneficiaries.
-          </div>
-        )}
+          </section>
 
-        {selectedProjectSummary ? (
-          <div className="grid gap-6">
-            {lifecycleMetrics ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <div className="rounded-xl border bg-card p-4 shadow-sm">
-                  <div className="text-sm text-muted-foreground">Graduated</div>
-                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.graduated_beneficiaries}</div>
-                </div>
-                <div className="rounded-xl border bg-card p-4 shadow-sm">
-                  <div className="text-sm text-muted-foreground">Exited</div>
-                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.exited_beneficiaries}</div>
-                </div>
-                <div className="rounded-xl border bg-card p-4 shadow-sm">
-                  <div className="text-sm text-muted-foreground">Employment Outcomes</div>
-                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.employment_outcomes}</div>
-                </div>
-                <div className="rounded-xl border bg-card p-4 shadow-sm">
-                  <div className="text-sm text-muted-foreground">Further Education</div>
-                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.further_education_outcomes}</div>
-                </div>
-                <div className="rounded-xl border bg-card p-4 shadow-sm">
-                  <div className="text-sm text-muted-foreground">Unknown Outcomes</div>
-                  <div className="mt-2 text-2xl font-semibold">{lifecycleMetrics.unknown_outcomes}</div>
-                </div>
-              </div>
-            ) : null}
-
-            <HorizontalBarChart
-              title="Beneficiaries by Location"
-              description="Shows where the selected project cohort is concentrated across delivery locations."
-              items={locationChartData}
-              emptyMessage="No beneficiary location data is available for this cohort yet."
-            />
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap justify-between gap-3">
-          <Link
-            href={beneficiaries.create().url}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          >
-            Add Beneficiary
-          </Link>
-
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!selectedProject || selectedProjectLocations.length === 0}
-            onClick={() => {
-              setImportLocationId(selectedProjectLocations[0] ? String(selectedProjectLocations[0].id) : "");
-              setImportDialogOpen(true);
-            }}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Import Beneficiaries
-          </Button>
+          <LifecycleDonut metrics={lifecycleMetrics} total={rows.length} />
         </div>
 
-        <CustomTable
-          columns={columns}
-          data={beneficiary.data}
-          actions={[
-            {
-              icon: "Eye",
-              label: "View beneficiary file",
-              href: (row) => `/beneficiaries/${row.id}`,
-            },
-            {
-              icon: "PencilIcon",
-              label: "Edit beneficiary",
-              href: (row) => beneficiaries.edit(row.id).url,
-            },
-            {
-              icon: "Trash2",
-              label: "Delete beneficiary",
-              variant: "danger",
-              onClick: (row) => {
-                setBeneficiaryToDelete(row);
-                setDeleteOpen(true);
-              },
-            },
-          ]}
-        />
+        <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+            <div>
+              <h2 className="text-lg font-semibold">Beneficiary Register</h2>
+              <p className="text-sm text-slate-500">
+                {selectedProjectSummary ? `${selectedProjectSummary.name} | ${selectedProjectSummary.status ?? "status pending"}` : "Select filters to narrow the register."}
+              </p>
+            </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input className="h-10 rounded-lg border pl-9 pr-3 text-sm" placeholder="Search beneficiaries..." />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">Beneficiary</th>
+                  <th className="px-4 py-3 text-left">Email</th>
+                  <th className="px-4 py-3 text-left">Program</th>
+                  <th className="px-4 py-3 text-left">Project</th>
+                  <th className="px-4 py-3 text-left">Location</th>
+                  <th className="px-4 py-3 text-left">Lifecycle</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length ? rows.map((row: any) => (
+                  <tr key={row.id} className="border-t">
+                    <td className="px-4 py-3">
+                      <Link href={`/beneficiaries/${row.id}`} className="font-semibold text-slate-900 hover:text-red-600">
+                        {row.full_name ?? (`${row.name ?? ""} ${row.surname ?? ""}`.trim() || "-")}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{row.email ?? "-"}</td>
+                    <td className="px-4 py-3">{row.program_title ?? "-"}</td>
+                    <td className="px-4 py-3">{row.project_name ?? "-"}</td>
+                    <td className="px-4 py-3">{row.project_location ?? "-"}</td>
+                    <td className="px-4 py-3"><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium capitalize text-blue-600">{String(row.status ?? "enrolled").replaceAll("_", " ")}</span></td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/beneficiaries/${row.id}`} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border text-slate-600 hover:bg-slate-50" title="View beneficiary"><Eye className="h-4 w-4" /></Link>
+                        <Link href={beneficiaries.edit(row.id).url} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border text-orange-600 hover:bg-orange-50" title="Edit beneficiary"><Pencil className="h-4 w-4" /></Link>
+                        <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border text-red-600 hover:bg-red-50" title="Delete beneficiary" onClick={() => {
+                          setBeneficiaryToDelete(row);
+                          setDeleteOpen(true);
+                        }}><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-slate-500">No beneficiaries available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         {beneficiaryToDelete && (
-          <ConfirmDeleteModal
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            title="Delete Beneficiary"
-            submitRoute={beneficiaries.destroy}
-            routeParams={beneficiaryToDelete.id}
-          />
+          <ConfirmDeleteModal open={deleteOpen} onOpenChange={setDeleteOpen} title="Delete Beneficiary" submitRoute={beneficiaries.destroy} routeParams={beneficiaryToDelete.id} />
         )}
 
         <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
@@ -362,7 +329,6 @@ export default function BeneficiaryIndex({
               <DialogTitle>Import Beneficiaries</DialogTitle>
               <DialogDescription>
                 Import into the selected project iteration. Required spreadsheet headers: <code>name</code> and <code>surname</code>.
-                Use optional identity fields like <code>dob</code>, <code>id_number</code>, and <code>email</code> to improve matching.
               </DialogDescription>
             </DialogHeader>
 
@@ -374,37 +340,20 @@ export default function BeneficiaryIndex({
 
               <div className="space-y-2">
                 <Label htmlFor="beneficiary-import-location">Project location</Label>
-                <select
-                  id="beneficiary-import-location"
-                  className="w-full rounded-md border bg-card px-3 py-2 text-sm"
-                  value={importLocationId}
-                  onChange={(e) => setImportLocationId(e.target.value)}
-                >
-                  {selectedProjectLocations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.name}
-                    </option>
-                  ))}
+                <select id="beneficiary-import-location" className="w-full rounded-md border bg-card px-3 py-2 text-sm" value={importLocationId} onChange={(e) => setImportLocationId(e.target.value)}>
+                  {selectedProjectLocations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
                 </select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="beneficiary-import-file">Spreadsheet file</Label>
                 <Input id="beneficiary-import-file" ref={fileInputRef} type="file" accept=".csv,.txt,.xlsx" />
-                <p className="text-xs text-muted-foreground">
-                  Optional headers supported: dob, age, id_number, email, phone, gender, street_address, address_line_2, city, province,
-                  postal_code, highest_qualification, attendance_status, nok_name, nok_surname, nok_relationship, nok_phone, nok_email.
-                </p>
               </div>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setImportDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={submitImport} disabled={!selectedProject || !importLocationId}>
-                Import Spreadsheet
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setImportDialogOpen(false)}>Cancel</Button>
+              <Button type="button" onClick={submitImport} disabled={!selectedProject || !importLocationId}>Import Spreadsheet</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

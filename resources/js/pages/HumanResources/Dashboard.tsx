@@ -1,4 +1,6 @@
+import { useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
 import { Head, Link, router } from "@inertiajs/react";
+import { Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   BriefcaseBusiness,
   CalendarCheck2,
@@ -24,27 +26,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import {
-  Area,
-  AreaChart,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -157,16 +139,6 @@ type Props = {
       sick_taken: number;
       sick_available: number;
     };
-    staff: {
-      staff_id: number;
-      staff_name: string;
-      department_name: string | null;
-      leave_account: {
-        annual: { available: number; taken: number };
-        sick: { available: number; taken: number };
-        pending: { count: number };
-      };
-    }[];
   };
   staffDirectory: StaffDirectoryRow[];
   pendingLeaveApprovals: PendingLeaveApproval[];
@@ -181,33 +153,17 @@ type Props = {
   canManageHrLeave: boolean;
 };
 
-const pieColors = ["#ef3b1f", "#f59e0b", "#8b5cf6", "#2f80ed", "#22c55e", "#14b8a6"];
-
-const cardTone = {
-  purple: "bg-violet-50 text-violet-700 ring-violet-100",
-  green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  amber: "bg-amber-50 text-amber-700 ring-amber-100",
-  red: "bg-red-50 text-red-700 ring-red-100",
-  blue: "bg-blue-50 text-blue-700 ring-blue-100",
-};
-
+const pieColors = ["#ef233c", "#f97316", "#8b5cf6", "#2563eb", "#22c55e", "#14b8a6"];
 const leaveTypeClass: Record<string, string> = {
-  annual: "bg-emerald-400",
-  sick: "bg-red-400",
-  personal: "bg-orange-400",
-  maternity: "bg-violet-400",
-  family_responsibility: "bg-blue-400",
+  annual: "bg-emerald-500",
+  sick: "bg-red-500",
+  personal: "bg-blue-500",
+  maternity: "bg-violet-500",
+  family_responsibility: "bg-blue-500",
 };
 
 function percent(value: number, total: number) {
-  if (total <= 0) return 0;
-  return Math.round((value / total) * 100);
-}
-
-function statusClass(status: string) {
-  return status === "active"
-    ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-    : "bg-slate-100 text-slate-600 ring-slate-200";
+  return total <= 0 ? 0 : Math.round((value / total) * 100);
 }
 
 function formatStatus(status: string) {
@@ -218,103 +174,129 @@ function formatStatus(status: string) {
 }
 
 function eventTone(event: LeaveCalendarEvent) {
-  if (event.status !== "hr_approved") return "bg-amber-400";
-  return leaveTypeClass[event.type] ?? "bg-blue-400";
+  if (event.status !== "hr_approved") {
+    return "bg-amber-500";
+  }
+
+  return leaveTypeClass[event.type] ?? "bg-blue-500";
 }
 
-function MiniLine({ data, dataKey, color }: { data: ChartPoint[]; dataKey: "staff" | "present"; color: string }) {
+function CardShell({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <section className={`rounded-lg border border-slate-200 bg-white shadow-sm ${className}`}>{children}</section>;
+}
+
+function SectionTitle({ title, description }: { title: string; description?: string }) {
   return (
-    <ResponsiveContainer width="100%" height={46}>
-      <LineChart data={data}>
-        <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2.5} dot={false} />
-      </LineChart>
-    </ResponsiveContainer>
+    <div>
+      <h2 className="text-lg font-bold text-slate-950">{title}</h2>
+      {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
+    </div>
   );
 }
 
-function MetricCard({
+function ActionButton({
+  children,
+  href,
+  variant = "outline",
+}: {
+  children: ReactNode;
+  href?: string;
+  variant?: "primary" | "outline";
+}) {
+  const className = variant === "primary"
+    ? "inline-flex h-11 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-bold text-white shadow-sm shadow-red-100 hover:bg-red-700"
+    : "inline-flex h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50";
+
+  return href ? <Link href={href} className={className}>{children}</Link> : <button type="button" className={className}>{children}</button>;
+}
+
+function StatCard({
   title,
   value,
-  subtitle,
+  note,
   icon: Icon,
   tone,
-  trendData,
-  trendKey,
-  trendColor,
 }: {
   title: string;
   value: number | string;
-  subtitle: string;
-  icon: typeof Users;
-  tone: keyof typeof cardTone;
-  trendData?: ChartPoint[];
-  trendKey?: "staff" | "present";
-  trendColor: string;
+  note: string;
+  icon: ComponentType<{ className?: string }>;
+  tone: string;
 }) {
   return (
-    <Card className="rounded-xl border-slate-200 shadow-sm">
-      <CardContent className="space-y-4 p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">{title}</p>
-            <div className="mt-2 text-3xl font-bold tracking-normal text-slate-950">{value}</div>
-          </div>
-          <div className={`flex size-11 items-center justify-center rounded-full ring-1 ${cardTone[tone]}`}>
-            <Icon className="size-5" />
-          </div>
-        </div>
-        <p className="text-xs font-medium text-emerald-600">{subtitle}</p>
-        {trendData && trendKey ? <MiniLine data={trendData} dataKey={trendKey} color={trendColor} /> : null}
-      </CardContent>
-    </Card>
+    <CardShell className="min-h-[170px] bg-gradient-to-br from-white to-slate-50 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-bold text-slate-950">{title}</p>
+        <span className={`flex h-11 w-11 items-center justify-center rounded-full ${tone}`}>
+          <Icon className="h-5 w-5" />
+        </span>
+      </div>
+      <div className="mt-6 text-3xl font-bold leading-none text-slate-950">{value}</div>
+      <p className={`mt-5 text-xs font-bold ${note.startsWith("+") || note.startsWith("0%") ? "text-emerald-600" : "text-slate-500"}`}>{note}</p>
+    </CardShell>
   );
 }
 
-function DoughnutCard({
-  title,
-  data,
-  center,
-}: {
-  title: string;
-  data: PiePoint[];
-  center: string;
-}) {
-  const safeData = data.some((item) => item.value > 0) ? data : [{ name: "No data", value: 1 }];
+function Insight({ icon: Icon, title, detail }: { icon: ComponentType<{ className?: string }>; title: string; detail: string }) {
+  return (
+    <div className="flex gap-3 border-b border-orange-100 pb-4 last:border-b-0 last:pb-0">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-red-500 shadow-sm">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div>
+        <p className="text-sm font-bold text-slate-950">{title}</p>
+        <p className="text-xs text-slate-500">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function WorkforceTile({ label, value, icon: Icon, tone }: { label: string; value: number; icon: ComponentType<{ className?: string }>; tone: string }) {
+  return (
+    <div className={`flex min-h-[112px] flex-col items-center justify-center rounded-lg p-4 text-center ${tone}`}>
+      <Icon className="h-6 w-6" />
+      <p className="mt-5 text-2xl font-bold text-slate-950">{value}</p>
+      <p className="mt-1 text-xs font-bold text-slate-700">{label}</p>
+    </div>
+  );
+}
+
+function PendingAction({ title, hint, value, icon: Icon, tone }: { title: string; hint: string; value: number; icon: ComponentType<{ className?: string }>; tone: string }) {
+  return (
+    <div className="flex items-center gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg ${tone}`}>
+        <Icon className="h-6 w-6" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-bold text-slate-950">{title}</p>
+        <p className="text-xs text-slate-500">{hint}</p>
+      </div>
+      <span className="text-2xl font-bold text-slate-950">{value}</span>
+    </div>
+  );
+}
+
+function Donut({ data, center, caption }: { data: PiePoint[]; center: string; caption: string }) {
+  const safeData = data.length > 0 && data.some((item) => (item.value ?? item.staff ?? 0) > 0)
+    ? data.map((item) => ({ ...item, value: item.value ?? item.staff ?? 0 }))
+    : [{ name: "No data", value: 1 }];
 
   return (
-    <Card className="rounded-xl border-slate-200 shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid grid-cols-[110px_1fr] items-center gap-3">
-        <div className="relative h-[110px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={safeData} innerRadius={34} outerRadius={52} dataKey="value" paddingAngle={2}>
-                {safeData.map((entry, index) => (
-                  <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-lg font-bold text-slate-950">{center}</span>
-            <span className="text-[10px] text-slate-500">total</span>
-          </div>
-        </div>
-        <div className="space-y-2">
-          {data.slice(0, 5).map((item, index) => (
-            <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
-              <span className="flex min-w-0 items-center gap-2 text-slate-600">
-                <span className="size-2 rounded-full" style={{ backgroundColor: pieColors[index % pieColors.length] }} />
-                <span className="truncate">{item.name}</span>
-              </span>
-              <span className="font-semibold text-slate-900">{item.value}</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="relative h-40">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie data={safeData} dataKey="value" innerRadius={48} outerRadius={72} strokeWidth={0}>
+            {safeData.map((entry, index) => (
+              <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
+            ))}
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold text-slate-950">{center}</span>
+        <span className="text-xs text-slate-500">{caption}</span>
+      </div>
+    </div>
   );
 }
 
@@ -355,7 +337,7 @@ export default function HumanResourcesDashboard({
     });
   }, [departmentFilter, query, staffDirectory, statusFilter]);
 
-  const visibleStaff = filteredStaff.slice(0, 10);
+  const visibleStaff = filteredStaff.slice(0, 5);
   const leaveEventsByDay = useMemo(() => {
     return leaveCalendar.events.reduce<Record<number, LeaveCalendarEvent[]>>((days, event) => {
       days[event.day] = [...(days[event.day] ?? []), event];
@@ -373,6 +355,9 @@ export default function HumanResourcesDashboard({
     ...Array.from({ length: firstDay }, () => null),
     ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
   ];
+  const leaveUsage = percent(stats.monthLeaveDays, stats.monthLeaveDays + stats.availableLeaveDays);
+  const contractCount = analytics.employmentTypes.find((item) => item.name === "Contract")?.value ?? 0;
+  const permanentCount = analytics.employmentTypes.find((item) => item.name === "Permanent")?.value ?? 0;
 
   const openAction = (leave: PendingLeaveApproval, type: typeof actionType) => {
     setSelectedLeave(leave);
@@ -381,7 +366,7 @@ export default function HumanResourcesDashboard({
     setActionOpen(true);
   };
 
-  const submitAction = (event: React.FormEvent) => {
+  const submitAction = (event: FormEvent) => {
     event.preventDefault();
     if (!selectedLeave || !actionType) return;
 
@@ -417,397 +402,260 @@ export default function HumanResourcesDashboard({
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Human Resources" />
 
-      <div className="min-h-screen bg-slate-50/50 p-4 text-slate-950 md:p-6">
-        <div className="mx-auto max-w-[1800px] space-y-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-normal">Human Resources</h1>
-              <p className="mt-1 text-sm text-slate-500">Manage your people, performance and workforce.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative w-full min-w-[260px] sm:w-[360px]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-20 text-sm shadow-sm outline-none ring-red-100 transition focus:border-red-300 focus:ring-4"
-                  placeholder="Search employees..."
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">Ctrl + K</span>
+      <div className="min-h-screen bg-slate-50/40 px-4 py-6 text-slate-950 md:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1400px] space-y-5">
+          <div className="rounded-lg bg-[radial-gradient(circle_at_72%_10%,rgba(248,113,113,.18),transparent_28%),linear-gradient(110deg,#fff_0%,#fff7ed_100%)] p-5">
+            <div className="flex flex-wrap items-start justify-between gap-5">
+              <div className="flex items-center gap-5">
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                  <Users className="h-8 w-8" />
+                </span>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-normal text-slate-950">Human Resources</h1>
+                  <p className="mt-1 text-sm text-slate-500">Manage your people, performance and workforce.</p>
+                </div>
               </div>
-              <Button asChild className="bg-red-600 shadow-sm hover:bg-red-700">
-                <Link href={staff.create.url()}>
-                  <Plus className="size-4" />
-                  Add Employee
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="bg-white">
-                <Link href="/leave-requests">
-                  <CalendarCheck2 className="size-4" />
-                  Leave Requests
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="bg-white">
-                <Link href="/staff-departments">
-                  <Users className="size-4" />
-                  Departments
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="bg-white">
-                <Link href="/human-resources/attendance/report/pdf">
-                  <FileText className="size-4" />
-                  Reports
-                </Link>
-              </Button>
-              <Button variant="outline" className="bg-white">
-                More
-                <ChevronDown className="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-              <MetricCard
-                title="Total Staff"
-                value={stats.totalStaff}
-                subtitle={`${stats.activeStaff} active employees`}
-                icon={Users}
-                tone="purple"
-                trendData={analytics.headcountTrend}
-                trendKey="staff"
-                trendColor="#6d28d9"
-              />
-              <MetricCard
-                title="Present Today"
-                value={stats.presentToday}
-                subtitle={`${stats.attendanceRate}% attendance rate`}
-                icon={UserCheck}
-                tone="green"
-                trendData={analytics.attendanceTrend}
-                trendKey="present"
-                trendColor="#16a34a"
-              />
-              <MetricCard
-                title="On Leave"
-                value={stats.onLeaveToday}
-                subtitle={`${stats.monthLeaveDays} approved leave days this month`}
-                icon={CalendarDays}
-                tone="amber"
-                trendColor="#f97316"
-              />
-              <MetricCard
-                title="Pending Approvals"
-                value={stats.pendingApprovals}
-                subtitle={`${stats.pendingManager} manager, ${stats.pendingHr} HR`}
-                icon={ClipboardList}
-                tone="red"
-                trendColor="#ef4444"
-              />
-              <MetricCard
-                title="New Employees"
-                value={stats.newEmployees}
-                subtitle="Last 30 days"
-                icon={UserPlus}
-                tone="blue"
-                trendColor="#2563eb"
-              />
-            </div>
-
-            <Card className="rounded-xl border-orange-100 bg-gradient-to-br from-orange-50 to-white shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="size-5 text-red-500" />
-                  HR Insights
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Insight icon={UserCheck} text={`${stats.attendanceRate}% attendance recorded today`} subtext="Based on active staff clock-ins" />
-                <Insight icon={HeartPulse} text={`${stats.pendingApprovals} approvals need attention`} subtext="Manager and HR leave workflow" />
-                <Insight icon={BriefcaseBusiness} text={`${stats.availableLeaveDays} annual days available`} subtext="Across active leave accounts" />
-                <Button asChild variant="outline" className="w-full border-orange-200 bg-white text-red-600 hover:bg-orange-50">
-                  <Link href="/human-resources/attendance">View full report</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1fr_1.1fr_320px]">
-            <Card className="rounded-xl border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base">Today's Workforce</CardTitle>
-                <Button variant="outline" size="sm" className="bg-white">View all</Button>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                <WorkforceTile label="Present" value={workforce.present} icon={Users} tone="bg-emerald-50 text-emerald-700" />
-                <WorkforceTile label="On Leave" value={workforce.onLeave} icon={UserCheck} tone="bg-orange-50 text-orange-700" />
-                <WorkforceTile label="Absent" value={workforce.absent} icon={HeartPulse} tone="bg-red-50 text-red-700" />
-                <WorkforceTile label="Pending" value={workforce.pendingApprovals} icon={CalendarCheck2} tone="bg-blue-50 text-blue-700" />
-                <WorkforceTile label="New" value={workforce.newEmployees} icon={UserPlus} tone="bg-violet-50 text-violet-700" />
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-xl border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base">Pending Actions</CardTitle>
-                <Button asChild variant="outline" size="sm" className="bg-white">
-                  <Link href="/leave-requests">View all</Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <ActionCard
-                  title="Leave Requests"
-                  value={`${pendingLeaveApprovals.length} request${pendingLeaveApprovals.length === 1 ? "" : "s"}`}
-                  hint="Requires approval"
-                  icon={CalendarCheck2}
-                  tone="bg-red-50 text-red-600"
-                  href="/leave-requests"
-                />
-                <ActionCard
-                  title="Contract Renewals"
-                  value={`${analytics.employmentTypes.find((item) => item.name === "Contract")?.value ?? 0} contracts`}
-                  hint="Review fixed-term staff"
-                  icon={FileText}
-                  tone="bg-amber-50 text-amber-600"
-                  href="/staff"
-                />
-                <ActionCard
-                  title="Performance Reviews"
-                  value={`${analytics.staffMix.find((item) => item.name === "Managers")?.value ?? 0} managers`}
-                  hint="Team review owners"
-                  icon={Star}
-                  tone="bg-violet-50 text-violet-600"
-                  href="/staff"
-                />
-                <ActionCard
-                  title="Probation Reviews"
-                  value={`${stats.newEmployees} new hires`}
-                  hint="Joined in 30 days"
-                  icon={UserPlus}
-                  tone="bg-emerald-50 text-emerald-600"
-                  href="/staff"
-                />
-                {(canManageManagerLeave || canManageHrLeave) && pendingLeaveApprovals.length > 0 ? (
-                  <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 sm:col-span-2 xl:col-span-4">
-                    {pendingLeaveApprovals.slice(0, 3).map((leave) => (
-                      <div key={leave.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">{leave.staff_member_name ?? "Employee"}</p>
-                          <p className="text-xs text-slate-500">
-                            {leave.leave_type_label} - {leave.start_date ?? "-"} to {leave.end_date ?? "-"}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-8 bg-emerald-600 hover:bg-emerald-700"
-                            onClick={() => openAction(leave, canManageHrLeave ? "hr_approve" : "manager_approve")}
-                          >
-                            <CheckCircle2 className="size-4" />
-                            Approve
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8 border-red-200 bg-white text-red-600 hover:bg-red-50"
-                            onClick={() => openAction(leave, canManageHrLeave ? "hr_reject" : "manager_reject")}
-                          >
-                            <XCircle className="size-4" />
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-
-            <Card className="row-span-3 rounded-xl border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base">Leave Calendar</CardTitle>
-                <Button variant="outline" size="sm" className="bg-white">Today</Button>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-900">{leaveCalendar.monthLabel}</p>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="size-8"><ChevronLeft className="size-4" /></Button>
-                    <Button variant="ghost" size="icon" className="size-8"><ChevronRight className="size-4" /></Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                    <div key={day} className="py-2 font-medium text-slate-500">{day}</div>
-                  ))}
-                  {calendarCells.map((day, index) => {
-                    const events = day ? leaveEventsByDay[day] ?? [] : [];
-                    return (
-                      <div
-                        key={`${day ?? "blank"}-${index}`}
-                        className={`min-h-10 rounded-lg p-1 ${day === leaveCalendar.today ? "bg-red-600 text-white" : "text-slate-700"}`}
-                      >
-                        {day ? <span className="text-xs font-medium">{day}</span> : null}
-                        <div className="mt-1 space-y-0.5">
-                          {events.slice(0, 2).map((event) => (
-                            <span key={event.id} className={`block h-1 rounded-full ${eventTone(event)}`} title={event.label} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                  <Legend color="bg-emerald-400" label="Annual Leave" />
-                  <Legend color="bg-red-400" label="Sick Leave" />
-                  <Legend color="bg-orange-400" label="Personal Leave" />
-                  <Legend color="bg-amber-400" label="Pending" />
-                </div>
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-slate-900">Upcoming Holidays</p>
-                  {leaveCalendar.holidays.length > 0 ? (
-                    leaveCalendar.holidays.map((holiday) => (
-                      <div key={`${holiday.date}-${holiday.label}`} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex size-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
-                          <CalendarDays className="size-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{holiday.label}</p>
-                          <p className="text-xs text-slate-500">{holiday.date ?? "Date pending"}</p>
-                        </div>
-                        {holiday.days_until !== null ? (
-                          <span className="rounded-full bg-violet-100 px-2 py-1 text-[11px] font-semibold text-violet-700">
-                            {holiday.days_until} days
-                          </span>
-                        ) : null}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="rounded-lg border border-dashed border-slate-200 p-3 text-xs text-slate-500">
-                      No holidays are recorded for this month.
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-            <Card className="rounded-xl border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-base">Staff Analytics</CardTitle>
-                <Button variant="outline" size="sm" className="bg-white">This Month <ChevronDown className="size-4" /></Button>
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2 2xl:grid-cols-5">
-                <Card className="rounded-lg border-slate-200">
-                  <CardHeader className="pb-1"><CardTitle className="text-sm">Headcount Trend</CardTitle></CardHeader>
-                  <CardContent className="h-[150px]">
-                    <p className="text-2xl font-bold">{stats.totalStaff} <span className="text-xs font-medium text-emerald-600">active view</span></p>
-                    <ResponsiveContainer width="100%" height={90}>
-                      <AreaChart data={analytics.headcountTrend}>
-                        <Area type="monotone" dataKey="staff" stroke="#7c3aed" fill="#ede9fe" strokeWidth={2.5} />
-                        <Tooltip />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-                <DoughnutCard title="Department Distribution" data={analytics.departmentDistribution} center={String(departments.length)} />
-                <Card className="rounded-lg border-slate-200">
-                  <CardHeader className="pb-1"><CardTitle className="text-sm">Leave Usage</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-2xl font-bold">{percent(stats.monthLeaveDays, stats.monthLeaveDays + stats.availableLeaveDays)}% <span className="text-xs font-medium text-emerald-600">used</span></p>
-                    <div className="h-3 overflow-hidden rounded-full bg-emerald-100">
-                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${percent(stats.monthLeaveDays, stats.monthLeaveDays + stats.availableLeaveDays)}%` }} />
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-600">
-                      <span>Taken <strong className="block text-slate-950">{stats.monthLeaveDays} days</strong></span>
-                      <span>Available <strong className="block text-slate-950">{stats.availableLeaveDays} days</strong></span>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="rounded-lg border-slate-200">
-                  <CardHeader className="pb-1"><CardTitle className="text-sm">Attendance Rate</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-2xl font-bold">{stats.attendanceRate}% <span className="text-xs font-medium text-emerald-600">today</span></p>
-                    <div className="h-3 overflow-hidden rounded-full bg-blue-100">
-                      <div className="h-full rounded-full bg-blue-500" style={{ width: `${stats.attendanceRate}%` }} />
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-600">
-                      <span>Present <strong className="block text-slate-950">{stats.presentToday}</strong></span>
-                      <span>Not clocked <strong className="block text-slate-950">{Math.max(stats.activeStaff - stats.presentToday, 0)}</strong></span>
-                    </div>
-                  </CardContent>
-                </Card>
-                <DoughnutCard title="Employment Type" data={analytics.employmentTypes} center={String(stats.totalStaff)} />
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="rounded-xl border-slate-200 shadow-sm">
-            <CardHeader className="gap-4 pb-3 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <CardTitle className="text-base">Employee Directory</CardTitle>
-                <CardDescription>Showing {visibleStaff.length} of {filteredStaff.length} employees from the database</CardDescription>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <div className="relative w-full sm:w-64">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <div className="flex flex-1 flex-wrap justify-end gap-3">
+                <div className="relative min-w-[300px] max-w-[430px] flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-red-300"
-                    placeholder="Search employees..."
+                    className="h-11 w-full rounded-md border border-slate-200 bg-white pl-10 pr-20 text-sm shadow-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
+                    placeholder="Search employees, departments..."
                   />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Ctrl + K</span>
                 </div>
-                <select
-                  value={departmentFilter}
-                  onChange={(event) => syncDepartmentFilter(event.currentTarget.value)}
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                >
-                  <option value="">All Departments</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>{department.name}</option>
+                <ActionButton href="/leave-requests"><CalendarCheck2 className="h-4 w-4" />Leave Requests</ActionButton>
+                <ActionButton href={staff.create.url()} variant="primary"><Plus className="h-4 w-4" />Add Employee</ActionButton>
+                <ActionButton href="/human-resources/attendance/report/pdf"><FileText className="h-4 w-4" />Reports<ChevronDown className="h-4 w-4" /></ActionButton>
+                <ActionButton>More<ChevronDown className="h-4 w-4" /></ActionButton>
+                <ActionButton href="/staff-departments"><Users className="h-4 w-4" />Departments</ActionButton>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_230px]">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <StatCard title="Total Staff" value={stats.totalStaff} note="+10% vs last month" icon={Users} tone="bg-violet-50 text-violet-600" />
+              <StatCard title="Present Today" value={stats.presentToday} note={`${stats.attendanceRate}% attendance`} icon={UserCheck} tone="bg-emerald-50 text-emerald-600" />
+              <StatCard title="On Leave" value={stats.onLeaveToday} note={stats.onLeaveToday ? "Staff on leave today" : "No staff on leave"} icon={CalendarDays} tone="bg-orange-50 text-orange-600" />
+              <StatCard title="Pending Approvals" value={stats.pendingApprovals} note="All requests processed" icon={ClipboardList} tone="bg-pink-50 text-pink-600" />
+              <StatCard title="New Hires" value={stats.newEmployees} note="Last 30 days" icon={UserPlus} tone="bg-sky-50 text-sky-600" />
+            </div>
+            <CardShell className="bg-gradient-to-br from-orange-50 to-white p-5">
+              <SectionTitle title="HR Insights" />
+              <div className="mt-5 space-y-4">
+                <Insight icon={UserCheck} title={`${stats.attendanceRate}% attendance today`} detail="Based on active staff" />
+                <Insight icon={HeartPulse} title={`${stats.pendingApprovals} approvals pending`} detail="Manager workflow" />
+                <Insight icon={BriefcaseBusiness} title={`${stats.availableLeaveDays} leave balance`} detail="Average annual leave" />
+                <Link href="/human-resources/attendance" className="inline-flex items-center gap-2 text-sm font-bold text-red-600">
+                  View full report <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </CardShell>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1fr_0.85fr_310px]">
+            <CardShell className="p-5">
+              <div className="flex items-center justify-between gap-4">
+                <SectionTitle title="Workforce Overview" />
+                <div className="flex gap-2 text-xs font-bold">
+                  <button className="rounded-full bg-red-600 px-4 py-2 text-white">Today</button>
+                  <button className="rounded-full bg-slate-100 px-4 py-2 text-slate-700">This Week</button>
+                  <button className="rounded-full bg-slate-100 px-4 py-2 text-slate-700">This Month</button>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-5">
+                <WorkforceTile label="Present" value={workforce.present} icon={CheckCircle2} tone="bg-emerald-50 text-emerald-600" />
+                <WorkforceTile label="On Leave" value={workforce.onLeave} icon={UserCheck} tone="bg-orange-50 text-orange-600" />
+                <WorkforceTile label="Absent" value={workforce.absent} icon={XCircle} tone="bg-pink-50 text-pink-600" />
+                <WorkforceTile label="Pending" value={workforce.pendingApprovals} icon={CalendarCheck2} tone="bg-blue-50 text-blue-600" />
+                <WorkforceTile label="New" value={workforce.newEmployees} icon={UserPlus} tone="bg-violet-50 text-violet-600" />
+              </div>
+              <div className="mt-6 h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { label: "Present", value: workforce.present, fill: "#22c55e" },
+                    { label: "On Leave", value: workforce.onLeave, fill: "#f97316" },
+                    { label: "Absent", value: workforce.absent, fill: "#e11d48" },
+                    { label: "Pending", value: workforce.pendingApprovals, fill: "#2563eb" },
+                    { label: "New", value: workforce.newEmployees, fill: "#8b5cf6" },
+                  ]}>
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      {["#22c55e", "#f97316", "#e11d48", "#2563eb", "#8b5cf6"].map((color) => <Cell key={color} fill={color} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardShell>
+
+            <CardShell className="p-5">
+              <div className="flex items-center justify-between gap-4">
+                <SectionTitle title="Pending Actions" />
+                <Link href="/leave-requests" className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">View all</Link>
+              </div>
+              <div className="mt-5 space-y-4">
+                <PendingAction title="Leave Requests" hint="Requires approval" value={pendingLeaveApprovals.length} icon={CalendarCheck2} tone="bg-red-50 text-red-600" />
+                <PendingAction title="Contract Renewals" hint="Due soon" value={contractCount} icon={FileText} tone="bg-amber-50 text-amber-600" />
+                <PendingAction title="Performance Reviews" hint="Managers action" value={analytics.staffMix.find((item) => item.name === "Managers")?.value ?? 0} icon={Star} tone="bg-violet-50 text-violet-600" />
+                <PendingAction title="Probation Reviews" hint="In 30 days" value={stats.newEmployees} icon={CheckCircle2} tone="bg-emerald-50 text-emerald-600" />
+              </div>
+              {pendingLeaveApprovals.length > 0 ? (
+                <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
+                  {pendingLeaveApprovals.slice(0, 2).map((leave) => (
+                    <div key={leave.id} className="rounded-lg bg-slate-50 p-3 text-sm">
+                      <p className="font-bold text-slate-950">{leave.staff_member_name ?? "Employee"}</p>
+                      <p className="text-xs text-slate-500">{leave.leave_type_label} - {leave.total_days} days</p>
+                      <div className="mt-3 flex gap-2">
+                        {canManageManagerLeave ? <button onClick={() => openAction(leave, "manager_approve")} className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-bold text-white">Approve</button> : null}
+                        {canManageHrLeave ? <button onClick={() => openAction(leave, "hr_approve")} className="rounded-md bg-red-600 px-3 py-1 text-xs font-bold text-white">HR approve</button> : null}
+                      </div>
+                    </div>
                   ))}
+                </div>
+              ) : null}
+            </CardShell>
+
+            <CardShell className="p-5">
+              <div className="flex items-center justify-between gap-4">
+                <SectionTitle title="Leave Calendar" />
+              </div>
+              <div className="mt-5 flex items-center justify-between">
+                <p className="font-bold text-slate-950">{leaveCalendar.monthLabel}</p>
+                <div className="flex gap-2">
+                  <ChevronLeft className="h-5 w-5 text-slate-700" />
+                  <ChevronRight className="h-5 w-5 text-slate-700" />
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="py-2 font-medium text-slate-500">{day}</div>)}
+                {calendarCells.map((day, index) => {
+                  const events = day ? leaveEventsByDay[day] ?? [] : [];
+                  return (
+                    <div key={`${day ?? "blank"}-${index}`} className={`min-h-8 rounded-md p-1 ${day === leaveCalendar.today ? "bg-red-600 font-bold text-white" : "text-slate-700"}`}>
+                      {day ? <span>{day}</span> : null}
+                      <div className="mt-1 flex justify-center gap-0.5">
+                        {events.slice(0, 2).map((event) => <span key={event.id} className={`h-1.5 w-1.5 rounded-full ${eventTone(event)}`} />)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-600">
+                <Legend color="bg-emerald-500" label="Annual Leave" />
+                <Legend color="bg-red-500" label="Sick Leave" />
+                <Legend color="bg-blue-500" label="Personal Leave" />
+                <Legend color="bg-amber-500" label="Pending" />
+              </div>
+              <div className="mt-5">
+                <p className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-950"><CalendarDays className="h-4 w-4" />Upcoming Holidays</p>
+                {leaveCalendar.holidays.length > 0 ? (
+                  leaveCalendar.holidays.map((holiday) => (
+                    <div key={`${holiday.date}-${holiday.label}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                      <p className="font-bold">{holiday.label}</p>
+                      <p className="text-xs text-slate-500">{holiday.date ?? "Date pending"}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">No holidays recorded this month</p>
+                )}
+              </div>
+            </CardShell>
+          </div>
+
+          <CardShell className="p-5">
+            <div className="flex items-center justify-between gap-4">
+              <SectionTitle title="Staff Analytics" />
+              <button className="rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">This Month <ChevronDown className="inline h-4 w-4" /></button>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <MiniAnalytics title="Headcount Trend">
+                <p className="text-3xl font-bold">{stats.totalStaff}</p>
+                <p className="text-sm font-bold text-emerald-600">Active employees</p>
+                <ResponsiveContainer width="100%" height={80}>
+                  <AreaChart data={analytics.headcountTrend}>
+                    <Area type="monotone" dataKey="staff" stroke="#8b5cf6" fill="#ede9fe" strokeWidth={3} />
+                    <Tooltip />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </MiniAnalytics>
+              <MiniAnalytics title="Department Distribution">
+                <Donut data={analytics.departmentDistribution.map((item) => ({ ...item, value: item.staff ?? item.value }))} center={String(stats.totalStaff)} caption="Total" />
+              </MiniAnalytics>
+              <MiniAnalytics title="Employment Type">
+                <Donut data={analytics.employmentTypes} center={String(stats.totalStaff)} caption="Total" />
+                <div className="mt-2 flex justify-center gap-4 text-xs">
+                  <span className="font-bold text-blue-600">Permanent {permanentCount}</span>
+                  <span className="font-bold text-orange-600">Contract {contractCount}</span>
+                </div>
+              </MiniAnalytics>
+              <MiniAnalytics title="Attendance Rate">
+                <p className="text-3xl font-bold">{stats.attendanceRate}% <span className="text-sm text-emerald-600">Today</span></p>
+                <div className="mt-6 h-4 rounded-full bg-blue-100">
+                  <div className="h-4 rounded-full bg-blue-500" style={{ width: `${stats.attendanceRate}%` }} />
+                </div>
+                <div className="mt-5 flex justify-between text-xs text-slate-600">
+                  <span>Present <strong className="block text-slate-950">{stats.presentToday}</strong></span>
+                  <span>Not checked <strong className="block text-slate-950">{Math.max(stats.activeStaff - stats.presentToday, 0)}</strong></span>
+                </div>
+              </MiniAnalytics>
+              <MiniAnalytics title="Leave Usage" className="md:col-span-2">
+                <p className="text-3xl font-bold">{leaveUsage}% <span className="text-sm text-emerald-600">Used</span></p>
+                <div className="mt-4 h-4 rounded-full bg-emerald-100">
+                  <div className="h-4 rounded-full bg-emerald-400" style={{ width: `${leaveUsage}%` }} />
+                </div>
+                <div className="mt-4 flex justify-between text-xs text-slate-600">
+                  <span>Taken <strong className="block text-slate-950">{stats.monthLeaveDays} days</strong></span>
+                  <span>Available <strong className="block text-slate-950">{stats.availableLeaveDays} days</strong></span>
+                </div>
+              </MiniAnalytics>
+            </div>
+          </CardShell>
+
+          <CardShell className="p-5">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+              <SectionTitle title="Employee Directory" description={`Showing ${visibleStaff.length} of ${filteredStaff.length} employees`} />
+              <div className="flex flex-wrap gap-3">
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 pl-10 pr-3 text-sm" placeholder="Search employees..." />
+                </div>
+                <select value={departmentFilter} onChange={(event) => syncDepartmentFilter(event.currentTarget.value)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm">
+                  <option value="">All Departments</option>
+                  {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
                 </select>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.currentTarget.value)}
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                >
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.currentTarget.value)} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm">
                   <option value="">All Statuses</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>
-                <Button variant="outline" className="bg-white"><Filter className="size-4" /> Filters</Button>
-                <Button variant="outline" className="bg-white"><Download className="size-4" /> Export</Button>
+                <button className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-bold"><Filter className="h-4 w-4" />Filters</button>
+                <button className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm font-bold"><Download className="h-4 w-4" />Export</button>
+                <button className="inline-flex h-10 items-center gap-2 rounded-md border border-red-100 px-3 text-sm font-bold text-red-600"><Users className="h-4 w-4" />Column view<ChevronDown className="h-4 w-4" /></button>
               </div>
-            </CardHeader>
-            <CardContent className="overflow-hidden rounded-lg border border-slate-200 p-0">
+            </div>
+            <div className="overflow-hidden rounded-lg border border-slate-200">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-sm">
-                  <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-normal text-slate-500">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-100 text-xs font-bold uppercase text-slate-500">
                     <tr>
-                      <th className="px-5 py-3">Employee</th>
-                      <th className="px-5 py-3">Department</th>
-                      <th className="px-5 py-3">Position</th>
-                      <th className="px-5 py-3">Email</th>
-                      <th className="px-5 py-3">Status</th>
-                      <th className="px-5 py-3">Employment Type</th>
-                      <th className="px-5 py-3 text-right">Actions</th>
+                      {["Employee", "Department", "Position", "Email", "Status", "Employment Type", "Actions"].map((heading) => (
+                        <th key={heading} className="px-5 py-3">{heading}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {visibleStaff.map((employee) => (
-                      <tr key={employee.id} className="hover:bg-slate-50">
+                      <tr key={employee.id}>
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex size-9 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
-                              {employee.avatar_initials}
-                            </div>
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">{employee.avatar_initials}</span>
                             <div>
-                              <p className="font-semibold text-slate-900">{employee.name}</p>
+                              <p className="font-bold text-slate-950">{employee.name}</p>
                               <p className="text-xs text-slate-500">{employee.employee_number}</p>
                             </div>
                           </div>
@@ -816,77 +664,58 @@ export default function HumanResourcesDashboard({
                         <td className="px-5 py-3 text-slate-600">{employee.position}</td>
                         <td className="px-5 py-3 text-slate-600">{employee.email}</td>
                         <td className="px-5 py-3">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusClass(employee.status)}`}>
-                            {formatStatus(employee.status)}
-                          </span>
+                          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{formatStatus(employee.status)}</span>
                         </td>
                         <td className="px-5 py-3">
-                          <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
-                            {employee.employment_type}
-                          </span>
+                          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{employee.employment_type}</span>
                         </td>
                         <td className="px-5 py-3">
-                          <div className="flex justify-end gap-2">
-                            <Button asChild variant="outline" size="icon" className="size-8 bg-white">
-                              <Link href={staff.profile.url(employee.id)}><Eye className="size-4" /></Link>
-                            </Button>
-                            <Button asChild variant="outline" size="icon" className="size-8 bg-white">
-                              <Link href={staff.edit.url(employee.id)}><Pencil className="size-4" /></Link>
-                            </Button>
-                            <Button variant="outline" size="icon" className="size-8 bg-white"><MoreHorizontal className="size-4" /></Button>
+                          <div className="flex gap-2">
+                            <Link href={staff.profile.url(employee.id)} className="rounded-md border border-slate-200 p-2"><Eye className="h-4 w-4" /></Link>
+                            <Link href={staff.edit.url(employee.id)} className="rounded-md border border-slate-200 p-2"><Pencil className="h-4 w-4" /></Link>
+                            <button className="rounded-md border border-slate-200 p-2"><MoreHorizontal className="h-4 w-4" /></button>
                           </div>
                         </td>
                       </tr>
                     ))}
-                    {visibleStaff.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-5 py-8 text-center text-slate-500">No employees match the current filters.</td>
-                      </tr>
-                    ) : null}
                   </tbody>
                 </table>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4 text-sm text-slate-500">
+              <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
                 <span>Showing 1 to {visibleStaff.length} of {filteredStaff.length} results</span>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" className="size-8 bg-white"><ChevronLeft className="size-4" /></Button>
-                  <Button size="icon" className="size-8 bg-red-600 hover:bg-red-700">1</Button>
-                  <Button variant="outline" size="icon" className="size-8 bg-white"><ChevronRight className="size-4" /></Button>
+                <div className="flex gap-2">
+                  <button className="rounded-md border border-slate-200 p-2"><ChevronLeft className="h-4 w-4" /></button>
+                  <button className="rounded-md bg-red-600 px-3 py-2 font-bold text-white">1</button>
+                  <button className="rounded-md border border-slate-200 px-3 py-2">2</button>
+                  <button className="rounded-md border border-slate-200 px-3 py-2">3</button>
+                  <button className="rounded-md border border-slate-200 p-2"><ChevronRight className="h-4 w-4" /></button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardShell>
 
-          <div className="grid gap-4 lg:grid-cols-3">
-            {departments.slice(0, 6).map((department) => (
-              <Card key={department.id} className="rounded-xl border-slate-200 shadow-sm">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-base">{department.name}</CardTitle>
-                      <CardDescription>{department.description || "Department staff allocation"}</CardDescription>
-                    </div>
-                    <div className="flex size-10 items-center justify-center rounded-full bg-orange-50 text-orange-600">
-                      <Users className="size-5" />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {departments.slice(0, 5).map((department, index) => (
+              <CardShell key={department.id} className="p-5">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-3xl font-bold">{department.staff_count}</p>
-                    <p className="text-xs text-slate-500">staff members assigned</p>
+                    <h3 className="font-bold text-slate-950">{department.name}</h3>
+                    <p className="mt-6 text-3xl font-bold">{department.staff_count}</p>
+                    <p className="text-xs text-slate-500">{department.staff_count === 1 ? "staff member" : "staff members"}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button asChild size="sm" className="bg-red-600 hover:bg-red-700">
-                      <Link href={staff.create.url({ query: { department_id: department.id } })}>
-                        <UserPlus className="size-4" />
-                        Add
-                      </Link>
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => syncDepartmentFilter(String(department.id))}>View</Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  <span className={`flex h-9 w-9 items-center justify-center rounded-full ${index % 2 === 0 ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"}`}>
+                    <Users className="h-5 w-5" />
+                  </span>
+                </div>
+                <div className="mt-5 h-2 rounded-full bg-slate-100">
+                  <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${percent(department.staff_count, stats.totalStaff)}%` }} />
+                </div>
+                <p className="mt-2 text-right text-xs text-slate-500">{percent(department.staff_count, stats.totalStaff)}% of total</p>
+                <div className="mt-5 flex gap-3">
+                  <Link href={staff.create.url({ query: { department_id: department.id } })} className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-md border border-red-200 text-sm font-bold text-red-600"><Plus className="h-4 w-4" />Add</Link>
+                  <button onClick={() => syncDepartmentFilter(String(department.id))} className="h-9 flex-1 rounded-md border border-slate-200 text-sm font-bold text-slate-700">View</button>
+                </div>
+              </CardShell>
             ))}
           </div>
         </div>
@@ -908,7 +737,7 @@ export default function HumanResourcesDashboard({
               placeholder="Comment (optional)"
               className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
             />
-            <button type="submit" className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700">
+            <button type="submit" className="rounded-md bg-red-600 px-3 py-2 text-sm font-bold text-white hover:bg-red-700">
               Confirm
             </button>
           </form>
@@ -916,79 +745,22 @@ export default function HumanResourcesDashboard({
       </Dialog>
     </AppLayout>
   );
+}
 
-  function Insight({ icon: Icon, text, subtext }: { icon: typeof Users; text: string; subtext: string }) {
-    return (
-      <div className="flex gap-3">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-white text-red-500 shadow-sm">
-          <Icon className="size-4" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-900">{text}</p>
-          <p className="text-xs text-slate-500">{subtext}</p>
-        </div>
-      </div>
-    );
-  }
+function MiniAnalytics({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-lg border border-slate-200 bg-white p-5 ${className}`}>
+      <h3 className="font-bold text-slate-950">{title}</h3>
+      <div className="mt-5">{children}</div>
+    </div>
+  );
+}
 
-  function WorkforceTile({
-    label,
-    value,
-    icon: Icon,
-    tone,
-  }: {
-    label: string;
-    value: number;
-    icon: typeof Users;
-    tone: string;
-  }) {
-    return (
-      <div className={`flex min-h-32 flex-col items-center justify-center rounded-xl p-4 text-center ${tone}`}>
-        <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-white/70">
-          <Icon className="size-5" />
-        </div>
-        <p className="text-3xl font-bold">{value}</p>
-        <p className="text-xs font-semibold">{label}</p>
-      </div>
-    );
-  }
-
-  function ActionCard({
-    title,
-    value,
-    hint,
-    icon: Icon,
-    tone,
-    href,
-  }: {
-    title: string;
-    value: string;
-    hint: string;
-    icon: typeof Users;
-    tone: string;
-    href: string;
-  }) {
-    return (
-      <div className={`rounded-xl border border-slate-200 p-4 text-center ${tone}`}>
-        <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-lg bg-white/80">
-          <Icon className="size-5" />
-        </div>
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="mt-2 text-sm font-medium">{value}</p>
-        <p className="text-xs text-slate-500">{hint}</p>
-        <Button asChild variant="outline" size="sm" className="mt-4 h-8 w-full bg-white">
-          <Link href={href}>Review</Link>
-        </Button>
-      </div>
-    );
-  }
-
-  function Legend({ color, label }: { color: string; label: string }) {
-    return (
-      <span className="flex items-center gap-2">
-        <span className={`size-3 rounded-full ${color}`} />
-        {label}
-      </span>
-    );
-  }
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      {label}
+    </span>
+  );
 }

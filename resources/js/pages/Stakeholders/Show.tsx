@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Head, Link, router, useForm } from "@inertiajs/react";
+import { Building2, Mail, Phone, Plus, Trash2, UserRound, UsersRound } from "lucide-react";
 
 import AppLayout from "@/layouts/app-layout";
 import { CustomModelForm } from "@/components/custom-model-form";
@@ -43,84 +44,111 @@ export default function StakeholderShow({
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title={stakeholder.organization_name ?? "Stakeholder"} />
 
-      <div className="space-y-5 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">
+      <div className="space-y-6 bg-white p-4 text-slate-950 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="grid h-16 w-16 place-items-center rounded-full bg-red-50 text-red-600">
+              <Building2 className="h-8 w-8" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm text-slate-500">
               <Link href={stakeholders.index().url} className="hover:underline">
                 Back to stakeholders
               </Link>
+              </div>
+              <h1 className="text-3xl font-semibold tracking-normal">{stakeholder.organization_name}</h1>
+              <p className="text-sm text-slate-500">
+                {stakeholder.name ?? "-"} | {stakeholder.email ?? "-"} | {stakeholder.contact_number ?? "-"}
+              </p>
             </div>
-            <h1 className="text-2xl font-semibold">{stakeholder.organization_name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {stakeholder.name ?? "-"} | {stakeholder.email ?? "-"} | {stakeholder.contact_number ?? "-"}
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setEditOpen(true)}
-              className="rounded-md border border-orange-500 px-4 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
+              className="rounded-lg border border-orange-500 px-4 py-2 text-sm font-semibold text-orange-600 hover:bg-orange-500 hover:text-white"
             >
               Edit Stakeholder
             </button>
             <button
               type="button"
               onClick={() => setDeleteOpen(true)}
-              className="rounded-md border border-red-600 px-4 py-2 text-sm text-red-600 hover:bg-red-600 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-lg border border-red-600 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-600 hover:text-white"
             >
+              <Trash2 className="h-4 w-4" />
               Delete Stakeholder
             </button>
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <section className="rounded-xl border bg-card p-4 shadow-sm">
-            <h2 className="text-base font-semibold">Stakeholder Profile</h2>
-            <dl className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Organization</dt>
-                <dd>{stakeholder.organization_name ?? "-"}</dd>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "Organization", value: stakeholder.organization_name ?? "-", icon: Building2, tone: "bg-red-50 text-red-600" },
+            { label: "Representative", value: stakeholder.name ?? "-", icon: UserRound, tone: "bg-orange-50 text-orange-600" },
+            { label: "Contacts", value: stakeholder.contacts?.length ?? 0, icon: UsersRound, tone: "bg-blue-50 text-blue-600" },
+            { label: "Status", value: stakeholder.status ?? "active", icon: Plus, tone: "bg-emerald-50 text-emerald-600" },
+          ].map((item) => (
+            <section key={item.label} className="rounded-lg border bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-500">{item.label}</p>
+                  <p className="mt-2 truncate text-xl font-semibold capitalize">{item.value}</p>
+                </div>
+                <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${item.tone}`}>
+                  <item.icon className="h-5 w-5" />
+                </span>
               </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Representative</dt>
-                <dd>{stakeholder.name ?? "-"}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Email</dt>
-                <dd>{stakeholder.email ?? "-"}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Contact Number</dt>
-                <dd>{stakeholder.contact_number ?? "-"}</dd>
-              </div>
-              <div className="flex justify-between gap-3">
-                <dt className="text-muted-foreground">Status</dt>
-                <dd className="capitalize">{stakeholder.status ?? "-"}</dd>
-              </div>
+            </section>
+          ))}
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Stakeholder Profile</h2>
+            <p className="text-sm text-slate-500">Core account and contact details.</p>
+            <dl className="mt-5 space-y-4 text-sm">
+              {[
+                ["Organization", stakeholder.organization_name],
+                ["Representative", stakeholder.name],
+                ["Email", stakeholder.email],
+                ["Contact Number", stakeholder.contact_number],
+                ["Status", stakeholder.status],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between gap-4 border-b pb-3 last:border-b-0">
+                  <dt className="text-slate-500">{label}</dt>
+                  <dd className="text-right font-medium capitalize">{value ?? "-"}</dd>
+                </div>
+              ))}
             </dl>
           </section>
 
-          <section className="rounded-xl border bg-card p-4 shadow-sm lg:col-span-2">
-            <h2 className="text-base font-semibold">Stakeholder Contacts</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <section className="rounded-lg border bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold">Stakeholder Contacts</h2>
+            <p className="mt-1 text-sm text-slate-500">
               Contacts associated with this stakeholder organization.
             </p>
 
             <div className="mt-4 space-y-3">
               {stakeholder.contacts?.length ? (
                 stakeholder.contacts.map((contact: any) => (
-                  <div key={contact.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
-                    <div>
+                  <div key={contact.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-slate-600">
+                        <UserRound className="h-5 w-5" />
+                      </div>
+                      <div>
                       <div className="font-medium">{contact.full_name || "Unnamed contact"}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {contact.position || "-"} | {contact.email || "-"} | {contact.contact_number || "-"}
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+                        <span className="inline-flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{contact.email || "-"}</span>
+                        <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{contact.contact_number || "-"}</span>
+                        <span>{contact.position || "-"}</span>
+                      </div>
                       </div>
                     </div>
                     <button
                       type="button"
-                      className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700"
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700"
                       onClick={() => {
                         router.delete(`/stakeholders/${stakeholder.id}/contacts/${contact.id}`, {
                           preserveScroll: true,
@@ -132,12 +160,12 @@ export default function StakeholderShow({
                   </div>
                 ))
               ) : (
-                <div className="text-sm text-muted-foreground">No contacts added yet.</div>
+                <div className="rounded-lg border border-dashed p-6 text-sm text-slate-500">No contacts added yet.</div>
               )}
             </div>
 
             <form
-              className="mt-5 grid gap-3 md:grid-cols-2"
+              className="mt-5 grid gap-3 rounded-lg border bg-slate-50 p-4 md:grid-cols-2"
               onSubmit={(e) => {
                 e.preventDefault();
                 contactForm.post(`/stakeholders/${stakeholder.id}/contacts`, {
@@ -148,7 +176,7 @@ export default function StakeholderShow({
             >
               <input
                 type="text"
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-lg border px-3 py-2 text-sm"
                 placeholder="Full name"
                 value={contactForm.data.full_name}
                 onChange={(e) => contactForm.setData("full_name", e.target.value)}
@@ -156,14 +184,14 @@ export default function StakeholderShow({
               />
               <input
                 type="email"
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-lg border px-3 py-2 text-sm"
                 placeholder="Email (optional)"
                 value={contactForm.data.email}
                 onChange={(e) => contactForm.setData("email", e.target.value)}
               />
               <input
                 type="text"
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-lg border px-3 py-2 text-sm"
                 placeholder="Contact number"
                 value={contactForm.data.contact_number}
                 onChange={(e) => contactForm.setData("contact_number", e.target.value)}
@@ -171,7 +199,7 @@ export default function StakeholderShow({
               />
               <input
                 type="text"
-                className="rounded-md border px-3 py-2 text-sm"
+                className="rounded-lg border px-3 py-2 text-sm"
                 placeholder="Position (optional)"
                 value={contactForm.data.position}
                 onChange={(e) => contactForm.setData("position", e.target.value)}
@@ -179,9 +207,10 @@ export default function StakeholderShow({
               <div className="md:col-span-2">
                 <button
                   type="submit"
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                  className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
                   disabled={contactForm.processing}
                 >
+                  <Plus className="h-4 w-4" />
                   Add Contact
                 </button>
               </div>

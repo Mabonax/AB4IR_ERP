@@ -77,6 +77,7 @@ class ProjectController extends Controller
 
         $projects = Project::with([
             'projectManager',
+            'program',
             'locations.facilitator',
             'locations.province',
             'locations.enrollments.beneficiary',
@@ -145,6 +146,7 @@ class ProjectController extends Controller
             'attendanceTrend' => $this->attendanceTrend($model),
             'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
             'canManageProjects' => (bool) $request->user()?->can('update', $model),
+            'canAttachMilestones' => (bool) $request->user()?->can('attachMilestones', $model),
             'finalization' => [
                 'href' => route('projects.finalization', $model->id),
                 'is_concluded' => (bool) $model->closure,
@@ -248,8 +250,8 @@ class ProjectController extends Controller
 
         $template = ProgramMilestoneTemplate::findOrFail($data['milestone_template_id']);
 
-        $projectModel = Project::findOrFail($project);
-        $this->authorize('update', $projectModel);
+        $projectModel = Project::with('locations.facilitator')->findOrFail($project);
+        $this->authorize('attachMilestones', $projectModel);
 
         if ($template->program_id !== $projectModel->program_id) {
             return redirect()->back()->withErrors([
@@ -275,8 +277,8 @@ class ProjectController extends Controller
 
     public function syncMilestones(int $project)
     {
-        $projectModel = Project::findOrFail($project);
-        $this->authorize('update', $projectModel);
+        $projectModel = Project::with('locations.facilitator')->findOrFail($project);
+        $this->authorize('attachMilestones', $projectModel);
         $this->service->syncProgramMilestones($projectModel);
 
         return redirect()->back()->with('success', 'Program milestones synced');

@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { CalendarCheck2, CheckCircle2, Flag, MapPin, Plus, UsersRound } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -65,6 +66,7 @@ export default function ProjectShow({
     attendanceTrend,
     history,
     canManageProjects,
+    canAttachMilestones,
     finalization,
     documentRepository,
     brochureRepository,
@@ -77,6 +79,7 @@ export default function ProjectShow({
     attendanceTrend: { date: string; attendance_rate: number }[];
     history: any[];
     canManageProjects: boolean;
+    canAttachMilestones: boolean;
     finalization: {
         href: string;
         is_concluded: boolean;
@@ -217,37 +220,54 @@ export default function ProjectShow({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Project View" />
 
-            <div className="space-y-6 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-xl font-semibold">
+            <div className="space-y-6 bg-white p-4 text-slate-950 md:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <p className="text-sm text-slate-500">Projects / Project Dashboard</p>
+                        <h1 className="mt-1 text-3xl font-semibold tracking-normal">
                             {projectData.name}
                         </h1>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Delivery governance, learner progress, and project operations.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        {canAttachMilestones ? (
+                            <form onSubmit={handleSyncMilestones}>
+                                <button
+                                    type="submit"
+                                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Add New Milestone
+                                </button>
+                            </form>
+                        ) : null}
                         {canManageProjects ? (
-                            <div className="flex flex-wrap gap-2">
+                            <>
                                 <Link
                                     href={finalization.href}
-                                    className="rounded-md border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                                    className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
                                 >
                                     Project Finalization
                                 </Link>
                                 <Link
                                     href={`/projects/${projectData.id}/edit`}
-                                    className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                                    className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
                                 >
                                     Edit Project
                                 </Link>
-                            </div>
+                            </>
                         ) : finalization.can_manage ? (
                             <Link
                                 href={finalization.href}
-                                className="rounded-md border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                                className="rounded-lg border border-emerald-200 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
                             >
                                 Project Finalization
                             </Link>
                         ) : null}
+                        <DomainNav items={projectNavItems} />
                     </div>
-                    <DomainNav items={projectNavItems} />
                 </div>
 
                 <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
@@ -266,53 +286,25 @@ export default function ProjectShow({
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Status</CardTitle>
-                            <CardDescription>Current</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {projectData.status_label ??
-                                projectData.status ??
-                                '-'}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Start Date</CardTitle>
-                            <CardDescription>Project start</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {projectData.start_date ?? '-'}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Locations</CardTitle>
-                            <CardDescription>Delivery sites</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {summary.total_locations ?? locations.length}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Milestones</CardTitle>
-                            <CardDescription>Delivery units</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {summary.total_milestones ?? milestones.length}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Active Beneficiaries</CardTitle>
-                            <CardDescription>In delivery</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {summary.active_beneficiaries ?? 0}
-                        </CardContent>
-                    </Card>
+                    {[
+                        ['Status', projectData.status_label ?? projectData.status ?? '-', Flag, 'bg-red-50 text-red-600'],
+                        ['Start Date', projectData.start_date ?? '-', CalendarCheck2, 'bg-orange-50 text-orange-600'],
+                        ['Locations', summary.total_locations ?? locations.length, MapPin, 'bg-blue-50 text-blue-600'],
+                        ['Milestones', summary.total_milestones ?? milestones.length, CheckCircle2, 'bg-emerald-50 text-emerald-600'],
+                        ['Active Beneficiaries', summary.active_beneficiaries ?? 0, UsersRound, 'bg-violet-50 text-violet-600'],
+                    ].map(([label, value, Icon, tone]) => (
+                        <section key={String(label)} className="rounded-lg border bg-white p-5 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-slate-500">{label}</p>
+                                    <p className="mt-2 truncate text-2xl font-semibold capitalize">{String(value)}</p>
+                                </div>
+                                <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}>
+                                    <Icon className="h-5 w-5" />
+                                </span>
+                            </div>
+                        </section>
+                    ))}
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -1321,15 +1313,16 @@ export default function ProjectShow({
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {canManageProjects ? (
+                            {canAttachMilestones ? (
                                 <form
                                     onSubmit={handleSyncMilestones}
                                     className="mb-4"
                                 >
                                     <button
                                         type="submit"
-                                        className="rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+                                        className="inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
                                     >
+                                        <Plus className="h-4 w-4" />
                                         Attach program milestones
                                     </button>
                                 </form>

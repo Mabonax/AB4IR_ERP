@@ -451,6 +451,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('organization', [OrganizationProfileController::class, 'show'])
         ->middleware($viewPermission('organization'))
         ->name('organization.show');
+    Route::get('organization/edit', [OrganizationProfileController::class, 'edit'])
+        ->middleware($managePermission('organization'))
+        ->name('organization.edit');
     Route::put('organization', [OrganizationProfileController::class, 'update'])
         ->middleware($managePermission('organization'))
         ->name('organization.update');
@@ -952,11 +955,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('project')
         ->name('projects.learning.teaching-assignments');
     Route::post('projects/{project}/milestones', [ProjectController::class, 'addMilestone'])
-        ->middleware('permission:domain.projects.manage')
+        ->middleware('permission:domain.projects.manage|project-activities.manage')
         ->whereNumber('project')
         ->name('projects.milestones.store');
     Route::post('projects/{project}/milestones/sync', [ProjectController::class, 'syncMilestones'])
-        ->middleware('permission:domain.projects.manage')
+        ->middleware('permission:domain.projects.manage|project-activities.manage')
         ->whereNumber('project')
         ->name('projects.milestones.sync');
     Route::post('projects/{project}/conclude', [ProjectController::class, 'conclude'])

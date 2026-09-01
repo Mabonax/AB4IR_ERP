@@ -196,15 +196,23 @@ function statusTone(status: string): string {
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-      <section role="dialog" aria-modal="true" aria-labelledby="document-dialog-title" className="w-full max-w-xl rounded-lg border bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 id="document-dialog-title" className="text-base font-semibold text-slate-900">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-md p-2 text-slate-500 hover:bg-slate-100" aria-label="Close dialog">
-            <X className="h-4 w-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-[2px]">
+      <section role="dialog" aria-modal="true" aria-labelledby="document-dialog-title" className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/25">
+        <div className="flex items-start justify-between gap-4 px-7 pb-4 pt-7">
+          <div className="flex items-start gap-4">
+            <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-100 to-orange-100 text-red-600 ring-8 ring-orange-50">
+              <FolderPlus className="h-7 w-7" />
+            </span>
+            <div className="pt-1">
+              <h2 id="document-dialog-title" className="text-2xl font-semibold tracking-normal text-slate-950">{title}</h2>
+              <p className="mt-1 text-sm text-slate-500">Fill in the details and save your changes.</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-950" aria-label="Close dialog">
+            <X className="h-5 w-5" />
           </button>
         </div>
-        {children}
+        <div className="max-h-[calc(90vh-9rem)] overflow-y-auto">{children}</div>
       </section>
     </div>
   );

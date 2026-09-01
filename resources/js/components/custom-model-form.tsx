@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm } from "@inertiajs/react";
+import { Check, Info, SquarePlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ type FieldConfig = {
   required?: boolean;
   rows?: number;
   min?: number;
+  maxLength?: number;
 };
 
 type CustomModalFormProps = {
@@ -218,6 +220,16 @@ export const CustomModelForm = ({
   };
 
   const Icon = addButton?.icon;
+  const HeaderIcon = Icon ?? SquarePlus;
+  const primaryActionLabel = mode === "edit" ? "Save Changes" : title.toLowerCase().includes("program") ? "Save Program" : "Save";
+
+  const characterLimit = (field: FieldConfig) => {
+    if (field.maxLength) return field.maxLength;
+    if (field.name.toLowerCase().includes("title")) return 100;
+    if (field.type === "textarea" || field.name.toLowerCase().includes("description")) return 500;
+
+    return null;
+  };
 
   /* ------------------------------
    | RENDER
@@ -236,57 +248,79 @@ export const CustomModelForm = ({
         </DialogTrigger>
       )}
 
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-[760px]">
         <form onSubmit={handleSubmit}>
-          <DialogHeader className="bg-gradient-to-r border-red-600 bg-red-600  text-white px-6 py-4 rounded-t-lg">
-            <DialogTitle className="text-lg font-semibold">
-              {title}
-            </DialogTitle>
+          <DialogHeader className="px-7 pb-3 pt-7">
+            <div className="flex items-start gap-4 pr-10">
+              <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-100 to-orange-100 text-red-600 ring-8 ring-orange-50">
+                <HeaderIcon className="h-7 w-7" />
+              </span>
+              <div className="pt-1">
+                <DialogTitle className="text-2xl font-semibold tracking-normal">
+                  {title}
+                </DialogTitle>
 
-            {description && (
-              <DialogDescription className="text-white/90">
-                {description}
-              </DialogDescription>
-            )}
+                {description && (
+                  <DialogDescription className="mt-1">
+                    {description}
+                  </DialogDescription>
+                )}
+              </div>
+            </div>
           </DialogHeader>
 
 
-          <div className="p-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {fields.map((field) => (
-                <div key={field.id} className="grid gap-2">
-                  <Label>{field.label}</Label>
+          <div className="max-h-[calc(90vh-12rem)] overflow-y-auto px-7 pb-6 pt-3">
+            <div className="grid grid-cols-1 gap-x-7 gap-y-5 sm:grid-cols-2">
+              {fields.map((field) => {
+                const limit = characterLimit(field);
+                const currentLength = String(data[field.name] ?? "").length;
+
+                return (
+                <div key={field.id} className={field.type === "textarea" ? "grid gap-2" : "grid gap-2"}>
+                  <Label htmlFor={field.id} className="text-sm font-semibold text-slate-950">
+                    {field.label}
+                    {field.required ? <span className="text-red-600"> *</span> : null}
+                  </Label>
 
                 {/* TEXT INPUTS */}
                 {["text", "email", "number", "tel", "date"].includes(
                   field.type
                 ) && (
                   <Input
+                    id={field.id}
                     type={field.type}
                     value={data[field.name]}
+                    maxLength={limit ?? undefined}
+                    placeholder={field.placeholder}
                     disabled={isView}
                     onChange={(e) =>
                       setData(field.name, e.target.value)
                     }
+                    className="h-11 rounded-lg border-slate-200 bg-white px-4 text-sm shadow-sm focus-visible:ring-orange-300"
                   />
                 )}
 
                 {/* TEXTAREA */}
                 {field.type === "textarea" && (
                   <textarea
-                    rows={3}
+                    id={field.id}
+                    rows={field.rows ?? 4}
                     value={data[field.name]}
+                    maxLength={limit ?? undefined}
+                    placeholder={field.placeholder}
                     disabled={isView}
                     onChange={(e) =>
                       setData(field.name, e.target.value)
                     }
-                    className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
+                    className="min-h-28 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
                   />
                 )}
 
                 {/* SELECT (PROVINCES FIX) */}
                 {field.type === "select" && (
                   <select
+                    id={field.id}
                     value={data[field.name]}
                     multiple={field.multiple}
                     disabled={isView}
@@ -298,7 +332,7 @@ export const CustomModelForm = ({
                           : e.target.value
                       )
                     }
-                    className="rounded-md border bg-card px-3 py-2 text-sm text-foreground"
+                    className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-950 shadow-sm outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200"
                   >
                     {!field.multiple && <option value="">Select option</option>}
 
@@ -323,11 +357,20 @@ export const CustomModelForm = ({
                 )}
 
                 {field.type === "select" && field.multiple && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-500">
                     Hold Ctrl or Cmd to select multiple options.
                   </p>
                 )}
 
+                {field.name.toLowerCase().includes("slug") ? (
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    This will be used in URLs. Use lowercase letters, numbers, and hyphens.
+                  </p>
+                ) : null}
+
+                {limit ? (
+                  <p className="text-right text-xs text-slate-500">{currentLength} / {limit}</p>
+                ) : null}
 
                 {errors[field.name] && (
                   <p className="text-xs text-red-600">
@@ -335,23 +378,51 @@ export const CustomModelForm = ({
                   </p>
                 )}
                 </div>
-              ))}
+              )})}
             </div>
 
             {children && (
               <div className="mt-6">{children}</div>
             )}
 
-            <DialogFooter className="mt-6">
+            {fields.some((field) => field.name.toLowerCase().includes("slug")) ? (
+              <div className="mt-7 grid gap-5 sm:grid-cols-2">
+                <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
+                    <Info className="h-4 w-4" />
+                    Slug Preview
+                  </div>
+                  <div className="mt-4 rounded-lg border border-dashed border-blue-300 bg-white/70 px-4 py-3 text-sm text-slate-500">
+                    {String(data.slug ?? "").trim() || "Your slug will appear here"}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                    <Check className="h-4 w-4" />
+                    Guidelines
+                  </div>
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                    <li>Keep the title short and descriptive</li>
+                    <li>Slug must be unique</li>
+                    <li>You can edit these details later</li>
+                  </ul>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t bg-white px-7 py-5">
+            <DialogFooter>
               <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  Close
+                <Button type="button" variant="outline" className="rounded-lg border-slate-200 bg-white px-4 text-slate-700 hover:bg-slate-50">
+                  Cancel
                 </Button>
               </DialogClose>
 
               {!isView && (
-                <Button type="submit" disabled={processing}>
-                  {processing ? "Saving..." : "Save"}
+                <Button type="submit" disabled={processing} className="rounded-lg bg-red-600 px-5 font-semibold text-white hover:bg-red-700">
+                  {processing ? "Saving..." : primaryActionLabel}
                 </Button>
               )}
             </DialogFooter>
