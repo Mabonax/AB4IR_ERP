@@ -570,23 +570,6 @@ test('manager dashboard shows actionable pending leave approvals for direct repo
         );
 });
 
-test('manager facing data includes only direct reports', function () {
-    $department = makeLeaveDepartment();
-    [$managerUser, $managerStaff] = makeLeaveStaffUser($department, 'manager.dashboard@example.test', permissions: ['domain.staff.view']);
-    makeLeaveStaffUser($department, 'report.one@example.test', manager: $managerStaff);
-    makeLeaveStaffUser($department, 'report.two@example.test', manager: $managerStaff);
-    makeLeaveStaffUser($department, 'outsider@example.test');
-
-    $this->actingAs($managerUser)
-        ->get('/staff/dashboard')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('Staff/Dashboard')
-            ->where('managerLeave.team_members', 2)
-            ->has('managerLeave.team', 2)
-        );
-});
-
 test('requester can upload supporting documents into leave evidence library', function () {
     Storage::fake('document_library');
 

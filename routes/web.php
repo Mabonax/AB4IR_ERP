@@ -1045,9 +1045,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware($managePermission('staff'))
         ->whereNumber('staff')
         ->name('staff.reset-password');
-    Route::get('staff/dashboard', [StaffController::class, 'dashboard'])
-        ->middleware($viewPermission('staff'))
-        ->name('staff.dashboard');
     Route::get('staff/list', [StaffController::class, 'index'])
         ->middleware($viewPermission('staff'))
         ->name('staff.list');

@@ -1,5 +1,6 @@
-import { type DomainNavItem } from '@/components/domain-nav';
 import { Briefcase, Clock3, UserCircle } from 'lucide-react';
+
+import { type DomainNavItem } from '@/components/domain-nav';
 
 export const humanResourcesNavItems: DomainNavItem[] = [
     {

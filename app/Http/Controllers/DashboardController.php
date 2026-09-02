@@ -239,6 +239,7 @@ class DashboardController extends Controller
     protected function staffWidget(User $user): ?array
     {
         $canViewStaff = $user->can('domain.staff.view') || $user->can('domain.staff.manage');
+        $canViewHr = $user->can('domain.human-resources.view') || $user->can('domain.human-resources.manage');
 
         if (! $canViewStaff) {
             return null;
@@ -253,7 +254,7 @@ class DashboardController extends Controller
             'description' => $managerSummary['team_members'] > 0
                 ? "{$managerSummary['pending_approvals']} leave approvals are waiting across your reporting line."
                 : StaffMember::query()->where('status', 'active')->count().' active staff are in the organisation.',
-            'href' => route('staff.dashboard'),
+            'href' => $canViewHr ? route('human-resources.dashboard') : route('staff.index'),
         ];
     }
 

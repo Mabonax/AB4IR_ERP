@@ -3,7 +3,6 @@ import {
     Building2,
     CalendarDays,
     Clock3,
-    UserCircle,
 } from 'lucide-react';
 
 import { type DomainNavItem } from '@/components/domain-nav';
@@ -17,12 +16,6 @@ export const staffNavItems: DomainNavItem[] = [
             'domain.human-resources.view',
             'domain.human-resources.manage',
         ],
-    },
-    {
-        label: 'Dashboard',
-        href: '/staff/dashboard',
-        icon: <UserCircle className="h-4 w-4" />,
-        requiredPermissions: ['domain.staff.view', 'domain.staff.manage'],
     },
     {
         label: 'Staff List',

@@ -208,17 +208,11 @@ There is no dedicated beneficiary dashboard page yet, but the beneficiary domain
 - Immediate: staff count by department, approval stage distribution.
 - Needs backend shaping: leave trend over time by department.
 
-### `resources/js/pages/Staff/Dashboard.tsx`
+### Staff manager dashboard
 
-#### Recommended charts
-
-- Bar chart: `Leave balance by direct report`
-- Bar chart: `Pending approvals by manager/team`
-- Stacked bar chart: `Annual vs sick leave exposure for the team`
-
-#### Why it matters
-
-- This is a manager-facing people view and should visualize team leave risk more clearly.
+This standalone page has been retired. Manager-facing leave approvals now live in
+`resources/js/pages/HumanResources/Dashboard.tsx`, keeping Human Resources on a
+single dashboard surface.
 
 ## Priority 6: Assets
 

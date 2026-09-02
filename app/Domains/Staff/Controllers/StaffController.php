@@ -65,22 +65,6 @@ class StaffController extends Controller
         ]);
     }
 
-    public function dashboard(Request $request)
-    {
-        $staff = $request->user()?->staffMember;
-        $managerLeave = $this->leaveManagementService->managerDashboardSummary($staff);
-
-        return Inertia::render('Staff/Dashboard', [
-            'stats' => [
-                'totalStaff' => StaffMember::count(),
-                'activeStaff' => StaffMember::where('status', 'active')->count(),
-                'inactiveStaff' => StaffMember::where('status', 'inactive')->count(),
-                'departmentCount' => \App\Domains\Staff\Models\StaffDepartment::count(),
-            ],
-            'managerLeave' => $managerLeave,
-        ]);
-    }
-
     public function profile()
     {
         return redirect()->to('/settings/profile');
