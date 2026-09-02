@@ -1,9 +1,8 @@
 import { Head, Link } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
 import { projectNavItems } from "@/config/domain-nav/projects";
-
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [

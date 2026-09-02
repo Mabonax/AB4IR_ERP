@@ -32,11 +32,11 @@ export default function AssetsDashboard({
 }) {
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="Assets Dashboard" />
+      <Head title="Asset Portfolio Summary" />
 
       <div className="p-4 space-y-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl font-semibold">Assets Dashboard</h1>
+          <h1 className="text-xl font-semibold">Asset Portfolio Summary</h1>
           <DomainNav items={assetNavItems} />
         </div>
 

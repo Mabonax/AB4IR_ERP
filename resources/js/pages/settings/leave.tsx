@@ -1,13 +1,13 @@
 import { Head, useForm } from '@inertiajs/react';
 
-import AppLayout from '@/layouts/app-layout';
+import { CustomTable } from '@/components/custom-table';
 import { DomainNav } from '@/components/domain-nav';
-import { settingsNavItems } from '@/config/domain-nav/settings';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { CustomTable } from '@/components/custom-table';
+import { Input } from '@/components/ui/input';
+import { settingsNavItems } from '@/config/domain-nav/settings';
+import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [

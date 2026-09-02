@@ -1,6 +1,4 @@
-import { useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   BriefcaseBusiness,
   CalendarCheck2,
@@ -19,13 +17,14 @@ import {
   Pencil,
   Plus,
   Search,
-  Sparkles,
   Star,
   UserCheck,
   UserPlus,
   Users,
   XCircle,
 } from "lucide-react";
+import { useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
+import { Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import {
   Dialog,

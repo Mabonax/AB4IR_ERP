@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
 
 import {
 } from "@/components/charts/dashboard-charts";
@@ -7,10 +7,6 @@ import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { CustomModelForm } from "@/components/custom-model-form";
 import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-import { programNavItems } from "@/config/domain-nav/programs";
-import { ProgramModelFormConfig } from "@/config/forms/program-model-form";
-import { ProgramTableConfig } from "@/config/tables/program-table";
-import AppLayout from "@/layouts/app-layout";
 import {
   Card,
   CardContent,
@@ -18,6 +14,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { programNavItems } from "@/config/domain-nav/programs";
+import { ProgramModelFormConfig } from "@/config/forms/program-model-form";
+import { ProgramTableConfig } from "@/config/tables/program-table";
+import AppLayout from "@/layouts/app-layout";
 import programsRoutes from "@/routes/programs";
 import { type BreadcrumbItem } from "@/types";
 

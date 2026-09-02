@@ -74,13 +74,13 @@ export default function MarketingDashboard({
           <div>
             <h1 className="text-xl font-semibold">Marketing Operations</h1>
             <p className="text-sm text-muted-foreground">
-              The dashboard now separates internal production workload from publication performance so requests, approvals, publishing, and metrics stay traceable.
+              Govern marketing briefs, deliverables, approved assets, publications, and metrics while Task Management remains the work intake and completion workflow.
             </p>
           </div>
           <div className="flex items-center gap-3">
             {dashboard.can.create_request ? (
               <Link href="/marketing/requests/create" className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700">
-                New Request
+                Register Operation
               </Link>
             ) : null}
             <DomainNav items={marketingNavItems} />

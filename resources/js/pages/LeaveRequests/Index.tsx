@@ -1,5 +1,6 @@
 import { Head, router } from "@inertiajs/react";
-import { useState } from "react";
+import { BriefcaseBusiness, CalendarDays, Download, Filter, ShieldCheck, Users } from "lucide-react";
+import { type ComponentType, useState } from "react";
 
 import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
@@ -39,6 +40,24 @@ type LeaveRow = {
   can_revoke?: boolean;
 };
 
+type TeamLeaveSummaryRow = {
+  staff_name: string;
+  department_name?: string | null;
+  leave_account?: {
+    annual?: { available?: number };
+    sick?: { available?: number };
+    pending?: { count?: number };
+  };
+};
+
+type MetricCard = {
+  label: string;
+  value: number;
+  caption: string;
+  Icon: ComponentType<{ className?: string }>;
+  tone: string;
+};
+
 export default function LeaveRequestsIndex({
   myRequests,
   managerQueue,
@@ -50,7 +69,7 @@ export default function LeaveRequestsIndex({
   managerQueue: LeaveRow[];
   hrQueue: LeaveRow[];
   leaveRegister: LeaveRow[];
-  teamLeaveSummary: any[];
+  teamLeaveSummary: TeamLeaveSummaryRow[];
 }) {
   const [actionOpen, setActionOpen] = useState(false);
   const [actionType, setActionType] = useState<"manager_approve" | "manager_reject" | "hr_approve" | "hr_reject" | null>(null);
@@ -127,18 +146,45 @@ export default function LeaveRequestsIndex({
     sick_available: item.leave_account?.sick?.available ?? 0,
     pending_count: item.leave_account?.pending?.count ?? 0,
   }));
+  const metrics: MetricCard[] = [
+    { label: "Total Leave Records", value: leaveRegister.length, caption: "Approved leave", Icon: CalendarDays, tone: "bg-orange-50 text-orange-600" },
+    { label: "My Requests", value: myRequests.length, caption: "Pending / in progress", Icon: BriefcaseBusiness, tone: "bg-rose-50 text-rose-600" },
+    { label: "Manager Approvals", value: managerQueue.length, caption: "Awaiting your action", Icon: Users, tone: "bg-violet-50 text-violet-600" },
+    { label: "HR Approvals", value: hrQueue.length, caption: "Awaiting HR action", Icon: ShieldCheck, tone: "bg-emerald-50 text-emerald-600" },
+  ];
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Leave Management" />
 
-      <div className="space-y-6 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">Leave Management</h1>
-          <DomainNav items={humanResourcesNavItems} />
+      <div className="space-y-5 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Leave Management</h1>
+            <p className="mt-1 text-sm text-slate-500">Manage leave records, requests and approvals across the organization.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <DomainNav items={humanResourcesNavItems} />
+            <button className="inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"><Download className="h-4 w-4" />Export</button>
+            <button className="inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"><Filter className="h-4 w-4" />Filters</button>
+          </div>
         </div>
 
-        <Card>
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {metrics.map(({ label, value, caption, Icon, tone }) => (
+            <div key={label} className="rounded-xl border bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-5">
+                  <span className={`flex size-14 items-center justify-center rounded-full ${tone}`}><Icon className="h-7 w-7" /></span>
+                  <div><div className="text-sm font-medium text-slate-700">{label}</div><div className="mt-1 text-3xl font-semibold text-slate-950">{value}</div><div className="text-sm text-slate-500">{caption}</div></div>
+                </div>
+                <span className="text-xl text-slate-500">&rsaquo;</span>
+              </div>
+            </div>
+          ))}
+        </section>
+
+        <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle>Leave Register</CardTitle>
             <CardDescription>Approved leave records (who is on leave and for which dates)</CardDescription>
@@ -158,7 +204,7 @@ export default function LeaveRequestsIndex({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle>My Requests</CardTitle>
             <CardDescription>Submitted leave requests</CardDescription>
@@ -197,7 +243,7 @@ export default function LeaveRequestsIndex({
           </Card>
         ) : null}
 
-        <Card>
+        <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle>Manager Approvals</CardTitle>
             <CardDescription>Requests awaiting manager action</CardDescription>
@@ -228,7 +274,7 @@ export default function LeaveRequestsIndex({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle>HR Approvals</CardTitle>
             <CardDescription>Requests awaiting HR action</CardDescription>

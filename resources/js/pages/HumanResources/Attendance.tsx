@@ -1,4 +1,6 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Clock3, Printer, RotateCcw, Users } from 'lucide-react';
+import { type ComponentType } from 'react';
 
 import { CustomTable } from '@/components/custom-table';
 import { DomainNav } from '@/components/domain-nav';
@@ -19,6 +21,14 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Human Resources', href: '/human-resources' },
     { title: 'Attendance', href: '/human-resources/attendance' },
 ];
+
+type MetricCard = {
+    label: string;
+    value: number;
+    caption: string;
+    Icon: ComponentType<{ className?: string }>;
+    tone: string;
+};
 
 export default function HumanResourcesAttendance({
     filters,
@@ -105,6 +115,13 @@ export default function HumanResourcesAttendance({
         staff_id: filters.staff_id ? String(filters.staff_id) : '',
         reason: '',
     });
+    const metrics: MetricCard[] = [
+        { label: 'Staff Scope', value: todayStats.staff_scope, caption: 'Total staff', Icon: Users, tone: 'bg-violet-50 text-violet-600' },
+        { label: 'Clocked In', value: todayStats.clocked_in, caption: 'Currently clocked in', Icon: Clock3, tone: 'bg-emerald-50 text-emerald-600' },
+        { label: 'Late Overrides', value: todayStats.late_overrides, caption: 'This period', Icon: Clock3, tone: 'bg-orange-50 text-orange-600' },
+        { label: 'Open Sessions', value: todayStats.open_sessions, caption: 'Active sessions', Icon: Users, tone: 'bg-blue-50 text-blue-600' },
+        { label: 'Auto Clock-outs', value: todayStats.auto_clock_outs, caption: 'This period', Icon: Clock3, tone: 'bg-rose-50 text-rose-600' },
+    ];
 
     const applyFilters = (next: Partial<typeof filters>) => {
         router.get(
@@ -121,10 +138,10 @@ export default function HumanResourcesAttendance({
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Staff Attendance" />
 
-            <div className="space-y-8 p-4">
+            <div className="space-y-6 p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-semibold">
+                        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
                             Staff Attendance
                         </h1>
                         <div className="text-sm text-muted-foreground">
@@ -147,50 +164,24 @@ export default function HumanResourcesAttendance({
                     </div>
                 ) : null}
 
-                <div className="grid gap-4 md:grid-cols-5">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Staff Scope</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {todayStats.staff_scope}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Clocked In</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {todayStats.clocked_in}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Late Overrides</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {todayStats.late_overrides}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Open Sessions</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {todayStats.open_sessions}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Auto Clock-outs</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-2xl font-semibold">
-                            {todayStats.auto_clock_outs}
-                        </CardContent>
-                    </Card>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    {metrics.map(({ label, value, caption, Icon, tone }) => (
+                        <Card key={label} className="rounded-xl shadow-sm">
+                            <CardContent className="flex items-center gap-5 p-6">
+                                <span className={`flex size-14 items-center justify-center rounded-full ${tone}`}>
+                                    <Icon className="h-7 w-7" />
+                                </span>
+                                <div>
+                                    <div className="text-sm text-slate-600">{label}</div>
+                                    <div className="mt-1 text-3xl font-semibold text-slate-950">{value}</div>
+                                    <div className="text-xs text-slate-500">{caption}</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
 
-                <Card>
+                <Card className="rounded-2xl shadow-sm">
                     <CardHeader>
                         <CardTitle>Filters and Print</CardTitle>
                         <CardDescription>
@@ -286,6 +277,7 @@ export default function HumanResourcesAttendance({
                                     })
                                 }
                             >
+                                <RotateCcw className="mr-2 h-4 w-4" />
                                 Reset Filters
                             </Button>
                             <Button
@@ -311,13 +303,14 @@ export default function HumanResourcesAttendance({
                                     );
                                 }}
                             >
+                                <Printer className="mr-2 h-4 w-4" />
                                 Print PDF Report
                             </Button>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="rounded-2xl shadow-sm">
                     <CardHeader>
                         <CardTitle>Open Late Clock-in</CardTitle>
                         <CardDescription>
@@ -397,7 +390,7 @@ export default function HumanResourcesAttendance({
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="rounded-2xl shadow-sm">
                     <CardHeader>
                         <CardTitle>Report Summary</CardTitle>
                         <CardDescription>
@@ -461,7 +454,7 @@ export default function HumanResourcesAttendance({
                 </Card>
 
                 <div className="grid gap-6 xl:grid-cols-2">
-                    <Card>
+                    <Card className="rounded-2xl shadow-sm">
                         <CardHeader>
                             <CardTitle>Pending Late Requests</CardTitle>
                             <CardDescription>
@@ -504,7 +497,7 @@ export default function HumanResourcesAttendance({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="rounded-2xl shadow-sm">
                         <CardHeader>
                             <CardTitle>Approved Late Windows</CardTitle>
                             <CardDescription>
@@ -563,7 +556,7 @@ export default function HumanResourcesAttendance({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="rounded-2xl shadow-sm">
                         <CardHeader>
                             <CardTitle>Recent Attendance Activity</CardTitle>
                             <CardDescription>

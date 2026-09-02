@@ -1,10 +1,10 @@
 import { Head, router, useForm } from "@inertiajs/react";
 import { useMemo } from "react";
 
+import { DomainNav } from "@/components/domain-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DomainNav } from "@/components/domain-nav";
 import { businessDevelopmentNavItems } from "@/config/domain-nav/business-development";
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";

@@ -1,12 +1,11 @@
 import { Head } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import {
   HorizontalBarChart,
   StackedCompositionChart,
 } from "@/components/charts/dashboard-charts";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-import { projectNavItems } from "@/config/domain-nav/projects";
 import {
   Card,
   CardContent,
@@ -14,12 +13,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CustomTable } from "@/components/custom-table";
+import { projectNavItems } from "@/config/domain-nav/projects";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Projects", href: "/projects" },
-  { title: "Facilitator Dashboard", href: "/project-locations/dashboard" },
+  { title: "Delivery Locations Dashboard", href: "/project-locations/dashboard" },
 ];
 
 export default function ProjectLocationsDashboard({
@@ -63,11 +63,11 @@ export default function ProjectLocationsDashboard({
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="Facilitator Dashboard" />
+      <Head title="Delivery Locations Dashboard" />
 
       <div className="p-4 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">Facilitator Dashboard</h1>
+          <h1 className="text-xl font-semibold">Delivery Locations Dashboard</h1>
           <DomainNav items={projectNavItems} />
         </div>
 

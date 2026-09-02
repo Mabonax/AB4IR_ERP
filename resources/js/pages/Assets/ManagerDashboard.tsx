@@ -14,7 +14,7 @@ import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Assets", href: "/assets" },
-  { title: "Manager Dashboard", href: "/assets/manager-dashboard" },
+  { title: "Manager Analytics", href: "/assets/manager-dashboard" },
 ];
 
 export default function AssetManagerDashboard({
@@ -72,11 +72,11 @@ export default function AssetManagerDashboard({
 }) {
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="Asset Manager Dashboard" />
+      <Head title="Asset Manager Analytics" />
 
       <div className="space-y-6 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold">Asset Manager Dashboard</h1>
+          <h1 className="text-xl font-semibold">Asset Manager Analytics</h1>
           <DomainNav items={assetNavItems} />
         </div>
 

@@ -1,5 +1,5 @@
-import { FormEvent, useMemo, useState } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
+import { FormEvent, useMemo, useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { businessDevelopmentNavItems } from "@/config/domain-nav/business-development";

@@ -1,9 +1,9 @@
 import { Head, Link } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import { DomainNav } from "@/components/domain-nav";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import AppLayout from "@/layouts/app-layout";
 import { eventSeriesNav } from "@/pages/Events/navigation";
 import { type BreadcrumbItem } from "@/types";
 

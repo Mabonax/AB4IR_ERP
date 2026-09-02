@@ -1,17 +1,15 @@
-import { useState } from "react";
 import { Head, router } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
-
-import { ProjectLocationModelFormConfig } from "@/config/forms/project-location-model-form";
-import { ProjectLocationTableConfig } from "@/config/tables/project-location-table";
-
-import projectLocations from "@/routes/project-locations";
+import { CustomModelForm } from "@/components/custom-model-form";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
 import { projectNavItems } from "@/config/domain-nav/projects";
+import { ProjectLocationModelFormConfig } from "@/config/forms/project-location-model-form";
+import { ProjectLocationTableConfig } from "@/config/tables/project-location-table";
+import AppLayout from "@/layouts/app-layout";
+import projectLocations from "@/routes/project-locations";
 import { type BreadcrumbItem } from "@/types";
 
 /* =========================================================

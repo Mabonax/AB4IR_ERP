@@ -1,9 +1,9 @@
 import { Head, router } from "@inertiajs/react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { businessDevelopmentNavItems } from "@/config/domain-nav/business-development";
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";

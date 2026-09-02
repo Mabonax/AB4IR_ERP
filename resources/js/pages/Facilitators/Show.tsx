@@ -1,10 +1,17 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
+import { Activity, ArrowLeft, BookOpen, Mail, MapPin, Pencil, Phone, UserCircle, Workflow } from "lucide-react";
+import { type ComponentType } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import AppLayout from "@/layouts/app-layout";
 import facilitators from "@/routes/facilitators";
 import { type BreadcrumbItem } from "@/types";
+
+type FacilitatorTab = {
+  label: string;
+  Icon: ComponentType<{ className?: string }>;
+};
 
 export default function FacilitatorShow({
   facilitator,
@@ -20,6 +27,12 @@ export default function FacilitatorShow({
     { title: facilitator.full_name ?? "Facilitator", href: facilitators.show(facilitator.id) },
   ];
   const flashActivationUrl = (usePage<any>().props?.flash?.activation_url as string | null) ?? null;
+  const tabs: FacilitatorTab[] = [
+    { label: "Overview", Icon: UserCircle },
+    { label: "LMS Teaching", Icon: BookOpen },
+    { label: "Workflows", Icon: Workflow },
+    { label: "Activity", Icon: Activity },
+  ];
 
   const resendLmsInvitation = () => {
     router.post(`/facilitators/${facilitator.id}/lms-invitation/resend`, {}, { preserveScroll: true });
@@ -39,13 +52,49 @@ export default function FacilitatorShow({
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title={facilitator.full_name ?? "Facilitator"} />
 
-      <div className="space-y-6 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Facilitator file</div>
-            <h1 className="text-2xl font-semibold tracking-tight">{facilitator.full_name ?? "-"}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Linked facilitator profile and account details.</p>
+      <div className="space-y-6 p-6">
+        <section className="rounded-2xl border bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div className="flex min-w-0 items-center gap-7">
+              <span className="flex size-28 shrink-0 items-center justify-center rounded-full bg-orange-50 text-4xl font-semibold text-orange-600">
+                {String(facilitator.full_name ?? "F").split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-semibold tracking-tight text-slate-950">{facilitator.full_name ?? "-"}</h1>
+                  <span className="rounded-lg bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200">Active</span>
+                </div>
+                <p className="mt-2 text-lg text-slate-500">Facilitator profile and account details</p>
+                <div className="mt-4 flex flex-wrap gap-5 text-sm text-slate-600">
+                  <span className="inline-flex items-center gap-2"><Mail className="h-4 w-4" />{facilitator.email ?? "-"}</span>
+                  <span className="inline-flex items-center gap-2"><Phone className="h-4 w-4" />{facilitator.cell ?? "-"}</span>
+                  <span className="inline-flex items-center gap-2"><MapPin className="h-4 w-4" />{facilitator.province_name ?? "-"}, {facilitator.specialization ?? "-"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link href={facilitators.index().url}>
+                <Button variant="outline" className="h-12 gap-2 px-5"><ArrowLeft className="h-4 w-4" />Back to Facilitators</Button>
+              </Link>
+              {canManageFacilitators ? (
+                <Link href={facilitators.edit(facilitator.id).url}>
+                  <Button className="h-12 gap-2 bg-red-600 px-5 text-white hover:bg-red-700"><Pencil className="h-4 w-4" />Edit Facilitator</Button>
+                </Link>
+              ) : null}
+            </div>
           </div>
+        </section>
+
+        <nav className="flex flex-wrap gap-12 border-b px-4">
+          {tabs.map(({ label, Icon }, index) => (
+            <button key={label} className={`inline-flex h-16 items-center gap-3 border-b-4 text-base font-medium ${index === 0 ? "border-red-600 text-red-600" : "border-transparent text-slate-700"}`}>
+              <Icon className="h-5 w-5" />
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="hidden">
           <div className="flex flex-wrap gap-2">
             <Link href={facilitators.index().url}>
               <Button variant="outline">Back to Facilitators</Button>
@@ -59,7 +108,7 @@ export default function FacilitatorShow({
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
+          <Card className="rounded-2xl shadow-sm">
             <CardHeader>
               <CardTitle>Core profile</CardTitle>
               <CardDescription>Current operational details used across facilitator workflows.</CardDescription>
@@ -74,7 +123,7 @@ export default function FacilitatorShow({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-2xl shadow-sm">
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -161,7 +210,7 @@ export default function FacilitatorShow({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-2xl shadow-sm">
             <CardHeader>
               <CardTitle>Extended details</CardTitle>
               <CardDescription>Optional identity and address details when they have been captured.</CardDescription>

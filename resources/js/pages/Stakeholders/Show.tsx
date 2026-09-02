@@ -1,11 +1,11 @@
-import { useState } from "react";
 import { Head, Link, router, useForm } from "@inertiajs/react";
 import { Building2, Mail, Phone, Plus, Trash2, UserRound, UsersRound } from "lucide-react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { CustomModelForm } from "@/components/custom-model-form";
 import { StakeholderModelFormConfig } from "@/config/forms/stakeholder-model-form";
+import AppLayout from "@/layouts/app-layout";
 import stakeholders from "@/routes/stakeholders";
 import { type BreadcrumbItem } from "@/types";
 

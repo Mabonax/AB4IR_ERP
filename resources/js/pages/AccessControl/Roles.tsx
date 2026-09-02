@@ -3,9 +3,9 @@ import { CheckCircle2, LockKeyhole, Plus, Search, ShieldCheck, Trash2, UsersRoun
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
-import { accessControlNavItems } from "@/config/domain-nav/access-control";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { accessControlNavItems } from "@/config/domain-nav/access-control";
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 

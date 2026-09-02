@@ -1,11 +1,11 @@
 import { Head, router, useForm } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 
-import Heading from "@/components/heading";
 import { DomainNav } from "@/components/domain-nav";
-import { accessControlNavItems } from "@/config/domain-nav/access-control";
+import Heading from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { accessControlNavItems } from "@/config/domain-nav/access-control";
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 

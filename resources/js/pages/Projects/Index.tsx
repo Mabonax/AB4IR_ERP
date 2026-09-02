@@ -1,13 +1,13 @@
-import { useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-import { projectNavItems } from "@/config/domain-nav/projects";
 import { Button } from "@/components/ui/button";
+import { projectNavItems } from "@/config/domain-nav/projects";
 import { ProjectTableConfig } from "@/config/tables/project-table";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
 
 type StatusTransition = {

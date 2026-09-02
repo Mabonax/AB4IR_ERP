@@ -1,17 +1,15 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
-
-import { AssetCategoryModelFormConfig } from "@/config/forms/asset-category-model-form";
-import { AssetCategoryTableConfig } from "@/config/tables/asset-category-table";
-
-import assetCategories from "@/routes/asset-categories";
+import { CustomModelForm } from "@/components/custom-model-form";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
 import { assetNavItems } from "@/config/domain-nav/assets";
+import { AssetCategoryModelFormConfig } from "@/config/forms/asset-category-model-form";
+import { AssetCategoryTableConfig } from "@/config/tables/asset-category-table";
+import AppLayout from "@/layouts/app-layout";
+import assetCategories from "@/routes/asset-categories";
 import { type BreadcrumbItem } from "@/types";
 
 /* =========================================================

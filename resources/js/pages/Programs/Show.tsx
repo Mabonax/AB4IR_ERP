@@ -5,10 +5,6 @@ import {
   HorizontalBarChart,
 } from "@/components/charts/dashboard-charts";
 import { DomainNav } from "@/components/domain-nav";
-import { programNavItems } from "@/config/domain-nav/programs";
-import AppLayout from "@/layouts/app-layout";
-import programs from "@/routes/programs";
-import { type BreadcrumbItem } from "@/types";
 import {
   Card,
   CardContent,
@@ -16,6 +12,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { programNavItems } from "@/config/domain-nav/programs";
+import AppLayout from "@/layouts/app-layout";
+import programs from "@/routes/programs";
+import { type BreadcrumbItem } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
   { title: "Programs", href: programs.index().url },
@@ -65,7 +65,6 @@ type YearlyImpact = {
 export default function ProgramShow({
   program,
   stats,
-  yearlyImpact,
   projects,
   documentRepository,
   brochureRepository,

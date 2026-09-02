@@ -1,6 +1,4 @@
-import { useMemo, type ComponentType, type ReactNode } from "react";
 import { Head, Link, usePage } from "@inertiajs/react";
-import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import {
   BadgeCheck,
   Box,
@@ -24,9 +22,11 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import { useMemo, type ComponentType, type ReactNode } from "react";
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
-import AppLayout from "@/layouts/app-layout";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem, type SharedData } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -122,6 +122,18 @@ const focusTones = [
   "bg-blue-50 text-blue-600",
   "bg-emerald-50 text-emerald-600",
 ];
+
+type ChannelInsight = {
+  label: string;
+  value: string;
+  Icon: ComponentType<{ className?: string }>;
+  tone: string;
+};
+
+type ContactItem = {
+  Icon: ComponentType<{ className?: string }>;
+  value: string;
+};
 
 function ShellCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <section className={`rounded-lg border border-slate-200 bg-white shadow-sm ${className}`}>{children}</section>;
@@ -248,6 +260,18 @@ export default function OrganizationShow({ profile }: { profile: OrganizationPro
   const topChannel = [...channelValues].sort((a, b) => b.value - a.value)[0];
   const lowestChannel = [...channelValues].filter((item) => item.value > 0).sort((a, b) => a.value - b.value)[0] ?? channelValues[0];
   const address = [profile.city, profile.province, profile.country].filter(Boolean).join(", ") || "Johannesburg, Gauteng, South Africa";
+  const channelInsights: ChannelInsight[] = [
+    { label: "Top Channel", value: topChannel?.label ?? "-", Icon: BadgeCheck, tone: "text-blue-600 bg-blue-50" },
+    { label: "Total Reach", value: `${formatNumber(totalReach)} +`, Icon: Globe2, tone: "text-sky-600 bg-sky-50" },
+    { label: "Most Engaging", value: topChannel?.label ?? "-", Icon: Radio, tone: "text-blue-600 bg-blue-50" },
+    { label: "Least Engaging", value: lowestChannel?.label ?? "-", Icon: Box, tone: "text-pink-600 bg-pink-50" },
+  ];
+  const contactItems: ContactItem[] = [
+    { Icon: MapPin, value: address },
+    { Icon: Phone, value: profile.phone ?? "+27 11 000 0000" },
+    { Icon: Mail, value: profile.email ?? "info@ab4ir.example.com" },
+    { Icon: Globe2, value: profile.website ?? "www.ab4ir.org.za" },
+  ];
 
   return (
     <AppLayout
@@ -412,13 +436,8 @@ export default function OrganizationShow({ profile }: { profile: OrganizationPro
                 </div>
               </div>
               <div className="space-y-4">
-                {[
-                  ["Top Channel", topChannel?.label ?? "-", BadgeCheck, "text-blue-600 bg-blue-50"],
-                  ["Total Reach", `${formatNumber(totalReach)} +`, Globe2, "text-sky-600 bg-sky-50"],
-                  ["Most Engaging", topChannel?.label ?? "-", Radio, "text-blue-600 bg-blue-50"],
-                  ["Least Engaging", lowestChannel?.label ?? "-", Box, "text-pink-600 bg-pink-50"],
-                ].map(([label, value, Icon, tone]) => (
-                  <div key={String(label)} className="flex items-center gap-4 rounded-lg bg-slate-50 p-4">
+                {channelInsights.map(({ label, value, Icon, tone }) => (
+                  <div key={label} className="flex items-center gap-4 rounded-lg bg-slate-50 p-4">
                     <span className={`flex h-11 w-11 items-center justify-center rounded-lg ${tone}`}>
                       <Icon className="h-5 w-5" />
                     </span>
@@ -511,13 +530,8 @@ export default function OrganizationShow({ profile }: { profile: OrganizationPro
                 <SectionTitle title="Contact & Address" />
                 <div className="mt-5 grid gap-5 md:grid-cols-[1fr,230px]">
                   <div className="space-y-4 text-sm text-slate-700">
-                    {[
-                      [MapPin, address],
-                      [Phone, profile.phone ?? "+27 11 000 0000"],
-                      [Mail, profile.email ?? "info@ab4ir.example.com"],
-                      [Globe2, profile.website ?? "www.ab4ir.org.za"],
-                    ].map(([Icon, value]) => (
-                      <div key={String(value)} className="flex items-center gap-3">
+                    {contactItems.map(({ Icon, value }) => (
+                      <div key={value} className="flex items-center gap-3">
                         <Icon className="h-5 w-5 text-blue-600" />
                         <span>{value}</span>
                       </div>

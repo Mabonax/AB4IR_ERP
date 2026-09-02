@@ -1,8 +1,7 @@
-import { useMemo, useRef, useState } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import { Eye, Pencil, Search, Trash2, Upload, UserCheck, UserRoundPlus, UsersRound } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import AppLayout from "@/layouts/app-layout";
 import beneficiaries from "@/routes/beneficiaries";
 import { type BreadcrumbItem, type SharedData } from "@/types";
 

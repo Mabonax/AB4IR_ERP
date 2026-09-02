@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { type RequestPayload } from "@inertiajs/core";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import { ArrowLeft, BookOpenCheck, CalendarClock, GraduationCap, Mail, MapPin, Phone, UserRound, UsersRound } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import AppLayout from "@/layouts/app-layout";
 import beneficiaries from "@/routes/beneficiaries";
 import { type BreadcrumbItem } from "@/types";
 
@@ -61,7 +62,7 @@ export default function BeneficiaryShow({
       return;
     }
 
-    const payload: Record<string, unknown> = { reason };
+    const payload: RequestPayload = { reason };
 
     if (action === "graduate" || action === "exit") {
       payload.outcome_type = outcomeType;

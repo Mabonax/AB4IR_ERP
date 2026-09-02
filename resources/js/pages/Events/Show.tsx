@@ -1,3 +1,4 @@
+import { type RequestPayload } from "@inertiajs/core";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import { CircleHelp, ClipboardSignature, FileText, Pencil, Plus, RadioTower, Users } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -163,7 +164,7 @@ export default function EventShow({
       .filter((group: any) => group.total > 0);
   }, [activeDepartment, activePhase]);
 
-  const submitLifecycle = (action: string, payload: Record<string, unknown>) => {
+  const submitLifecycle = (action: string, payload: RequestPayload) => {
     router.post(`/events/${event.id}/${action}`, payload, {
       preserveScroll: true,
     });

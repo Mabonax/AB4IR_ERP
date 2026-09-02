@@ -1,5 +1,4 @@
 import { Head, Link, usePage } from "@inertiajs/react";
-import { useMemo } from "react";
 import {
   CalendarRange,
   CircleDashed,
@@ -9,6 +8,7 @@ import {
   RadioTower,
   Users,
 } from "lucide-react";
+import { useMemo } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { Button } from "@/components/ui/button";

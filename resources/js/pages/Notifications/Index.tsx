@@ -1,8 +1,8 @@
 import { Head, Link, router, usePage } from "@inertiajs/react";
 
-import AppLayout from "@/layouts/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem, type SharedData } from "@/types";
 
 const breadcrumbs: BreadcrumbItem[] = [

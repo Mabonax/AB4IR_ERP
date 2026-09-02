@@ -1,17 +1,17 @@
 import { Transition } from '@headlessui/react';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 
+import { DomainNav } from '@/components/domain-nav';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { settingsNavItems } from '@/config/domain-nav/settings';
 import AppLayout from '@/layouts/app-layout';
 import profile from '@/routes/profile';
 import { send } from '@/routes/verification';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { DomainNav } from '@/components/domain-nav';
-import { settingsNavItems } from '@/config/domain-nav/settings';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

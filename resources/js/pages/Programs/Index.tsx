@@ -1,16 +1,14 @@
-import { useState } from "react";
 import { Head } from "@inertiajs/react";
+import { useState } from "react";
 
-import AppLayout from "@/layouts/app-layout";
-import { CustomTable } from "@/components/custom-table";
-import { CustomModelForm } from "@/components/custom-model-form";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
+import { CustomModelForm } from "@/components/custom-model-form";
+import { CustomTable } from "@/components/custom-table";
 import { DomainNav } from "@/components/domain-nav";
-
+import { programNavItems } from "@/config/domain-nav/programs";
 import { ProgramModelFormConfig } from "@/config/forms/program-model-form";
 import { ProgramTableConfig } from "@/config/tables/program-table";
-import { programNavItems } from "@/config/domain-nav/programs";
-
+import AppLayout from "@/layouts/app-layout";
 import programs from "@/routes/programs";
 import { type BreadcrumbItem } from "@/types";
 

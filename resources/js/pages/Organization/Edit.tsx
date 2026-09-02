@@ -1,4 +1,3 @@
-import { type ReactNode } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
 import {
   ArrowLeft,
@@ -13,6 +12,7 @@ import {
   Upload,
   UsersRound,
 } from "lucide-react";
+import { type ComponentType, type ReactNode } from "react";
 
 import AppLayout from "@/layouts/app-layout";
 import { type BreadcrumbItem } from "@/types";
@@ -125,6 +125,44 @@ export default function OrganizationEdit({ profile }: { profile: OrganizationPro
     impact_instagram: profile.impact_channels?.find((item) => item.label === "Instagram")?.value?.toString() ?? "",
     impact_youtube: profile.impact_channels?.find((item) => item.label === "YouTube")?.value?.toString() ?? "",
   });
+  const impactFields: Array<{
+    key: keyof typeof profileForm.data;
+    label: string;
+    Icon: ComponentType<{ className?: string }>;
+  }> = [
+    { key: "impact_total", label: "Total Impact", Icon: UsersRound },
+    { key: "impact_digital", label: "Digital Impact", Icon: Monitor },
+    { key: "impact_physical", label: "Physical Impact", Icon: Building2 },
+    { key: "trainings_conducted", label: "Trainings Conducted", Icon: CheckCircle2 },
+    { key: "impact_website", label: "Website", Icon: Globe2 },
+    { key: "impact_walkins", label: "Walk-ins", Icon: MapPin },
+    { key: "impact_facebook", label: "Facebook", Icon: UsersRound },
+    { key: "impact_x", label: "X / Twitter", Icon: UsersRound },
+    { key: "impact_linkedin", label: "LinkedIn", Icon: UsersRound },
+    { key: "impact_livestreaming", label: "Livestreaming", Icon: UsersRound },
+    { key: "impact_instagram", label: "Instagram", Icon: UsersRound },
+    { key: "impact_youtube", label: "YouTube", Icon: UsersRound },
+  ];
+  const strategyFields: Array<{
+    key: "mission" | "vision" | "service_offering" | "objectives" | "focus_areas";
+    label: string;
+  }> = [
+    { key: "mission", label: "Mission" },
+    { key: "vision", label: "Vision" },
+    { key: "service_offering", label: "Service Offering" },
+    { key: "objectives", label: "Objectives" },
+    { key: "focus_areas", label: "Focus Areas" },
+  ];
+  const logoFields: Array<{
+    key: "primary_logo" | "light_logo" | "dark_logo" | "icon_logo";
+    label: string;
+    url: string | null | undefined;
+  }> = [
+    { key: "primary_logo", label: "Primary Logo", url: profile.primary_logo_url },
+    { key: "light_logo", label: "Light Version", url: profile.light_logo_url },
+    { key: "dark_logo", label: "Dark Version", url: profile.dark_logo_url },
+    { key: "icon_logo", label: "Icon Version", url: profile.icon_logo_url },
+  ];
 
   const logoForm = useForm<{
     primary_logo: File | null;
@@ -229,15 +267,9 @@ export default function OrganizationEdit({ profile }: { profile: OrganizationPro
             <div className="grid gap-5 md:grid-cols-2">
               <Panel title="Mission & Strategy" description="One item per line for objectives and focus areas.">
                 <div className="space-y-4">
-                  {[
-                    ["mission", "Mission"],
-                    ["vision", "Vision"],
-                    ["service_offering", "Service Offering"],
-                    ["objectives", "Objectives"],
-                    ["focus_areas", "Focus Areas"],
-                  ].map(([key, label]) => (
+                  {strategyFields.map(({ key, label }) => (
                     <Field key={key} label={label}>
-                      <textarea value={(profileForm.data as any)[key] ?? ""} onChange={(event) => profileForm.setData(key as any, event.target.value)} className={textareaClass} />
+                      <textarea value={profileForm.data[key] ?? ""} onChange={(event) => profileForm.setData(key, event.target.value)} className={textareaClass} />
                     </Field>
                   ))}
                 </div>
@@ -245,28 +277,15 @@ export default function OrganizationEdit({ profile }: { profile: OrganizationPro
 
               <Panel title="Impact Metrics" description="Numbers shown on the organization dashboard.">
                 <div className="grid gap-4 md:grid-cols-2">
-                  {[
-                    ["impact_total", "Total Impact", UsersRound],
-                    ["impact_digital", "Digital Impact", Monitor],
-                    ["impact_physical", "Physical Impact", Building2],
-                    ["trainings_conducted", "Trainings Conducted", CheckCircle2],
-                    ["impact_website", "Website", Globe2],
-                    ["impact_walkins", "Walk-ins", MapPin],
-                    ["impact_facebook", "Facebook", UsersRound],
-                    ["impact_x", "X / Twitter", UsersRound],
-                    ["impact_linkedin", "LinkedIn", UsersRound],
-                    ["impact_livestreaming", "Livestreaming", UsersRound],
-                    ["impact_instagram", "Instagram", UsersRound],
-                    ["impact_youtube", "YouTube", UsersRound],
-                  ].map(([key, label, Icon]) => (
-                    <Field key={String(key)} label={String(label)}>
+                  {impactFields.map(({ key, label, Icon }) => (
+                    <Field key={key} label={label}>
                       <div className="relative">
                         <Icon className="absolute left-3 top-5 h-4 w-4 text-red-600" />
                         <input
                           type="number"
                           min={0}
-                          value={(profileForm.data as any)[key] ?? ""}
-                          onChange={(event) => profileForm.setData(key as any, event.target.value)}
+                          value={profileForm.data[key] ?? ""}
+                          onChange={(event) => profileForm.setData(key, event.target.value)}
                           className={`${inputClass} pl-9`}
                         />
                       </div>
@@ -295,18 +314,13 @@ export default function OrganizationEdit({ profile }: { profile: OrganizationPro
               }}
               className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
             >
-              {[
-                ["primary_logo", "Primary Logo", profile.primary_logo_url],
-                ["light_logo", "Light Version", profile.light_logo_url],
-                ["dark_logo", "Dark Version", profile.dark_logo_url],
-                ["icon_logo", "Icon Version", profile.icon_logo_url],
-              ].map(([key, label, url]) => (
-                <label key={String(key)} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+              {logoFields.map(({ key, label, url }) => (
+                <label key={key} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-700">
                   {label}
                   <div className="my-3 flex h-24 items-center justify-center rounded-md border border-slate-200 bg-white p-3">
                     {url ? <img src={String(url)} alt={String(label)} className="max-h-16 max-w-full object-contain" /> : <span className="text-xs font-normal text-slate-500">(No file)</span>}
                   </div>
-                  <input type="file" accept="image/*" onChange={(event) => logoForm.setData(key as any, event.target.files?.[0] ?? null)} className="block w-full text-xs font-normal text-slate-500" />
+                  <input type="file" accept="image/*" onChange={(event) => logoForm.setData(key, event.target.files?.[0] ?? null)} className="block w-full text-xs font-normal text-slate-500" />
                 </label>
               ))}
               <div className="flex items-end">

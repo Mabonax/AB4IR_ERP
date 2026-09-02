@@ -1,4 +1,3 @@
-import { useEffect, useMemo, type ReactNode } from "react";
 import { Head, Link, useForm } from "@inertiajs/react";
 import {
   BriefcaseBusiness,
@@ -8,7 +7,9 @@ import {
   ShieldCheck,
   UserRoundCog,
 } from "lucide-react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
+import { DomainNav } from "@/components/domain-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import AppLayout from "@/layouts/app-layout";
-import { DomainNav } from "@/components/domain-nav";
 import { staffNavItems } from "@/config/domain-nav/staff";
+import AppLayout from "@/layouts/app-layout";
 import { cn } from "@/lib/utils";
 import { type BreadcrumbItem } from "@/types";
 
