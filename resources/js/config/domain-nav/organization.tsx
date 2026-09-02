@@ -1,4 +1,5 @@
 import { Building2, FolderOpen } from "lucide-react";
+
 import { type DomainNavItem } from "@/components/domain-nav";
 
 export const organizationNavItems: DomainNavItem[] = [

@@ -1,8 +1,9 @@
+import { BookOpen, Briefcase, Building2, LayoutGrid, UserCircle } from 'lucide-react';
+import type { ComponentType, ReactNode } from 'react';
+
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
-import { BookOpen, Briefcase, Building2, LayoutGrid, UserCircle } from 'lucide-react';
-import type { ComponentType, ReactNode } from 'react';
 
 const headerIcons: Record<string, ComponentType<{ className?: string }>> = {
     Dashboard: LayoutGrid,

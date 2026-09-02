@@ -1,4 +1,3 @@
-import { type DomainNavItem } from '@/components/domain-nav';
 import {
     CalendarDays,
     Clock3,
@@ -7,6 +6,8 @@ import {
     Palette,
     UserCircle,
 } from 'lucide-react';
+
+import { type DomainNavItem } from '@/components/domain-nav';
 
 export const settingsNavItems: DomainNavItem[] = [
     {

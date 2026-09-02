@@ -1,4 +1,5 @@
 import { BarChart3 } from "lucide-react";
+
 import { type DomainNavItem } from "@/components/domain-nav";
 
 export const programNavItems: DomainNavItem[] = [

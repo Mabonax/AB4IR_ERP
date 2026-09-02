@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Bell, BookOpen, Briefcase, BriefcaseBusiness, Building2, CalendarRange, ClipboardCheck, Download, FolderTree, LayoutGrid, LifeBuoy, Megaphone, Package, ReceiptText, ShieldCheck, UserCircle } from 'lucide-react';
 
+import { type DomainNavItem } from '@/components/domain-nav';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -12,11 +13,32 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { accessControlNavItems } from '@/config/domain-nav/access-control';
+import { assetNavItems } from '@/config/domain-nav/assets';
+import { businessDevelopmentNavItems } from '@/config/domain-nav/business-development';
+import { eventNavItems } from '@/config/domain-nav/events';
+import { financeNavItems } from '@/config/domain-nav/finance';
+import { humanResourcesNavItems } from '@/config/domain-nav/human-resources';
+import { marketingNavItems } from '@/config/domain-nav/marketing';
+import { organizationNavItems } from '@/config/domain-nav/organization';
+import { programNavItems } from '@/config/domain-nav/programs';
+import { projectNavItems } from '@/config/domain-nav/projects';
+import { taskManagementNavItems } from '@/config/domain-nav/task-management';
 import { hasAnyPermission, hasAnyRole } from '@/lib/access';
 import { dashboard } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
 
 import AppLogo from './app-logo';
+
+const toSidebarSubItems = (items: DomainNavItem[]): NavItem[] =>
+    items
+        .filter((item) => !item.native && !item.href.startsWith('#'))
+        .map((item) => ({
+            title: item.label,
+            href: item.href,
+            requiredPermissions: item.requiredPermissions,
+            requiredRoles: item.requiredRoles,
+        }));
 
 const mainNavItems: NavItem[] = [
     {
@@ -41,6 +63,7 @@ const mainNavItems: NavItem[] = [
         href: '/organization',
         icon: Building2,
         requiredPermissions: ['domain.organization.view', 'domain.organization.manage'],
+        items: toSidebarSubItems(organizationNavItems),
     },
     {
         title: 'Facilitators',
@@ -53,54 +76,63 @@ const mainNavItems: NavItem[] = [
         href: '/human-resources',
         icon: Building2,
         requiredPermissions: ['domain.human-resources.view', 'domain.human-resources.manage'],
+        items: toSidebarSubItems(humanResourcesNavItems),
     },
     {
         title: 'Assets',
         href: '/assets',
         icon: Package,
         requiredPermissions: ['domain.assets.view', 'domain.assets.manage'],
+        items: toSidebarSubItems(assetNavItems),
     },
     {
         title: 'Programs',
         href: '/programs',
         icon: BookOpen,
         requiredPermissions: ['domain.programs.view', 'domain.programs.manage'],
+        items: toSidebarSubItems(programNavItems),
     },
     {
         title: 'Projects',
         href: '/projects',
         icon: Briefcase,
         requiredPermissions: ['domain.projects.view', 'domain.projects.manage'],
+        items: toSidebarSubItems(projectNavItems),
     },
     {
         title: 'Business Development',
         href: '/business-development',
         icon: BriefcaseBusiness,
         requiredPermissions: ['domain.business-development.view', 'domain.business-development.manage'],
+        items: toSidebarSubItems(businessDevelopmentNavItems),
     },
     {
         title: 'Events',
         href: '/events',
         icon: CalendarRange,
         requiredPermissions: ['domain.events.view', 'domain.events.manage'],
+        items: toSidebarSubItems(eventNavItems),
     },
     {
         title: 'Task Management',
         href: '/task-management',
         icon: LifeBuoy,
         requiredPermissions: ['domain.task-management.view', 'domain.task-management.manage'],
+        items: toSidebarSubItems(taskManagementNavItems),
     },
     {
-        title: 'Marketing',
+        title: 'Marketing Operations',
         href: '/marketing',
         icon: Megaphone,
         requiredPermissions: ['domain.marketing.view', 'domain.marketing.manage'],
+        items: toSidebarSubItems(marketingNavItems),
     },
     {
         title: 'Finance',
         href: '/finance/travel-claims',
         icon: ReceiptText,
         requiredPermissions: ['domain.finance.view', 'domain.finance.manage', 'travel-claims.submit'],
+        items: toSidebarSubItems(financeNavItems),
     },
     {
         title: 'Notifications',
@@ -133,7 +165,7 @@ const mainNavItems: NavItem[] = [
         requiredPermissions: ['domain.organization.view', 'domain.organization.manage'],
     },
     {
-        title: 'Facilitator Activities',
+        title: 'Delivery Locations',
         href: '/project-locations/dashboard',
         icon: ClipboardCheck,
         requiredPermissions: ['project-activities.view'],
@@ -143,6 +175,7 @@ const mainNavItems: NavItem[] = [
         href: '/access-control/roles',
         icon: ShieldCheck,
         requiredRoles: ['super-admin', 'super admin'],
+        items: toSidebarSubItems(accessControlNavItems),
     },
 ];
 
@@ -156,17 +189,18 @@ export function AppSidebar() {
     ]);
     const restrictBeneficiariesForBds = isBusinessDevelopmentUser && !isAdminUser;
 
+    const canSeeItem = (item: NavItem) =>
+        hasAnyRole(user, item.requiredRoles ?? []) &&
+        hasAnyPermission(user, item.requiredPermissions ?? []) &&
+        (!restrictBeneficiariesForBds || item.href !== '/beneficiaries');
+
     const itemsWithBadges = mainNavItems.map((item) => ({
         ...item,
+        items: item.items?.filter(canSeeItem),
         badgeCount: item.href === '/notifications' ? (notifications?.unread_count ?? 0) : undefined,
     }));
 
-    const visibleMainNavItems = itemsWithBadges.filter(
-        (item) =>
-            hasAnyRole(user, item.requiredRoles ?? []) &&
-            hasAnyPermission(user, item.requiredPermissions ?? []) &&
-            (!restrictBeneficiariesForBds || item.href !== '/beneficiaries'),
-    );
+    const visibleMainNavItems = itemsWithBadges.filter(canSeeItem);
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground dark:border-white/[0.08] dark:bg-[#080d13]">

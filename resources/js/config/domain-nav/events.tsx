@@ -1,4 +1,5 @@
 import { CalendarRange } from "lucide-react";
+
 import { type DomainNavItem } from "@/components/domain-nav";
 
 export const eventNavItems: DomainNavItem[] = [
