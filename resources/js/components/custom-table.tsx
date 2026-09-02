@@ -1,5 +1,4 @@
 import { Link } from "@inertiajs/react";
-import { route } from "ziggy-js";
 import {
   CalendarCheck2,
   CheckCircle,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { route } from "ziggy-js";
 
 type RowData = Record<string, any>;
 

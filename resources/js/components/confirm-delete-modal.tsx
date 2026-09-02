@@ -1,6 +1,7 @@
-import { router } from "@inertiajs/react";
 import type { Method } from "@inertiajs/core";
+import { router } from "@inertiajs/react";
 import { Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
