@@ -1,4 +1,4 @@
-import { Head, router, usePage } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import { useMemo, useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
@@ -57,6 +57,9 @@ type Deliverable = {
   approved_at: string | null;
   published_at: string | null;
   assignee_name: string | null;
+  work_task_id: number | null;
+  work_task_title: string | null;
+  work_task_status: string | null;
   versions: Version[] | { data?: Version[] };
   assets: Asset[] | { data?: Asset[] };
   can: { upload_version: boolean; approve: boolean };
@@ -79,6 +82,9 @@ type RequestRecord = {
   event_name: string | null;
   owner_department_name: string | null;
   source_marketing_job_id: number | null;
+  work_task_id: number | null;
+  work_task_title: string | null;
+  work_task_status: string | null;
   work_packages: Array<{ id: number; assigned_unit: string; workload_status: string; operational_owner_name: string | null; planned_start_date: string | null; planned_end_date: string | null; actual_end_date: string | null }>;
   deliverables: Deliverable[] | { data?: Deliverable[] };
   activities: Array<{ id: number; action: string; summary: string; actor_name: string | null; created_at: string | null }> | { data?: Array<{ id: number; action: string; summary: string; actor_name: string | null; created_at: string | null }> };
@@ -186,6 +192,7 @@ export default function MarketingRequestShow({
   programs,
   departments,
   approvers,
+  workTasks,
   assignees,
   units,
   users,
@@ -199,6 +206,7 @@ export default function MarketingRequestShow({
   programs: Array<{ id: number; title: string }>;
   departments: Array<{ id: number; name: string }>;
   approvers: Array<{ id: number; name: string; email: string }>;
+  workTasks: Array<{ id: number; title: string; status: string }>;
   assignees: Array<{ id: number; name: string; email: string }>;
   units: string[];
   users: Array<{ id: number; name: string; email: string }>;
@@ -218,6 +226,7 @@ export default function MarketingRequestShow({
   const selectedProgramId = String(programs.find((program) => program.title === requestRecord.program_name)?.id ?? "");
   const selectedEventId = String(events.find((eventItem) => eventItem.title === requestRecord.event_name)?.id ?? "");
   const selectedOperationalOwnerId = String(assignees.find((assignee) => assignee.name === workPackage?.operational_owner_name)?.id ?? "");
+  const selectedWorkTaskId = String(requestRecord.work_task_id ?? "");
   const deliverableVersionCount = deliverables.reduce((total, deliverable) => {
     const versions = Array.isArray(deliverable.versions) ? deliverable.versions : (deliverable.versions.data ?? []);
 
@@ -245,7 +254,7 @@ export default function MarketingRequestShow({
           <div>
             <h1 className="text-xl font-semibold">{requestRecord.title}</h1>
             <p className="text-sm text-muted-foreground">
-              Content request workspace. Each workflow below is separate, but remains tied to this request and its work package.
+              Marketing operations workspace for campaign, content, asset, publication, and metric governance.
             </p>
           </div>
           <DomainNav items={marketingNavItems} />
@@ -261,12 +270,20 @@ export default function MarketingRequestShow({
                 <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium capitalize text-white">{requestRecord.status.replaceAll("_", " ")}</span>
                 <span className="rounded-full border border-slate-200 px-3 py-1 text-xs capitalize text-slate-700">{requestRecord.priority} priority</span>
                 <span className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">Due {requestRecord.due_date ?? "not set"}</span>
+                {requestRecord.work_task_id ? (
+                  <Link href={`/task-management/tasks/${requestRecord.work_task_id}`} className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700">
+                    Task #{requestRecord.work_task_id}: {requestRecord.work_task_title ?? "Task Management"}
+                  </Link>
+                ) : (
+                  <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs text-orange-700">No linked task</span>
+                )}
                 {requestRecord.source_marketing_job_id ? <span className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">Job #{requestRecord.source_marketing_job_id}</span> : null}
               </div>
             </div>
             <div className="grid gap-1 text-right text-xs text-slate-500">
               <span>Requester: {requestRecord.requester_name ?? "-"}</span>
               <span>Approver: {requestRecord.approver_name ?? "-"}</span>
+              <span>Task status: {requestRecord.work_task_status?.replaceAll("_", " ") ?? "-"}</span>
             </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -379,6 +396,7 @@ export default function MarketingRequestShow({
                   priority: formData.get("priority"),
                   due_date: formData.get("due_date"),
                   status: formData.get("status"),
+                  work_task_id: formData.get("work_task_id"),
                   work_package: {
                     assigned_unit: formData.get("assigned_unit"),
                     operational_owner_user_id: formData.get("operational_owner_user_id"),
@@ -393,6 +411,14 @@ export default function MarketingRequestShow({
               <select name="approver_user_id" defaultValue={selectedApproverId} className="rounded-md border bg-background px-3 py-2 text-sm">
                 <option value="">No approver</option>
                 {approvers.map((approver) => <option key={approver.id} value={approver.id}>{approver.name}</option>)}
+              </select>
+              <select name="work_task_id" defaultValue={selectedWorkTaskId} className="rounded-md border bg-background px-3 py-2 text-sm">
+                <option value="">No linked task</option>
+                {workTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    #{task.id} {task.title} ({task.status.replaceAll("_", " ")})
+                  </option>
+                ))}
               </select>
               <select name="owner_department_id" defaultValue={selectedDepartmentId} className="rounded-md border bg-background px-3 py-2 text-sm">
                 <option value="">Owner department</option>
@@ -514,6 +540,11 @@ export default function MarketingRequestShow({
                         {deliverable.deliverable_type.replaceAll("_", " ")} | {deliverable.assigned_unit.replaceAll("_", " ")} | {deliverable.assignee_name ?? "Unassigned"}
                         {deliverable.due_date ? ` | Due ${deliverable.due_date}` : ""}
                       </div>
+                      {deliverable.work_task_id ? (
+                        <Link href={`/task-management/tasks/${deliverable.work_task_id}`} className="mt-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
+                          Task #{deliverable.work_task_id}: {deliverable.work_task_title ?? "Task Management"}
+                        </Link>
+                      ) : null}
                       {deliverable.review_notes ? <div className="mt-2 text-sm text-muted-foreground">{deliverable.review_notes}</div> : null}
                     </div>
                   </div>
@@ -640,6 +671,11 @@ export default function MarketingRequestShow({
                         {deliverable.deliverable_type.replaceAll("_", " ")} | {deliverable.assigned_unit.replaceAll("_", " ")} | {deliverable.assignee_name ?? "Unassigned"}
                         {deliverable.due_date ? ` | Due ${deliverable.due_date}` : ""}
                       </div>
+                      {deliverable.work_task_id ? (
+                        <Link href={`/task-management/tasks/${deliverable.work_task_id}`} className="mt-2 inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
+                          Task #{deliverable.work_task_id}: {deliverable.work_task_title ?? "Task Management"}
+                        </Link>
+                      ) : null}
                     </div>
                   </div>
                   <div className="mt-4 grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">

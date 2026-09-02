@@ -19,6 +19,7 @@ use App\Domains\Organization\Services\OrganizationDocumentVaultService;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
+use App\Domains\TaskManagement\Models\WorkTask;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Marketing\ImportMarketingMetricSnapshotRequest;
 use App\Http\Requests\Marketing\ReviewMarketingDeliverableRequest;
@@ -79,12 +80,14 @@ class MarketingOperationsController extends Controller
             'programs' => Program::query()->orderBy('title')->get(['id', 'title']),
             'departments' => StaffDepartment::query()->orderBy('name')->get(['id', 'name']),
             'approvers' => User::query()->orderBy('name')->get(['id', 'name', 'email']),
+            'workTasks' => $this->activeWorkTaskOptions($request),
             'assignees' => User::query()
                 ->whereHas('staffMember.department', fn ($query) => $query->where('name', 'marketing'))
                 ->orderBy('name')
                 ->get(['id', 'name', 'email']),
             'deliverableTypes' => MarketingDeliverableType::values(),
             'units' => MarketingOperationalUnit::values(),
+            'selectedWorkTaskId' => $this->selectedWorkTaskId($request),
         ]);
     }
 
@@ -109,6 +112,7 @@ class MarketingOperationsController extends Controller
             'programs' => Program::query()->orderBy('title')->get(['id', 'title']),
             'departments' => StaffDepartment::query()->orderBy('name')->get(['id', 'name']),
             'approvers' => User::query()->orderBy('name')->get(['id', 'name', 'email']),
+            'workTasks' => $this->activeWorkTaskOptions($request),
             'assignees' => User::query()
                 ->whereHas('staffMember.department', fn ($query) => $query->where('name', 'marketing'))
                 ->orderBy('name')
@@ -279,5 +283,37 @@ class MarketingOperationsController extends Controller
 
         return redirect()->route('marketing.requests.show', $asset->deliverable->request_id)
             ->with('success', 'Approved marketing asset published to the organization vault.');
+    }
+
+    protected function activeWorkTaskOptions(Request $request)
+    {
+        return WorkTask::query()
+            ->with(['assignee:id,name', 'assignedDepartment:id,name'])
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->latest()
+            ->limit(100)
+            ->get(['id', 'title', 'status', 'creator_user_id', 'assigned_to_user_id', 'assigned_department_id', 'project_id'])
+            ->filter(fn (WorkTask $task) => $request->user()?->can('view', $task) ?? false)
+            ->values();
+    }
+
+    protected function selectedWorkTaskId(Request $request): ?int
+    {
+        $id = (int) $request->integer('work_task_id');
+
+        if ($id <= 0) {
+            return null;
+        }
+
+        $task = WorkTask::query()
+            ->whereKey($id)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->first();
+
+        if (! $task || ! ($request->user()?->can('view', $task) ?? false)) {
+            return null;
+        }
+
+        return $id;
     }
 }

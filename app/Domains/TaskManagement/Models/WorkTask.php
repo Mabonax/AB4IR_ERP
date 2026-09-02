@@ -5,6 +5,8 @@ namespace App\Domains\TaskManagement\Models;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
+use App\Domains\Marketing\Models\MarketingDeliverable;
+use App\Domains\Marketing\Models\MarketingRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -120,5 +122,15 @@ class WorkTask extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(WorkTaskDocument::class)->latest();
+    }
+
+    public function marketingRequests(): HasMany
+    {
+        return $this->hasMany(MarketingRequest::class, 'work_task_id')->latest();
+    }
+
+    public function marketingDeliverables(): HasMany
+    {
+        return $this->hasMany(MarketingDeliverable::class, 'work_task_id')->latest();
     }
 }

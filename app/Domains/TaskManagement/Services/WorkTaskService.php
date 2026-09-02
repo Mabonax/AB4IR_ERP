@@ -45,6 +45,7 @@ class WorkTaskService
                 'comments.user:id,name',
                 'history.actor:id,name',
             ])
+            ->withCount(['marketingRequests', 'marketingDeliverables'])
             ->latest();
 
         $query = $this->applyFilters($this->visibleQuery($query, $actor), $filters);
@@ -846,6 +847,22 @@ class WorkTaskService
         if (! in_array('overdue', $ignore, true) && filter_var($filters['overdue'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             $query->whereDate('due_date', '<', now()->toDateString())
                 ->whereNotIn('status', ['completed', 'cancelled']);
+        }
+
+        if (filled($filters['marketing_operations'] ?? null)) {
+            $filter = (string) $filters['marketing_operations'];
+
+            if ($filter === 'linked') {
+                $query->where(fn (Builder $builder) => $builder
+                    ->has('marketingRequests')
+                    ->orHas('marketingDeliverables'));
+            }
+
+            if ($filter === 'unlinked') {
+                $query->where(fn (Builder $builder) => $builder
+                    ->doesntHave('marketingRequests')
+                    ->doesntHave('marketingDeliverables'));
+            }
         }
 
         if (filled($filters['search'] ?? null)) {

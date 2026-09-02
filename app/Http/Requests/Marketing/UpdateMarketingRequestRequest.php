@@ -30,6 +30,7 @@ class UpdateMarketingRequestRequest extends FormRequest
             'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
             'due_date' => ['nullable', 'date'],
             'status' => ['required', Rule::in(MarketingRequestStatus::values())],
+            'work_task_id' => ['nullable', 'integer', 'exists:work_tasks,id'],
             'work_package.assigned_unit' => ['nullable', Rule::in(MarketingOperationalUnit::values())],
             'work_package.operational_owner_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'work_package.planned_start_date' => ['nullable', 'date'],

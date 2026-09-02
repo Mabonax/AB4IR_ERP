@@ -1,4 +1,4 @@
-import { Head, useForm } from "@inertiajs/react";
+import { Head, Link, useForm } from "@inertiajs/react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { marketingNavItems } from "@/config/domain-nav/marketing";
@@ -17,19 +17,24 @@ export default function MarketingRequestCreate({
   programs,
   departments,
   approvers,
+  workTasks,
   assignees,
   deliverableTypes,
   units,
+  selectedWorkTaskId,
 }: {
   events: Array<{ id: number; title: string }>;
   projects: Array<{ id: number; name: string }>;
   programs: Array<{ id: number; title: string }>;
   departments: Array<{ id: number; name: string }>;
   approvers: Array<{ id: number; name: string; email: string }>;
+  workTasks: Array<{ id: number; title: string; status: string; assignee?: { name: string | null } | null; assigned_department?: { name: string | null } | null }>;
   assignees: Array<{ id: number; name: string; email: string }>;
   deliverableTypes: string[];
   units: string[];
+  selectedWorkTaskId: number | null;
 }) {
+  const initialWorkTaskId = selectedWorkTaskId ? String(selectedWorkTaskId) : "";
   const form = useForm({
     title: "",
     objective: "",
@@ -44,6 +49,7 @@ export default function MarketingRequestCreate({
     priority: "medium",
     due_date: "",
     status: "submitted",
+    work_task_id: initialWorkTaskId,
     work_package: {
       assigned_unit: units[0] ?? "graphics",
       operational_owner_user_id: "",
@@ -58,20 +64,21 @@ export default function MarketingRequestCreate({
         assigned_unit: units[0] ?? "graphics",
         due_date: "",
         review_notes: "",
+        work_task_id: initialWorkTaskId,
       },
     ],
   });
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
-      <Head title="Create Marketing Request" />
+      <Head title="Register Marketing Operation" />
 
       <div className="space-y-5 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold">Create Marketing Request</h1>
+            <h1 className="text-xl font-semibold">Register Marketing Operation</h1>
             <p className="text-sm text-muted-foreground">
-              Capture the business brief once, then break it into operational deliverables instead of logging isolated jobs.
+              Register the marketing brief and attach it to the Task Management work item that owns assignment, proof, review, and closure.
             </p>
           </div>
           <DomainNav items={marketingNavItems} />
@@ -102,6 +109,14 @@ export default function MarketingRequestCreate({
                 <select className="rounded-md border bg-background px-3 py-2 text-sm" value={form.data.approver_user_id} onChange={(event) => form.setData("approver_user_id", event.currentTarget.value)}>
                   <option value="">No approver selected</option>
                   {approvers.map((approver) => <option key={approver.id} value={approver.id}>{approver.name}</option>)}
+                </select>
+                <select className="rounded-md border bg-background px-3 py-2 text-sm" value={form.data.work_task_id} onChange={(event) => form.setData("work_task_id", event.currentTarget.value)}>
+                  <option value="">No linked task</option>
+                  {workTasks.map((task) => (
+                    <option key={task.id} value={task.id}>
+                      #{task.id} {task.title} ({task.status.replaceAll("_", " ")})
+                    </option>
+                  ))}
                 </select>
                 <select className="rounded-md border bg-background px-3 py-2 text-sm" value={form.data.owner_department_id} onChange={(event) => form.setData("owner_department_id", event.currentTarget.value)}>
                   <option value="">Owner department</option>
@@ -136,6 +151,9 @@ export default function MarketingRequestCreate({
                 <input type="date" className="rounded-md border bg-background px-3 py-2 text-sm" value={form.data.work_package.planned_start_date} onChange={(event) => form.setData("work_package", { ...form.data.work_package, planned_start_date: event.currentTarget.value })} />
                 <input type="date" className="rounded-md border bg-background px-3 py-2 text-sm" value={form.data.work_package.planned_end_date} onChange={(event) => form.setData("work_package", { ...form.data.work_package, planned_end_date: event.currentTarget.value })} />
               </div>
+              <div className="mt-4 rounded-lg border border-dashed border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
+                Use <Link href="/task-management/tasks" className="font-semibold underline underline-offset-2">Task Management</Link> for the actual work request and assignee workflow. This page should only register campaign, content, publication, and asset governance details.
+              </div>
             </div>
           </section>
 
@@ -154,6 +172,7 @@ export default function MarketingRequestCreate({
                     assigned_unit: units[0] ?? "graphics",
                     due_date: "",
                     review_notes: "",
+                    work_task_id: "",
                   },
                 ])}
               >
@@ -195,6 +214,18 @@ export default function MarketingRequestCreate({
                     next[index] = { ...next[index], due_date: event.currentTarget.value };
                     form.setData("deliverables", next);
                   }} />
+                  <select className="rounded-md border bg-background px-3 py-2 text-sm" value={deliverable.work_task_id} onChange={(event) => {
+                    const next = [...form.data.deliverables];
+                    next[index] = { ...next[index], work_task_id: event.currentTarget.value };
+                    form.setData("deliverables", next);
+                  }}>
+                    <option value="">Use request task link</option>
+                    {workTasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        #{task.id} {task.title}
+                      </option>
+                    ))}
+                  </select>
                   <textarea className="rounded-md border bg-background px-3 py-2 text-sm md:col-span-2 xl:col-span-3" rows={3} value={deliverable.review_notes} onChange={(event) => {
                     const next = [...form.data.deliverables];
                     next[index] = { ...next[index], review_notes: event.currentTarget.value };
@@ -205,7 +236,7 @@ export default function MarketingRequestCreate({
             </div>
             <div className="mt-4">
               <button type="submit" className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700">
-                Create Marketing Request
+                Register Marketing Operation
               </button>
             </div>
           </section>

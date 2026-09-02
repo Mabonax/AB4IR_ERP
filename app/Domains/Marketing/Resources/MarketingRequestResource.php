@@ -27,6 +27,9 @@ class MarketingRequestResource extends JsonResource
             'event_name' => $this->event?->title,
             'owner_department_name' => $this->ownerDepartment?->name,
             'source_marketing_job_id' => $this->source_marketing_job_id,
+            'work_task_id' => $this->work_task_id,
+            'work_task_title' => $this->workTask?->title,
+            'work_task_status' => $this->workTask?->status,
             'work_packages' => $this->whenLoaded('workPackages', fn () => $this->workPackages->map(fn ($package) => [
                 'id' => $package->id,
                 'assigned_unit' => $package->assigned_unit,

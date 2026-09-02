@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from "@inertiajs/react";
+import { Head, Link, router, useForm, usePage } from "@inertiajs/react";
 import { useState } from "react";
 
 import { DomainNav } from "@/components/domain-nav";
@@ -40,6 +40,25 @@ type TaskHistory = {
   created_at: string | null;
 };
 
+type MarketingOperation = {
+  id: number;
+  title: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  deliverables_count: number;
+};
+
+type MarketingDeliverable = {
+  id: number;
+  request_id: number;
+  request_title: string | null;
+  title: string;
+  status: string;
+  assigned_unit: string;
+  due_date: string | null;
+};
+
 type TaskDetail = {
   id: number;
   title: string;
@@ -79,6 +98,8 @@ type TaskDetail = {
   documents: TaskDocument[] | { data?: TaskDocument[] };
   comments: TaskComment[] | { data?: TaskComment[] };
   history: TaskHistory[] | { data?: TaskHistory[] };
+  marketing_operations?: MarketingOperation[] | { data?: MarketingOperation[] };
+  marketing_deliverables?: MarketingDeliverable[] | { data?: MarketingDeliverable[] };
   can: {
     update_status: boolean;
     comment: boolean;
@@ -191,10 +212,12 @@ export default function TaskManagementTaskShow({
   task,
   assignees,
   departments,
+  canRegisterMarketingOperation,
 }: {
   task: TaskDetail;
   assignees: Array<{ id: number; name: string; email: string }>;
   departments: Array<{ id: number; name: string }>;
+  canRegisterMarketingOperation: boolean;
 }) {
   const { props } = usePage<SharedData>();
   const flash = (props.flash ?? {}) as Record<string, unknown>;
@@ -202,6 +225,8 @@ export default function TaskManagementTaskShow({
   const documents = Array.isArray(task.documents) ? task.documents : (task.documents.data ?? []);
   const comments = Array.isArray(task.comments) ? task.comments : (task.comments.data ?? []);
   const history = Array.isArray(task.history) ? task.history : (task.history.data ?? []);
+  const marketingOperations = Array.isArray(task.marketing_operations) ? task.marketing_operations : (task.marketing_operations?.data ?? []);
+  const marketingDeliverables = Array.isArray(task.marketing_deliverables) ? task.marketing_deliverables : (task.marketing_deliverables?.data ?? []);
   const supportingDocuments = documents.filter((document) => {
     const generatedProofTitle = `${task.title} delivery proof`;
 
@@ -376,6 +401,53 @@ export default function TaskManagementTaskShow({
                 ) : null}
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-orange-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Marketing Operations</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use this only for marketing-specific governance: campaign brief, deliverables, approved assets, publication records, and metrics. The task remains the assignment and completion record.
+              </p>
+            </div>
+            {canRegisterMarketingOperation ? (
+              <Link href={`/marketing/requests/create?work_task_id=${task.id}`} className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700">
+                Register Marketing Operation
+              </Link>
+            ) : null}
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {marketingOperations.length === 0 && marketingDeliverables.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-orange-200 bg-orange-50 p-3 text-sm text-orange-800 md:col-span-2">
+                No Marketing Operation is linked to this task.
+              </div>
+            ) : marketingOperations.map((operation) => (
+              <Link key={operation.id} href={`/marketing/requests/${operation.id}`} className="rounded-lg border p-3 transition hover:border-orange-300 hover:bg-orange-50">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium">{operation.title}</div>
+                  <span className="rounded-full border px-2 py-1 text-xs capitalize">{operation.status.replaceAll("_", " ")}</span>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {operation.priority} priority | {operation.deliverables_count} deliverable{operation.deliverables_count === 1 ? "" : "s"}
+                  {operation.due_date ? ` | Due ${operation.due_date}` : ""}
+                </div>
+              </Link>
+            ))}
+            {marketingDeliverables.map((deliverable) => (
+              <Link key={`deliverable-${deliverable.id}`} href={`/marketing/requests/${deliverable.request_id}`} className="rounded-lg border border-blue-100 bg-blue-50/40 p-3 transition hover:border-blue-300 hover:bg-blue-50">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium">{deliverable.title}</div>
+                  <span className="rounded-full border border-blue-200 bg-white px-2 py-1 text-xs capitalize text-blue-700">{deliverable.status.replaceAll("_", " ")}</span>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Deliverable in {deliverable.assigned_unit.replaceAll("_", " ")}
+                  {deliverable.request_title ? ` | ${deliverable.request_title}` : ""}
+                  {deliverable.due_date ? ` | Due ${deliverable.due_date}` : ""}
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
 

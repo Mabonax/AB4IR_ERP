@@ -6,6 +6,7 @@ use App\Domains\Events\Models\Event;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
+use App\Domains\TaskManagement\Models\WorkTask;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,6 +33,7 @@ class MarketingRequest extends Model
         'due_date',
         'status',
         'source_marketing_job_id',
+        'work_task_id',
     ];
 
     protected $casts = [
@@ -96,5 +98,10 @@ class MarketingRequest extends Model
     public function legacyJob(): BelongsTo
     {
         return $this->belongsTo(MarketingJob::class, 'source_marketing_job_id');
+    }
+
+    public function workTask(): BelongsTo
+    {
+        return $this->belongsTo(WorkTask::class, 'work_task_id');
     }
 }

@@ -54,6 +54,7 @@ type TaskRow = {
     transaction_state: 'open' | 'closed';
     transaction_closed_at: string | null;
     closed_by_name: string | null;
+    marketing_operations_count: number;
 };
 
 type Summary = {
@@ -270,6 +271,7 @@ export default function TaskManagementTasksIndex({
         program_id: filters.program_id ?? '',
         assignee_user_id: filters.assignee_user_id ?? '',
         overdue: filters.overdue ?? '',
+        marketing_operations: filters.marketing_operations ?? '',
     });
 
     const assigneeOptions = useMemo<SelectOption[]>(
@@ -586,7 +588,7 @@ export default function TaskManagementTasksIndex({
                                     Apply Filters
                                 </button>
                                 {showMoreFilters ? (
-                                    <div className="grid gap-3 md:col-span-2 xl:col-span-4 xl:grid-cols-3 2xl:col-span-8">
+                                    <div className="grid gap-3 md:col-span-2 xl:col-span-4 xl:grid-cols-4 2xl:col-span-8">
                                         <NativeSelect
                                             value={filterForm.data.project_id}
                                             onChange={(value) => filterForm.setData('project_id', value)}
@@ -608,13 +610,23 @@ export default function TaskManagementTasksIndex({
                                                 { value: '1', label: 'Overdue only' },
                                             ]}
                                         />
+                                        <NativeSelect
+                                            value={filterForm.data.marketing_operations}
+                                            onChange={(value) => filterForm.setData('marketing_operations', value)}
+                                            ariaLabel="Filter marketing operations"
+                                            options={[
+                                                { value: '', label: 'All marketing states' },
+                                                { value: 'linked', label: 'Has marketing operation' },
+                                                { value: 'unlinked', label: 'No marketing operation' },
+                                            ]}
+                                        />
                                     </div>
                                 ) : null}
                             </form>
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="min-w-[76rem] w-full border-t border-border dark:border-white/[0.08] text-left">
+                            <table className="min-w-[82rem] w-full border-t border-border dark:border-white/[0.08] text-left">
                                 <thead className="bg-muted dark:bg-black/15 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground dark:text-white/62">
                                     <tr>
                                         <th className="w-12 px-4 py-4">
@@ -626,6 +638,7 @@ export default function TaskManagementTasksIndex({
                                         <th className="px-4 py-4">Department</th>
                                         <th className="px-4 py-4">Due Date</th>
                                         <th className="px-4 py-4">Status</th>
+                                        <th className="px-4 py-4">Marketing Ops</th>
                                         <th className="px-4 py-4">Related To</th>
                                         <th className="px-4 py-4">Created</th>
                                         <th className="px-4 py-4">Actions</th>
@@ -664,6 +677,15 @@ export default function TaskManagementTasksIndex({
                                                     <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(task.status)}`}>
                                                         {statusLabels[task.status]}
                                                     </span>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {task.marketing_operations_count > 0 ? (
+                                                        <span className="rounded-full border border-orange-400/25 bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-300">
+                                                            {task.marketing_operations_count} linked
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground dark:text-white/45">None</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-4">{task.project_name ?? task.program_title ?? task.context_type ?? '-'}</td>
                                                 <td className="px-4 py-4">{task.creator_name ?? '-'}</td>

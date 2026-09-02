@@ -4,6 +4,8 @@ use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\Marketing\Models\MarketingDeliverable;
+use App\Domains\Marketing\Models\MarketingRequest;
 use App\Domains\TaskManagement\Jobs\SendTaskManagementReminderNotificationsJob;
 use App\Domains\TaskManagement\Models\SupportTicket;
 use App\Domains\TaskManagement\Models\WorkTask;
@@ -1211,6 +1213,102 @@ test('task index links users into the dedicated task workflow page', function ()
             ->has('task.history.data')
             ->has('assignees')
             ->has('departments')
+        );
+});
+
+test('task management exposes linked marketing operations and filters tasks by marketing linkage', function () {
+    Permission::firstOrCreate(['name' => 'marketing.requests.create', 'guard_name' => 'web']);
+
+    $marketing = makeDepartment('Marketing');
+    [$manager, $managerStaff] = makeStaffUser($marketing, 'linked.marketing.manager@example.test', asManager: true);
+    [$assignee] = makeStaffUser($marketing, 'linked.marketing.assignee@example.test', manager: $managerStaff);
+    $manager->givePermissionTo('marketing.requests.create');
+
+    $linkedTask = WorkTask::query()->create([
+        'title' => 'Linked campaign task',
+        'status' => 'open',
+        'priority' => 'high',
+        'context_type' => 'general',
+        'creator_user_id' => $manager->id,
+        'creator_department_id' => $marketing->id,
+        'assigned_to_user_id' => $assignee->id,
+        'assigned_department_id' => $marketing->id,
+    ]);
+
+    $unlinkedTask = WorkTask::query()->create([
+        'title' => 'Plain operational task',
+        'status' => 'open',
+        'priority' => 'medium',
+        'context_type' => 'general',
+        'creator_user_id' => $manager->id,
+        'creator_department_id' => $marketing->id,
+        'assigned_to_user_id' => $assignee->id,
+        'assigned_department_id' => $marketing->id,
+    ]);
+
+    $requestRecord = MarketingRequest::query()->create([
+        'title' => 'Campaign collateral governance',
+        'objective' => 'Coordinate collateral around the task.',
+        'requester_user_id' => $manager->id,
+        'owner_department_id' => $marketing->id,
+        'priority' => 'high',
+        'status' => 'submitted',
+        'work_task_id' => $linkedTask->id,
+    ]);
+
+    $deliverableOnlyRequest = MarketingRequest::query()->create([
+        'title' => 'Deliverable-only marketing support',
+        'objective' => 'Link only one deliverable back to the task.',
+        'requester_user_id' => $manager->id,
+        'owner_department_id' => $marketing->id,
+        'priority' => 'medium',
+        'status' => 'submitted',
+    ]);
+    $deliverableOnlyPackage = $deliverableOnlyRequest->workPackages()->create([
+        'assigned_unit' => 'graphics',
+        'workload_status' => 'submitted',
+    ]);
+
+    $linkedDeliverable = MarketingDeliverable::query()->create([
+        'request_id' => $deliverableOnlyRequest->id,
+        'work_package_id' => $deliverableOnlyPackage->id,
+        'title' => 'Task-linked artwork',
+        'deliverable_type' => 'poster',
+        'assigned_unit' => 'graphics',
+        'status' => 'queued',
+        'work_task_id' => $linkedTask->id,
+    ]);
+
+    $this->actingAs($manager)
+        ->get(route('task-management.tasks.show', $linkedTask))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('TaskManagement/Tasks/Show')
+            ->where('task.id', $linkedTask->id)
+            ->where('task.marketing_operations.0.id', $requestRecord->id)
+            ->where('task.marketing_operations.0.title', $requestRecord->title)
+            ->where('task.marketing_deliverables.0.id', $linkedDeliverable->id)
+            ->where('task.marketing_deliverables.0.title', $linkedDeliverable->title)
+            ->where('canRegisterMarketingOperation', true)
+        );
+
+    $this->actingAs($manager)
+        ->get(route('task-management.tasks.index', ['marketing_operations' => 'linked']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('TaskManagement/Tasks/Index')
+            ->has('tasks.data', 1)
+            ->where('tasks.data.0.id', $linkedTask->id)
+            ->where('tasks.data.0.marketing_operations_count', 2)
+            ->where('filters.marketing_operations', 'linked')
+        );
+
+    $this->actingAs($manager)
+        ->get(route('task-management.tasks.index', ['marketing_operations' => 'unlinked']))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('TaskManagement/Tasks/Index')
+            ->has('tasks.data', 1)
+            ->where('tasks.data.0.id', $unlinkedTask->id)
+            ->where('tasks.data.0.marketing_operations_count', 0)
+            ->where('filters.marketing_operations', 'unlinked')
         );
 });
 

@@ -12,6 +12,7 @@ use App\Domains\Marketing\Models\MarketingRequest;
 use App\Domains\Marketing\Models\MarketingRequestDocument;
 use App\Domains\Marketing\Models\PublicationRecord;
 use App\Domains\Marketing\Repositories\MarketingRequestRepositoryInterface;
+use App\Domains\TaskManagement\Models\WorkTask;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,7 +40,9 @@ class MarketingOperationsService
                 'program:id,name',
                 'event:id,title',
                 'ownerDepartment:id,name',
+                'workTask:id,title,status',
                 'deliverables.assignee:id,name',
+                'deliverables.workTask:id,title,status',
             ])
             ->latest();
 
@@ -50,6 +53,8 @@ class MarketingOperationsService
 
     public function createRequest(array $data, User $actor): MarketingRequest
     {
+        $this->assertWorkTaskLinksAllowed($data, $actor);
+
         return DB::transaction(function () use ($data, $actor) {
             $request = $this->repository->create([
                 'title' => $data['title'],
@@ -66,6 +71,7 @@ class MarketingOperationsService
                 'priority' => $data['priority'],
                 'due_date' => $data['due_date'] ?? null,
                 'status' => $data['status'] ?? MarketingRequestStatus::Submitted->value,
+                'work_task_id' => $data['work_task_id'] ?? null,
             ]);
 
             $workPackage = $request->workPackages()->create([
@@ -90,6 +96,7 @@ class MarketingOperationsService
                     'status' => $status,
                     'due_date' => $deliverableData['due_date'] ?? $request->due_date,
                     'review_notes' => $deliverableData['review_notes'] ?? null,
+                    'work_task_id' => $deliverableData['work_task_id'] ?? null,
                 ]);
 
                 $this->recordActivity($request, $actor, 'deliverable_planned', sprintf(
@@ -115,8 +122,10 @@ class MarketingOperationsService
             'program:id,name',
             'event:id,title',
             'ownerDepartment:id,name',
+            'workTask:id,title,status',
             'workPackages.operationalOwner:id,name',
             'deliverables.assignee:id,name',
+            'deliverables.workTask:id,title,status',
             'deliverables.versions.uploader:id,name',
             'deliverables.versions.approver:id,name',
             'deliverables.assets.version',
@@ -130,6 +139,8 @@ class MarketingOperationsService
 
     public function updateRequest(MarketingRequest $request, array $data, User $actor): MarketingRequest
     {
+        $this->assertWorkTaskLinksAllowed($data, $actor);
+
         return DB::transaction(function () use ($request, $data, $actor) {
             $request->update([
                 'title' => $data['title'],
@@ -145,6 +156,7 @@ class MarketingOperationsService
                 'priority' => $data['priority'],
                 'due_date' => $data['due_date'] ?? null,
                 'status' => $data['status'],
+                'work_task_id' => $data['work_task_id'] ?? null,
             ]);
 
             $workPackage = $request->workPackages()->oldest()->first();
@@ -176,7 +188,7 @@ class MarketingOperationsService
 
     public function workspace(User $actor): array
     {
-        $deliverables = $this->visibleDeliverableQuery(MarketingDeliverable::query()->with(['request:id,title,status', 'assignee:id,name', 'versions']), $actor)
+        $deliverables = $this->visibleDeliverableQuery(MarketingDeliverable::query()->with(['request:id,title,status,work_task_id', 'request.workTask:id,title,status', 'assignee:id,name', 'workTask:id,title,status', 'versions']), $actor)
             ->latest()
             ->get();
 
@@ -197,6 +209,9 @@ class MarketingOperationsService
                 'status' => $deliverable->status,
                 'due_date' => $deliverable->due_date?->format('Y-m-d'),
                 'assignee_name' => $deliverable->assignee?->name,
+                'work_task_id' => $deliverable->work_task_id ?? $deliverable->request?->work_task_id,
+                'work_task_title' => $deliverable->workTask?->title ?? $deliverable->request?->workTask?->title,
+                'work_task_status' => $deliverable->workTask?->status ?? $deliverable->request?->workTask?->status,
                 'version_count' => $deliverable->versions->count(),
             ])->values()->all(),
         ];
@@ -204,7 +219,7 @@ class MarketingOperationsService
 
     public function approvals(User $actor): array
     {
-        $pending = $this->visibleDeliverableQuery(MarketingDeliverable::query()->with(['request:id,title', 'assignee:id,name', 'versions']), $actor)
+        $pending = $this->visibleDeliverableQuery(MarketingDeliverable::query()->with(['request:id,title,work_task_id', 'request.workTask:id,title,status', 'assignee:id,name', 'workTask:id,title,status', 'versions']), $actor)
             ->where('status', MarketingDeliverableStatus::InternalReview->value)
             ->latest()
             ->get();
@@ -212,10 +227,14 @@ class MarketingOperationsService
         return [
             'pending' => $pending->map(fn (MarketingDeliverable $deliverable) => [
                 'id' => $deliverable->id,
+                'request_id' => $deliverable->request_id,
                 'title' => $deliverable->title,
                 'request_title' => $deliverable->request?->title,
                 'assigned_unit' => $deliverable->assigned_unit,
                 'assignee_name' => $deliverable->assignee?->name,
+                'work_task_id' => $deliverable->work_task_id ?? $deliverable->request?->work_task_id,
+                'work_task_title' => $deliverable->workTask?->title ?? $deliverable->request?->workTask?->title,
+                'work_task_status' => $deliverable->workTask?->status ?? $deliverable->request?->workTask?->status,
                 'latest_version' => $deliverable->versions->first()?->version_number,
                 'review_notes' => $deliverable->review_notes,
             ])->values()->all(),
@@ -628,13 +647,45 @@ class MarketingOperationsService
     {
         return $deliverable->load([
             'request',
+            'request.workTask:id,title,status',
             'assignee:id,name',
+            'workTask:id,title,status',
             'versions.uploader:id,name',
             'versions.approver:id,name',
             'assets.version',
             'assets.publications.metricSnapshots',
             'assets.publications.publisher:id,name',
         ]);
+    }
+
+    protected function assertWorkTaskLinksAllowed(array $data, User $actor): void
+    {
+        $ids = collect([$data['work_task_id'] ?? null])
+            ->merge(collect($data['deliverables'] ?? [])->pluck('work_task_id'))
+            ->filter(fn ($id) => filled($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $tasks = WorkTask::query()
+            ->whereKey($ids->all())
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->get()
+            ->keyBy('id');
+
+        foreach ($ids as $id) {
+            $task = $tasks->get($id);
+
+            if (! $task || ! $actor->can('view', $task)) {
+                throw ValidationException::withMessages([
+                    'work_task_id' => ['Select an active task that you are allowed to view.'],
+                ]);
+            }
+        }
     }
 
     protected function synchronizeRequestStatus(MarketingRequest $request): void

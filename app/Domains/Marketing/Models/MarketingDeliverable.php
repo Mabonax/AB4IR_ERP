@@ -3,6 +3,7 @@
 namespace App\Domains\Marketing\Models;
 
 use App\Models\User;
+use App\Domains\TaskManagement\Models\WorkTask;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ class MarketingDeliverable extends Model
         'published_at',
         'current_version_id',
         'source_marketing_job_id',
+        'work_task_id',
     ];
 
     protected $casts = [
@@ -67,5 +69,10 @@ class MarketingDeliverable extends Model
     public function legacyJob(): BelongsTo
     {
         return $this->belongsTo(MarketingJob::class, 'source_marketing_job_id');
+    }
+
+    public function workTask(): BelongsTo
+    {
+        return $this->belongsTo(WorkTask::class, 'work_task_id');
     }
 }

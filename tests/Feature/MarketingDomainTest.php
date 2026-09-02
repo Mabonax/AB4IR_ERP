@@ -6,6 +6,7 @@ use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
+use App\Domains\TaskManagement\Models\WorkTask;
 use App\Domains\Marketing\Notifications\MarketingJobActivityNotification;
 use App\Domains\Marketing\Notifications\MarketingJobAssignedNotification;
 use App\Models\User;
@@ -25,6 +26,7 @@ beforeEach(function () {
     foreach ([
         'domain.marketing.view',
         'domain.marketing.manage',
+        'domain.task-management.view',
         'domain.organization.view',
         'domain.organization.manage',
         'marketing.requests.create',
@@ -681,6 +683,73 @@ test('marketing operations screens render new request and dashboard surfaces', f
             ->where('programs.0.title', $program->title)
             ->has('deliverableTypes')
             ->has('units')
+        );
+});
+
+test('marketing operation creation can be preselected from and linked to a work task', function () {
+    $marketing = makeMarketingDepartment('Marketing');
+    [$manager, $managerStaff] = makeMarketingUser($marketing, 'ops.task.manager@example.test', asManager: true);
+    [$designer] = makeMarketingUser($marketing, 'ops.task.designer@example.test', manager: $managerStaff);
+    $manager->givePermissionTo('domain.task-management.view');
+
+    $task = WorkTask::query()->create([
+        'title' => 'Launch campaign task',
+        'description' => 'Task Management owns assignment and closure.',
+        'status' => 'open',
+        'priority' => 'high',
+        'context_type' => 'general',
+        'creator_user_id' => $manager->id,
+        'creator_department_id' => $marketing->id,
+        'assigned_to_user_id' => $designer->id,
+        'assigned_department_id' => $marketing->id,
+    ]);
+
+    $this->actingAs($manager)
+        ->get(route('marketing.requests.create', ['work_task_id' => $task->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Marketing/Requests/Create')
+            ->where('selectedWorkTaskId', $task->id)
+            ->where('workTasks.0.id', $task->id)
+            ->where('workTasks.0.title', $task->title)
+        );
+
+    $this->actingAs($manager)
+        ->post(route('marketing.requests.store'), [
+            'title' => 'Linked campaign operation',
+            'objective' => 'Govern campaign deliverables for the assigned task.',
+            'description' => 'Marketing Operations tracks the collateral and publishing layer.',
+            'campaign_goal' => 'Launch awareness',
+            'priority' => 'high',
+            'owner_department_id' => $marketing->id,
+            'work_task_id' => $task->id,
+            'work_package' => [
+                'assigned_unit' => 'digital',
+                'operational_owner_user_id' => $manager->id,
+            ],
+            'deliverables' => [
+                [
+                    'title' => 'Launch poster',
+                    'deliverable_type' => 'poster',
+                    'assigned_to_user_id' => $designer->id,
+                    'assigned_unit' => 'graphics',
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    $requestRecord = \App\Domains\Marketing\Models\MarketingRequest::query()->firstOrFail();
+    $deliverable = $requestRecord->deliverables()->firstOrFail();
+
+    expect($requestRecord->work_task_id)->toBe($task->id)
+        ->and($deliverable->work_task_id)->toBeNull();
+
+    $this->actingAs($manager)
+        ->get(route('marketing.requests.show', $requestRecord))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Marketing/Requests/Show')
+            ->where('requestRecord.work_task_id', $task->id)
+            ->where('requestRecord.work_task_title', $task->title)
+            ->where('requestRecord.deliverables.data.0.work_task_id', $task->id)
         );
 });
 

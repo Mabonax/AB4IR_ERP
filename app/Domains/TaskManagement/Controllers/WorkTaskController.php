@@ -2,6 +2,7 @@
 
 namespace App\Domains\TaskManagement\Controllers;
 
+use App\Domains\Marketing\Models\MarketingRequest;
 use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\Project;
 use App\Domains\Staff\Models\StaffDepartment;
@@ -44,6 +45,7 @@ class WorkTaskController extends Controller
             'program_id',
             'assignee_user_id',
             'overdue',
+            'marketing_operations',
             'search',
         ]);
         $tasks = $this->service->paginateForUser($request->user(), $filters, $perPage);
@@ -87,6 +89,8 @@ class WorkTaskController extends Controller
             'documents.uploader:id,name',
             'comments.user:id,name',
             'history.actor:id,name',
+            'marketingRequests' => fn ($query) => $query->withCount('deliverables')->latest(),
+            'marketingDeliverables.request:id,title,status',
         ]);
 
         return Inertia::render('TaskManagement/Tasks/Show', [
@@ -101,6 +105,7 @@ class WorkTaskController extends Controller
                     'email' => $user->email,
                 ]),
             'departments' => StaffDepartment::query()->orderBy('name')->get(['id', 'name']),
+            'canRegisterMarketingOperation' => $request->user()?->can('create', MarketingRequest::class) ?? false,
         ]);
     }
 
