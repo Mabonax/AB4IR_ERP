@@ -20,7 +20,7 @@ const phaseLabels: Record<string, string> = {
 const statusOptions = [
   { value: "pending", label: "Pending" },
   { value: "in_progress", label: "In Progress" },
-  { value: "completed", label: "Completed" },
+  { value: "completed", label: "Submit for Verification" },
   { value: "on_going", label: "On Going" },
   { value: "blocked", label: "Blocked" },
   { value: "cancelled", label: "Cancelled" },
@@ -39,6 +39,14 @@ type TaskFormData = {
   comment: string;
   evidence_url: string;
   evidence_file: File | null;
+  evidence_attachments: File[];
+  attachments: Array<{
+    id: number;
+    file_name: string;
+    mime_type?: string | null;
+    file_size?: number | null;
+  }>;
+  remove_attachment_ids: string[];
   evidence_file_name: string | null;
   has_evidence_file: boolean;
   remove_evidence_file: boolean;
@@ -56,6 +64,7 @@ type Props = {
     url: string;
     method: "post" | "put";
   };
+  reviewUrl?: string;
   initialData: TaskFormData;
 };
 
@@ -67,6 +76,7 @@ export function EventTaskFormPage({
   breadcrumbs,
   event,
   submitRoute,
+  reviewUrl,
   initialData,
 }: Props) {
   const form = useForm<TaskFormData>(initialData);
@@ -74,6 +84,8 @@ export function EventTaskFormPage({
   const selectedWorkstream =
     workstreamOptions.find((workstream: any) => String(workstream.id) === form.data.event_workstream_id) ?? workstreamOptions[0] ?? null;
   const taskGroupOptions = selectedWorkstream?.task_group_options ?? [];
+  const selectedAttachmentNames = form.data.evidence_attachments.map((file) => file.name);
+  const isQuotationTask = `${form.data.duty} ${form.data.task_group} ${form.data.outcome}`.toLowerCase().includes("quotation");
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -92,6 +104,11 @@ export function EventTaskFormPage({
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <DomainNav items={eventWorkflowNav(event.id)} />
+            {reviewUrl ? (
+              <Link href={reviewUrl}>
+                <Button variant="outline">Review Task</Button>
+              </Link>
+            ) : null}
             <Link href={`/events/${event.id}`}>
               <Button variant="outline">Back to Event</Button>
             </Link>
@@ -101,7 +118,18 @@ export function EventTaskFormPage({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            form.submit(submitRoute.method, submitRoute.url, {
+
+            if (submitRoute.method === "put") {
+              form.transform((data) => ({ ...data, _method: "put" }));
+              form.post(submitRoute.url, {
+                preserveScroll: true,
+                forceFormData: true,
+              });
+
+              return;
+            }
+
+            form.post(submitRoute.url, {
               preserveScroll: true,
               forceFormData: true,
             });
@@ -198,6 +226,9 @@ export function EventTaskFormPage({
                     </option>
                   ))}
                 </select>
+                {form.data.status === "completed" ? (
+                  <p className="text-xs text-slate-500">This will submit the task for manager verification before it is counted as completed.</p>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -284,6 +315,63 @@ export function EventTaskFormPage({
                   </div>
                 ) : null}
               </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="evidence_attachments">Supporting attachments</Label>
+                <div className="relative">
+                  <FileUp className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="evidence_attachments"
+                    type="file"
+                    multiple
+                    className="pl-9"
+                    onChange={(e) => form.setData("evidence_attachments", Array.from(e.target.files ?? []))}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  {isQuotationTask
+                    ? "Quotations usually need three files, but deviations are allowed. Add as many supporting files as the procurement decision needs."
+                    : "Add extra evidence, quotations, approvals, or supporting files without replacing the main evidence file."}
+                </p>
+                {selectedAttachmentNames.length > 0 ? (
+                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    {selectedAttachmentNames.join(", ")}
+                  </div>
+                ) : null}
+                {form.errors.evidence_attachments ? <p className="text-xs text-red-600">{form.errors.evidence_attachments}</p> : null}
+              </div>
+
+              {form.data.attachments.length > 0 ? (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Current supporting attachments</Label>
+                  <div className="space-y-2 rounded-md border border-slate-200 p-3">
+                    {form.data.attachments.map((attachment) => {
+                      const id = String(attachment.id);
+
+                      return (
+                        <label key={attachment.id} className="flex items-center justify-between gap-3 text-xs text-slate-700">
+                          <span className="truncate">{attachment.file_name}</span>
+                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={form.data.remove_attachment_ids.includes(id)}
+                              onChange={(e) =>
+                                form.setData(
+                                  "remove_attachment_ids",
+                                  e.target.checked
+                                    ? [...form.data.remove_attachment_ids, id]
+                                    : form.data.remove_attachment_ids.filter((attachmentId) => attachmentId !== id),
+                                )
+                              }
+                            />
+                            Remove
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 

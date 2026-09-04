@@ -69,21 +69,6 @@ class BdsApplicationService
         ]);
     }
 
-    public function schedulePitch(int $id, array $data): BdsApplication
-    {
-        $application = $this->getById($id);
-        $user = auth()->user();
-        Gate::forUser($user)->authorize('schedulePitch', $application);
-
-        $this->assertPitchSchedulingAllowed($application, $data);
-
-        return $this->repository->update($application, [
-            'pitch_scheduled_at' => Carbon::parse($data['pitch_scheduled_at']),
-            'pitch_notes' => $data['pitch_notes'] ?? null,
-            'updated_by' => auth()->id(),
-        ]);
-    }
-
     public function getWorkflowSummary(BdsApplication $application): array
     {
         $application->loadMissing(['adjudications']);
@@ -250,21 +235,6 @@ class BdsApplicationService
         }
     }
 
-    protected function assertPitchSchedulingAllowed(BdsApplication $application, array $data): void
-    {
-        $blockers = $this->evaluatePitchReadiness(
-            $application,
-            (bool) ($application->has_submitted_adjudication ?? false),
-            $data
-        )['blockers'];
-
-        if ($blockers !== []) {
-            throw ValidationException::withMessages([
-                'pitch_scheduled_at' => $blockers,
-            ]);
-        }
-    }
-
     protected function evaluateAssessmentTransition(
         BdsApplication $application,
         string $targetStatus,
@@ -293,25 +263,19 @@ class BdsApplicationService
     protected function evaluatePitchReadiness(
         BdsApplication $application,
         bool $hasSubmittedAdjudication,
-        array $data = []
     ): array {
         $blockers = [];
 
         if ($application->assessment_status !== 'accepted') {
-            $blockers[] = 'Only accepted applications can be scheduled for pitching.';
+            $blockers[] = 'Only accepted applications can be scheduled through a pitch session.';
         }
 
         if ($application->adjudication_result !== null) {
-            $blockers[] = 'Applications with an adjudication outcome can no longer be rescheduled for pitching.';
+            $blockers[] = 'Applications with an adjudication outcome can no longer be added to a pitch session.';
         }
 
         if ($hasSubmittedAdjudication) {
-            $blockers[] = 'Pitch scheduling is locked once an adjudication has been submitted.';
-        }
-
-        $pitchAt = $data['pitch_scheduled_at'] ?? null;
-        if ($pitchAt !== null && Carbon::parse($pitchAt)->lt(now())) {
-            $blockers[] = 'Pitch scheduling must use a future date and time.';
+            $blockers[] = 'Pitch session changes are locked once an adjudication has been submitted.';
         }
 
         return [
@@ -329,7 +293,7 @@ class BdsApplicationService
         }
 
         if ($application->pitch_scheduled_at === null) {
-            $blockers[] = 'A pitch must be scheduled before adjudication can start.';
+            $blockers[] = 'A pitch session must be scheduled before adjudication can start.';
         }
 
         if ($application->adjudication_result !== null) {

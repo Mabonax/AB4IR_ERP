@@ -128,6 +128,11 @@ class ProjectController extends Controller
             ->where('project_id', $model->id)
             ->orderBy('sort_order')
             ->get();
+        $activeProgramTemplateCount = ProgramMilestoneTemplate::query()
+            ->where('program_id', $model->program_id)
+            ->where('is_active', true)
+            ->count();
+        $attachedTemplateCount = $milestones->pluck('program_milestone_template_id')->filter()->unique()->count();
         $progress = $this->progressService->summarizeProject($model);
         $repositoryRoot = $this->documentFolderService->findOwnedRootFolder(Project::class, $model->id);
         $brochureFolder = $repositoryRoot?->children()->where('name', 'Brochures')->first();
@@ -147,6 +152,13 @@ class ProjectController extends Controller
             'history' => $model->history->map(fn (ProjectHistory $history) => app(\App\Domains\Projects\Services\ProjectHistoryService::class)->map($history))->values(),
             'canManageProjects' => (bool) $request->user()?->can('update', $model),
             'canAttachMilestones' => (bool) $request->user()?->can('attachMilestones', $model),
+            'milestoneAttachment' => [
+                'active_program_templates' => $activeProgramTemplateCount,
+                'attached_milestones' => $milestones->count(),
+                'attached_program_templates' => $attachedTemplateCount,
+                'missing_program_templates' => max($activeProgramTemplateCount - $attachedTemplateCount, 0),
+                'manage_templates_href' => route('milestone-templates.programs', $model->program_id),
+            ],
             'finalization' => [
                 'href' => route('projects.finalization', $model->id),
                 'is_concluded' => (bool) $model->closure,
@@ -279,9 +291,20 @@ class ProjectController extends Controller
     {
         $projectModel = Project::with('locations.facilitator')->findOrFail($project);
         $this->authorize('attachMilestones', $projectModel);
-        $this->service->syncProgramMilestones($projectModel);
+        $sync = $this->service->syncProgramMilestones($projectModel);
 
-        return redirect()->back()->with('success', 'Program milestones synced');
+        if ($sync['available'] === 0) {
+            return redirect()->back()->with(
+                'warning',
+                'No program milestone templates are configured for this project program. Create program milestones first, then attach them to the project.'
+            );
+        }
+
+        if ($sync['added'] === 0) {
+            return redirect()->back()->with('info', 'No new milestones were attached. All active program milestones are already available on this project.');
+        }
+
+        return redirect()->back()->with('success', "{$sync['added']} new milestone(s) attached to this project.");
     }
 
     public function edit(int $project)

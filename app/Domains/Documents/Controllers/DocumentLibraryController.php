@@ -35,6 +35,7 @@ use App\Domains\Documents\Services\DocumentPreviewService;
 use App\Domains\Documents\Services\DocumentSearchService;
 use App\Domains\Documents\Services\DocumentTemplateService;
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventSeries;
 use App\Domains\Marketing\Models\MarketingAsset;
 use App\Domains\Organization\Enums\OrganizationDocumentSlot;
 use App\Domains\Organization\Enums\OrganizationDocumentType;
@@ -415,6 +416,14 @@ class DocumentLibraryController extends Controller
                         'name' => trim(($location->project?->name ? $location->project->name.' - ' : '').($location->training_venue_address ?: 'Location #'.$location->id)),
                     ]
                 )->values()->all(),
+            ],
+            [
+                'label' => 'Event Lines',
+                'owner_type' => EventSeries::class,
+                'items' => EventSeries::query()->orderBy('name')->get(['id', 'name'])->map(fn (EventSeries $series) => [
+                    'id' => $series->id,
+                    'name' => $series->name,
+                ])->values()->all(),
             ],
             [
                 'label' => 'Events',

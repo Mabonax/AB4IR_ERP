@@ -7,6 +7,7 @@ use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Documents\Models\DocumentFile;
 use App\Domains\Documents\Models\DocumentLink;
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventSeries;
 use App\Domains\Marketing\Models\MarketingAsset;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Programs\Models\Program;
@@ -48,6 +49,7 @@ class DocumentLinkService
         return [
             Program::class => 'Programs',
             Project::class => 'Projects',
+            EventSeries::class => 'Event Series',
             Event::class => 'Events',
             Beneficiary::class => 'Beneficiaries',
             Stakeholder::class => 'Stakeholders',
@@ -139,6 +141,7 @@ class DocumentLinkService
         return match ($modelClass) {
             Program::class => Program::query()->orderBy('title')->get(['id', 'title'])->map(fn (Program $model) => ['id' => $model->id, 'name' => $model->title]),
             Project::class => Project::query()->orderBy('name')->get(['id', 'name'])->map(fn (Project $model) => ['id' => $model->id, 'name' => $model->name]),
+            EventSeries::class => EventSeries::query()->orderBy('name')->get(['id', 'name'])->map(fn (EventSeries $model) => ['id' => $model->id, 'name' => $model->name]),
             Event::class => Event::query()->orderBy('title')->get(['id', 'title'])->map(fn (Event $model) => ['id' => $model->id, 'name' => $model->title]),
             Beneficiary::class => Beneficiary::query()->orderBy('name')->orderBy('surname')->get(['id', 'name', 'surname'])->map(fn (Beneficiary $model) => ['id' => $model->id, 'name' => trim($model->name.' '.$model->surname)]),
             Stakeholder::class => Stakeholder::query()->orderBy('organization_name')->orderBy('name')->get(['id', 'organization_name', 'name'])->map(fn (Stakeholder $model) => ['id' => $model->id, 'name' => trim(($model->organization_name ? $model->organization_name.' - ' : '').$model->name)]),

@@ -49,6 +49,32 @@ function statusBadgeClass(status: string): string {
   }
 }
 
+function completionBadgeClass(status?: string | null): string {
+  switch (status) {
+    case "approved":
+      return "border-green-200 bg-green-50 text-green-700";
+    case "submitted":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "changes_requested":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-600";
+  }
+}
+
+function completionLabel(status?: string | null): string {
+  switch (status) {
+    case "approved":
+      return "Verified";
+    case "submitted":
+      return "Pending verification";
+    case "changes_requested":
+      return "Changes requested";
+    default:
+      return "Not submitted";
+  }
+}
+
 function phaseLabel(phase: string): string {
   return phaseLabels[phase] ?? phase.replaceAll("_", " ");
 }
@@ -72,7 +98,9 @@ export default function EventShow({
   const { auth, flash } = usePage<SharedData>().props as SharedData & {
     flash?: Record<string, unknown>;
   };
-  const canManage = (auth?.user?.permissions ?? []).includes("domain.events.manage");
+  const roles = (auth?.user?.roles ?? []).map((role: string) => role.toLowerCase());
+  const canManage =
+    (auth?.user?.permissions ?? []).includes("domain.events.manage") || roles.includes("super-admin") || roles.includes("super admin");
   const importErrors = Array.isArray(flash?.import_errors) ? (flash?.import_errors as string[]) : [];
   const [activeDepartmentId, setActiveDepartmentId] = useState<number | null>(event.workstreams?.[0]?.id ?? null);
   const [activePhase, setActivePhase] = useState<string>("pre_event");
@@ -671,6 +699,22 @@ export default function EventShow({
                                         ) : (
                                           <div className="text-xs text-slate-500">No linked URL.</div>
                                         )}
+                                        {task.attachments?.length ? (
+                                          <div className="space-y-1">
+                                            <div className="text-xs font-medium text-slate-600">
+                                              Supporting files ({task.attachments.length})
+                                            </div>
+                                            {task.attachments.map((attachment: any) => (
+                                              <a
+                                                key={attachment.id}
+                                                href={`/events/${event.id}/tasks/${task.id}/attachments/${attachment.id}`}
+                                                className="block max-w-48 truncate text-xs font-medium text-blue-700 underline-offset-4 hover:underline"
+                                              >
+                                                {attachment.file_name}
+                                              </a>
+                                            ))}
+                                          </div>
+                                        ) : null}
                                       </div>
                                     </td>
                                     <td className="px-4 py-3 align-top">
@@ -679,13 +723,60 @@ export default function EventShow({
                                           {String(task.status).replaceAll("_", " ")}
                                         </span>
                                       </div>
+                                      <div className="mt-2">
+                                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${completionBadgeClass(task.completion_status)}`}>
+                                          {completionLabel(task.completion_status)}
+                                        </span>
+                                      </div>
                                       <div className="mt-2 text-slate-600">{task.comment ?? "-"}</div>
+                                      {task.submitted_for_verification_at ? (
+                                        <div className="mt-2 text-xs text-slate-500">
+                                          Submitted: {task.submitted_for_verification_at}
+                                          {task.submitted_by_name ? ` by ${task.submitted_by_name}` : ""}
+                                        </div>
+                                      ) : null}
+                                      {task.reviewed_at ? (
+                                        <div className="mt-2 text-xs text-slate-500">
+                                          Reviewed: {task.reviewed_at}
+                                          {task.reviewed_by_name ? ` by ${task.reviewed_by_name}` : ""}
+                                        </div>
+                                      ) : null}
+                                      {task.manager_review_notes ? (
+                                        <div className="mt-2 text-xs text-slate-500">Review: {task.manager_review_notes}</div>
+                                      ) : null}
                                       {task.completed_at ? (
                                         <div className="mt-2 text-xs text-slate-500">Completed: {task.completed_at}</div>
                                       ) : null}
                                     </td>
                                     {canManage ? (
-                                      <td className="px-4 py-3 align-top">
+                                      <td className="space-y-2 px-4 py-3 align-top">
+                                        {task.completion_status === "submitted" ? (
+                                          <div className="flex flex-wrap gap-2">
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              onClick={() => router.post(`/events/${event.id}/tasks/${task.id}/approve`, {}, { preserveScroll: true })}
+                                            >
+                                              Approve
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => {
+                                                const notes = window.prompt("Review notes for amendments") ?? "";
+                                                router.post(`/events/${event.id}/tasks/${task.id}/return`, { manager_review_notes: notes }, { preserveScroll: true });
+                                              }}
+                                            >
+                                              Return
+                                            </Button>
+                                          </div>
+                                        ) : null}
+                                        <Link href={`/events/${event.id}/tasks/${task.id}`}>
+                                          <Button variant="outline" size="sm">
+                                            Review Task
+                                          </Button>
+                                        </Link>
                                         <Link href={`/events/${event.id}/tasks/${task.id}/edit`}>
                                           <Button variant="outline" size="sm">
                                             Update Task

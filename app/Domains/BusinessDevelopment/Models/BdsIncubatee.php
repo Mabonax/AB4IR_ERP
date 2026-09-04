@@ -66,4 +66,24 @@ class BdsIncubatee extends Model
     {
         return $this->hasMany(BdsIncubateeKpi::class, 'bds_incubatee_id');
     }
+
+    public function enterpriseDiagnostics(): HasMany
+    {
+        return $this->hasMany(EnterpriseDiagnostic::class, 'bds_incubatee_id')->latest('assessment_date');
+    }
+
+    public function developmentNeeds(): HasMany
+    {
+        return $this->hasMany(EnterpriseDevelopmentNeed::class, 'bds_incubatee_id')->latest();
+    }
+
+    public function developmentPlans(): HasMany
+    {
+        return $this->hasMany(EnterpriseDevelopmentPlan::class, 'bds_incubatee_id')->latest();
+    }
+
+    public function developmentHistory(): HasMany
+    {
+        return $this->hasMany(EnterpriseDevelopmentHistory::class, 'bds_incubatee_id')->latest('occurred_at');
+    }
 }

@@ -7,6 +7,7 @@ use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Documents\Models\DocumentFile;
 use App\Domains\Documents\Models\DocumentFolder;
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventSeries;
 use App\Domains\Marketing\Models\MarketingAsset;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Programs\Models\Program;
@@ -99,7 +100,7 @@ class DocumentAccessService
             OrganizationProfile::class => $this->canViewDomain($user, 'organization'),
             Program::class => $this->canViewDomain($user, 'programs'),
             Project::class, ProjectLocation::class => $this->canViewDomain($user, 'projects'),
-            Event::class => $this->canViewDomain($user, 'events'),
+            Event::class, EventSeries::class => $this->canViewDomain($user, 'events'),
             Beneficiary::class => $this->canViewDomain($user, 'beneficiaries'),
             Stakeholder::class => $this->canViewDomain($user, 'stakeholders'),
             Asset::class => $this->canViewDomain($user, 'assets'),
@@ -117,7 +118,7 @@ class DocumentAccessService
             OrganizationProfile::class => $this->canManageDomain($user, 'organization'),
             Program::class => $this->canManageDomain($user, 'programs'),
             Project::class, ProjectLocation::class => $this->canManageDomain($user, 'projects'),
-            Event::class => $this->canManageDomain($user, 'events'),
+            Event::class, EventSeries::class => $this->canManageDomain($user, 'events'),
             Beneficiary::class => $this->canManageDomain($user, 'beneficiaries'),
             Stakeholder::class => $this->canManageDomain($user, 'stakeholders'),
             Asset::class => $this->canManageDomain($user, 'assets'),

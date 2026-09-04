@@ -50,7 +50,7 @@ class ProjectMilestoneAssessmentService
                 ]);
             }
 
-            $passMark = (int) ceil($maxScore * 0.5);
+            $passMark = $milestone->pass_mark ?? (int) ceil($maxScore * 0.5);
             $status = (int) $validated['score'] >= $passMark ? 'completed' : 'failed';
 
             $existingAssessment = ProjectMilestoneAssessment::query()
@@ -80,5 +80,20 @@ class ProjectMilestoneAssessmentService
                 ]
             );
         });
+    }
+
+    public function storeBulkAssessments(
+        ProjectLocation $location,
+        ProjectMilestone $milestone,
+        array $assessments,
+        ?Facilitator $facilitator = null
+    ): array {
+        $saved = [];
+
+        foreach ($assessments as $assessment) {
+            $saved[] = $this->storeAssessment($location, $milestone, $assessment, $facilitator);
+        }
+
+        return $saved;
     }
 }

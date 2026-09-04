@@ -5,10 +5,12 @@ export default function EventsEdit({
   event,
   staffMembers,
   stakeholders,
+  eventSeries,
 }: {
   event: any;
   staffMembers: Array<{ id: number; name: string }>;
   stakeholders: Array<{ id: number; name: string }>;
+  eventSeries: Array<{ id: number; name: string; series_key: string; slug: string }>;
 }) {
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Events", href: "/events" },
@@ -26,11 +28,16 @@ export default function EventsEdit({
       submitRoute={{ url: `/events/${event.id}`, method: "put" }}
       staffMembers={staffMembers}
       stakeholders={stakeholders}
+      eventSeries={eventSeries}
       backHref={`/events/${event.id}`}
       initialData={{
         title: event.title ?? "",
         event_type: event.event_type ?? "",
         event_format: event.event_format ?? "",
+        event_series_id:
+          event.event_series_id !== null && event.event_series_id !== undefined
+            ? String(event.event_series_id)
+            : "",
         annual_series_key: event.annual_series_key ?? "",
         event_year: event.event_year ? String(event.event_year) : "",
         is_annual: event.is_annual ? "1" : "0",

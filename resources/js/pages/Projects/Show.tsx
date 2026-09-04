@@ -1,5 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarCheck2, CheckCircle2, Flag, MapPin, Plus, UsersRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+    CalendarCheck2,
+    CheckCircle2,
+    ClipboardCheck,
+    Flag,
+    MapPin,
+    Plus,
+    UsersRound,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -30,22 +39,199 @@ const readinessTone = (ready: boolean) =>
         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
         : 'border-amber-200 bg-amber-50 text-amber-700';
 
-const learningActionMessage = (data: any) => {
+type LearningActionItem = {
+    status?: string | null;
+};
+
+type LearningActionResponse = {
+    offering?: { name?: string | null } | null;
+    items?: LearningActionItem[];
+    reason?: string | null;
+    status?: string | null;
+    message?: string | null;
+};
+
+type ProjectData = {
+    id: number;
+    name: string;
+    program_id?: number | null;
+    status?: string | null;
+    status_label?: string | null;
+    status_summary?: StatusSummary | null;
+    start_date?: string | null;
+    project_manager_name?: string | null;
+    sponsor_name?: string | null;
+    partner_names?: string[];
+    contract_reference?: string | null;
+    funding_amount?: number | string | null;
+    reporting_cadence?: string | null;
+    reporting_obligations?: string | null;
+};
+
+type ProjectPayload = ProjectData | { data: ProjectData };
+
+type ProjectMilestoneRow = {
+    id: number;
+    title: string;
+    max_score?: number | null;
+};
+
+type ProjectProgressSummary = {
+    project_manager_name?: string | null;
+    total_locations?: number;
+    total_milestones?: number;
+    required_milestones?: number;
+    active_beneficiaries?: number;
+    total_beneficiaries?: number;
+    completed_beneficiaries?: number;
+    dropped_beneficiaries?: number;
+    expected_assessments?: number;
+    assessed_assessments?: number;
+    completed_assessments?: number;
+    unassessed_assessments?: number;
+    milestone_completion_rate?: number;
+    assessment_coverage_rate?: number;
+    pass_rate?: number;
+    failed_rate?: number;
+    beneficiary_completion_rate?: number;
+    attendance_rate?: number;
+    blocked_locations?: number;
+    blockers?: string[];
+};
+
+type ProjectProgress = {
+    summary?: ProjectProgressSummary;
+};
+
+type ProjectLocationProgressRow = {
+    id: number;
+    location?: string | null;
+    facilitator_name?: string | null;
+    training_venue_address?: string | null;
+    active_beneficiaries?: number;
+    milestone_completion_rate?: number;
+    beneficiary_completion_rate?: number;
+    attendance_rate?: number;
+    is_blocked?: boolean;
+    blockers?: string[];
+    completed_assessments?: number;
+    expected_assessments?: number;
+};
+
+type StatusTransition = {
+    status: string;
+    label: string;
+    ready: boolean;
+    blockers: string[];
+};
+
+type StatusSummary = {
+    allowed_transitions?: StatusTransition[];
+    readiness?: Record<string, { ready: boolean; blockers: string[] }>;
+};
+
+type LearningMetrics = {
+    mapped_offerings?: number | null;
+    lms_learners?: number | null;
+    lms_facilitators?: number | null;
+    certificates_issued?: number | null;
+    average_progress?: number | null;
+    average_attendance?: number | null;
+    active_learners?: number | null;
+    active_teaching_assignments?: number | null;
+    active?: number | null;
+    enrolled?: number | null;
+    cohort_enrollment_pending?: number | null;
+    invitation_pending?: number | null;
+    invitation_expired?: number | null;
+    not_provisioned?: number | null;
+};
+
+type LearningSummary = {
+    integration_state?: string | null;
+    metrics?: LearningMetrics | null;
+    message?: string | null;
+    reason?: string | null;
+    mappings?: {
+        id: number;
+        status: string;
+        lms_offering_id: number | string;
+        offering?: LearningOffering | null;
+    }[];
+};
+
+type LearningOffering = {
+    id: number | string;
+    name: string;
+    display_name?: string | null;
+    status?: string | null;
+    programme?: { name?: string | null } | null;
+    courses?: { id: number | string; title: string }[];
+};
+
+type LearnerProvisioningItem = {
+    erp_beneficiary_id: number;
+    name: string;
+    eligible: boolean;
+    reason?: string | null;
+    lms_status?: string | null;
+};
+
+type FacilitatorProvisioningItem = {
+    erp_facilitator_id: number;
+    name: string;
+    eligible: boolean;
+    reason?: string | null;
+    lms_status?: string | null;
+};
+
+type LearningDelivery = {
+    summary?: LearningSummary | null;
+    availableOfferings?: LearningOffering[];
+    learnerProvisioning?: {
+        items?: LearnerProvisioningItem[];
+        metrics?: LearningMetrics | null;
+    } | null;
+    facilitatorProvisioning?: {
+        items?: FacilitatorProvisioningItem[];
+        metrics?: LearningMetrics | null;
+    } | null;
+};
+
+type HistoryItem = {
+    id: number;
+    summary: string;
+    action: string;
+    actor_name?: string | null;
+    created_at?: string | null;
+};
+
+type MetricCard = [string, string | number, LucideIcon, string];
+
+const learningActionMessage = (data: LearningActionResponse) => {
     if (data?.offering?.name) {
         return `Mapped to LMS offering: ${data.offering.name}.`;
     }
 
     if (Array.isArray(data?.items)) {
-        const counts = data.items.reduce((summary: Record<string, number>, item: any) => {
-            const status = String(item.status ?? 'unknown').replaceAll('_', ' ');
-            summary[status] = (summary[status] ?? 0) + 1;
-            return summary;
-        }, {});
+        const counts = data.items.reduce(
+            (summary: Record<string, number>, item: LearningActionItem) => {
+                const status = String(item.status ?? 'unknown').replaceAll(
+                    '_',
+                    ' ',
+                );
+                summary[status] = (summary[status] ?? 0) + 1;
+                return summary;
+            },
+            {},
+        );
         const rendered = Object.entries(counts)
             .map(([status, count]) => `${count} ${status}`)
             .join(', ');
 
-        return rendered ? `LMS provisioning processed: ${rendered}.` : 'LMS provisioning completed with no changed records.';
+        return rendered
+            ? `LMS provisioning processed: ${rendered}.`
+            : 'LMS provisioning completed with no changed records.';
     }
 
     return data?.reason || data?.status || 'Learning action completed.';
@@ -67,19 +253,27 @@ export default function ProjectShow({
     history,
     canManageProjects,
     canAttachMilestones,
+    milestoneAttachment,
     finalization,
     documentRepository,
     brochureRepository,
     learningDelivery,
 }: {
-    project: any;
-    milestones: any[];
-    progress: any;
-    locations: any[];
+    project: ProjectPayload;
+    milestones: ProjectMilestoneRow[];
+    progress: ProjectProgress | null;
+    locations: ProjectLocationProgressRow[];
     attendanceTrend: { date: string; attendance_rate: number }[];
-    history: any[];
+    history: HistoryItem[];
     canManageProjects: boolean;
     canAttachMilestones: boolean;
+    milestoneAttachment: {
+        active_program_templates: number;
+        attached_milestones: number;
+        attached_program_templates: number;
+        missing_program_templates: number;
+        manage_templates_href: string;
+    };
     finalization: {
         href: string;
         is_concluded: boolean;
@@ -95,9 +289,9 @@ export default function ProjectShow({
         upload_url: string;
         can_publish_to_vault: boolean;
     } | null;
-    learningDelivery: any;
+    learningDelivery: LearningDelivery | null;
 }) {
-    const projectData = project?.data ?? project;
+    const projectData = 'data' in project ? project.data : project;
     const statusSummary = projectData.status_summary;
     const summary = progress?.summary ?? {};
     const learningSummary = learningDelivery?.summary ?? {};
@@ -109,7 +303,9 @@ export default function ProjectShow({
         useState<LearningActionStatus | null>(null);
     const [learningBusy, setLearningBusy] = useState(false);
     const [brochureVaultBusy, setBrochureVaultBusy] = useState(false);
-    const [brochureUploadProgress, setBrochureUploadProgress] = useState<number | null>(null);
+    const [brochureUploadProgress, setBrochureUploadProgress] = useState<
+        number | null
+    >(null);
 
     const handleSyncMilestones = (e: React.FormEvent) => {
         e.preventDefault();
@@ -117,7 +313,9 @@ export default function ProjectShow({
         router.post(`/projects/${projectData.id}/milestones/sync`, {});
     };
 
-    const handleBrochureVaultUpload = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleBrochureVaultUpload = (
+        event: React.FormEvent<HTMLFormElement>,
+    ) => {
         event.preventDefault();
 
         if (!brochureRepository?.upload_url) {
@@ -130,7 +328,8 @@ export default function ProjectShow({
         router.post(brochureRepository.upload_url, new FormData(form), {
             forceFormData: true,
             preserveScroll: true,
-            onProgress: (progress) => setBrochureUploadProgress(progress?.percentage ?? 0),
+            onProgress: (progress) =>
+                setBrochureUploadProgress(progress?.percentage ?? 0),
             onFinish: () => {
                 setBrochureVaultBusy(false);
                 setBrochureUploadProgress(null);
@@ -144,7 +343,10 @@ export default function ProjectShow({
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
             ?.getAttribute('content') ?? '';
 
-    const postLearningAction = async (url: string, payload: any) => {
+    const postLearningAction = async (
+        url: string,
+        payload: Record<string, unknown>,
+    ) => {
         setLearningBusy(true);
         setLearningStatus({
             message: 'Preparing learning delivery request...',
@@ -178,10 +380,12 @@ export default function ProjectShow({
                 type: 'running',
             });
 
-            const data = await response.json();
+            const data = (await response.json()) as LearningActionResponse;
 
             if (!response.ok) {
-                throw new Error(data.reason || data.message || 'Learning action failed.');
+                throw new Error(
+                    data.reason || data.message || 'Learning action failed.',
+                );
             }
 
             setLearningStatus({
@@ -192,14 +396,16 @@ export default function ProjectShow({
             });
             router.reload({ only: ['learningDelivery', 'history'] });
         } catch (error) {
-            const message = error instanceof Error
-                ? error.message
-                : 'Learning action failed.';
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : 'Learning action failed.';
 
             setLearningStatus({
-                message: message === 'LMS could not be reached.'
-                    ? 'LMS could not be reached. Confirm the LMS server is running on port 8016, then retry.'
-                    : message,
+                message:
+                    message === 'LMS could not be reached.'
+                        ? 'LMS could not be reached. Confirm the LMS server is running on port 8016, then retry.'
+                        : message,
                 phase: 'Failed',
                 progress: 100,
                 type: 'error',
@@ -210,11 +416,11 @@ export default function ProjectShow({
     };
 
     const eligibleBeneficiaryIds = learnerItems
-        .filter((item: any) => item.eligible)
-        .map((item: any) => item.erp_beneficiary_id);
+        .filter((item) => item.eligible)
+        .map((item) => item.erp_beneficiary_id);
     const eligibleFacilitatorIds = facilitatorItems
-        .filter((item: any) => item.eligible)
-        .map((item: any) => item.erp_facilitator_id);
+        .filter((item) => item.eligible)
+        .map((item) => item.erp_facilitator_id);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -223,12 +429,15 @@ export default function ProjectShow({
             <div className="space-y-6 bg-white p-4 text-slate-950 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <p className="text-sm text-slate-500">Projects / Project Dashboard</p>
+                        <p className="text-sm text-slate-500">
+                            Projects / Project Dashboard
+                        </p>
                         <h1 className="mt-1 text-3xl font-semibold tracking-normal">
                             {projectData.name}
                         </h1>
                         <p className="mt-1 text-sm text-slate-500">
-                            Delivery governance, learner progress, and project operations.
+                            Delivery governance, learner progress, and project
+                            operations.
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -286,26 +495,206 @@ export default function ProjectShow({
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                    {[
-                        ['Status', projectData.status_label ?? projectData.status ?? '-', Flag, 'bg-red-50 text-red-600'],
-                        ['Start Date', projectData.start_date ?? '-', CalendarCheck2, 'bg-orange-50 text-orange-600'],
-                        ['Locations', summary.total_locations ?? locations.length, MapPin, 'bg-blue-50 text-blue-600'],
-                        ['Milestones', summary.total_milestones ?? milestones.length, CheckCircle2, 'bg-emerald-50 text-emerald-600'],
-                        ['Active Beneficiaries', summary.active_beneficiaries ?? 0, UsersRound, 'bg-violet-50 text-violet-600'],
-                    ].map(([label, value, Icon, tone]) => (
-                        <section key={String(label)} className="rounded-lg border bg-white p-5 shadow-sm">
+                    {(
+                        [
+                            [
+                                'Status',
+                                projectData.status_label ??
+                                    projectData.status ??
+                                    '-',
+                                Flag,
+                                'bg-red-50 text-red-600',
+                            ],
+                            [
+                                'Start Date',
+                                projectData.start_date ?? '-',
+                                CalendarCheck2,
+                                'bg-orange-50 text-orange-600',
+                            ],
+                            [
+                                'Locations',
+                                summary.total_locations ?? locations.length,
+                                MapPin,
+                                'bg-blue-50 text-blue-600',
+                            ],
+                            [
+                                'Milestones',
+                                summary.total_milestones ?? milestones.length,
+                                CheckCircle2,
+                                'bg-emerald-50 text-emerald-600',
+                            ],
+                            [
+                                'Active Beneficiaries',
+                                summary.active_beneficiaries ?? 0,
+                                UsersRound,
+                                'bg-violet-50 text-violet-600',
+                            ],
+                        ] satisfies MetricCard[]
+                    ).map(([label, value, Icon, tone]) => (
+                        <section
+                            key={String(label)}
+                            className="rounded-lg border bg-white p-5 shadow-sm"
+                        >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <p className="text-sm font-medium text-slate-500">{label}</p>
-                                    <p className="mt-2 truncate text-2xl font-semibold capitalize">{String(value)}</p>
+                                    <p className="text-sm font-medium text-slate-500">
+                                        {label}
+                                    </p>
+                                    <p className="mt-2 truncate text-2xl font-semibold capitalize">
+                                        {String(value)}
+                                    </p>
                                 </div>
-                                <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}>
+                                <span
+                                    className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}
+                                >
                                     <Icon className="h-5 w-5" />
                                 </span>
                             </div>
                         </section>
                     ))}
                 </div>
+
+                <Card>
+                    <CardHeader>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <CardTitle>Milestone Delivery</CardTitle>
+                                <CardDescription>
+                                    Program templates, project milestone
+                                    snapshots, and beneficiary assessment
+                                    coverage
+                                </CardDescription>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Link
+                                    href={
+                                        milestoneAttachment.manage_templates_href
+                                    }
+                                    className="rounded-md border px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                >
+                                    Manage Program Milestones
+                                </Link>
+                                {canAttachMilestones &&
+                                milestoneAttachment.active_program_templates >
+                                    0 ? (
+                                    <form onSubmit={handleSyncMilestones}>
+                                        <button
+                                            type="submit"
+                                            className="rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
+                                        >
+                                            {milestoneAttachment.attached_milestones >
+                                            0
+                                                ? 'Sync Missing Milestones'
+                                                : 'Attach Program Milestones'}
+                                        </button>
+                                    </form>
+                                ) : null}
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {milestoneAttachment.active_program_templates === 0 ? (
+                            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                No program milestones are configured.
+                            </div>
+                        ) : milestoneAttachment.attached_milestones === 0 ? (
+                            <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                                {milestoneAttachment.active_program_templates}{' '}
+                                program milestone
+                                {milestoneAttachment.active_program_templates ===
+                                1
+                                    ? ''
+                                    : 's'}{' '}
+                                available.
+                            </div>
+                        ) : (
+                            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                                {milestoneAttachment.attached_milestones}{' '}
+                                milestone
+                                {milestoneAttachment.attached_milestones === 1
+                                    ? ''
+                                    : 's'}{' '}
+                                attached.{' '}
+                                {milestoneAttachment.attached_program_templates}{' '}
+                                of{' '}
+                                {milestoneAttachment.active_program_templates}{' '}
+                                active program milestone
+                                {milestoneAttachment.active_program_templates ===
+                                1
+                                    ? ''
+                                    : 's'}{' '}
+                                attached.
+                            </div>
+                        )}
+
+                        <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                            {[
+                                ['Attached', summary.total_milestones ?? 0],
+                                ['Required', summary.required_milestones ?? 0],
+                                [
+                                    'Assessed beneficiaries',
+                                    summary.assessed_assessments ?? 0,
+                                ],
+                                [
+                                    'Outstanding',
+                                    summary.unassessed_assessments ?? 0,
+                                ],
+                            ].map(([label, value]) => (
+                                <div
+                                    key={String(label)}
+                                    className="rounded-md border bg-white p-3"
+                                >
+                                    <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                        {label}
+                                    </div>
+                                    <div className="mt-1 text-lg font-semibold text-slate-900">
+                                        {String(value)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid gap-3 lg:grid-cols-4">
+                            {[
+                                [
+                                    'Completion',
+                                    summary.milestone_completion_rate ?? 0,
+                                    'bg-emerald-500',
+                                ],
+                                [
+                                    'Assessment coverage',
+                                    summary.assessment_coverage_rate ?? 0,
+                                    'bg-blue-500',
+                                ],
+                                [
+                                    'Passed',
+                                    summary.pass_rate ?? 0,
+                                    'bg-green-500',
+                                ],
+                                [
+                                    'Failed',
+                                    summary.failed_rate ?? 0,
+                                    'bg-red-500',
+                                ],
+                            ].map(([label, value, color]) => (
+                                <div key={String(label)} className="space-y-2">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
+                                        <span>{label}</span>
+                                        <span>{String(value)}%</span>
+                                    </div>
+                                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                        <div
+                                            className={`h-full rounded-full ${color}`}
+                                            style={{
+                                                width: `${Math.min(Number(value), 100)}%`,
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                     <Card>
@@ -369,7 +758,8 @@ export default function ProjectShow({
                             <div>
                                 <CardTitle>Learning Delivery</CardTitle>
                                 <CardDescription>
-                                    ERP project connection to LMS cohort delivery
+                                    ERP project connection to LMS cohort
+                                    delivery
                                 </CardDescription>
                             </div>
                             <span
@@ -383,15 +773,54 @@ export default function ProjectShow({
                                 {learningSummary.integration_state ===
                                 'connected'
                                     ? 'Connected'
-                                    : learningSummary.integration_state ??
-                                      'No LMS data'}
+                                    : (learningSummary.integration_state ??
+                                      'No LMS data')}
                             </span>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-5">
                         {learningSummary.integration_state === 'connected' ? (
-                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                {[
+                            <>
+                                <div className="grid gap-3 lg:grid-cols-2">
+                                    {(learningSummary.mappings ?? []).map((mapping) => (
+                                        <div key={mapping.id} className="rounded-md border bg-slate-50 p-3 text-sm">
+                                            <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                Learning programme
+                                            </div>
+                                            <div className="mt-1 font-semibold text-slate-900">
+                                                {mapping.offering?.programme?.name ?? 'Unavailable'}
+                                            </div>
+                                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                                <div>
+                                                    <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                        Learning cohort
+                                                    </div>
+                                                    <div className="mt-1 font-medium text-slate-900">
+                                                        {mapping.offering?.name ?? `Cohort ${mapping.lms_offering_id}`}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                        Mapping state
+                                                    </div>
+                                                    <div className="mt-1 font-medium text-slate-900 capitalize">
+                                                        {mapping.status}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 text-xs text-muted-foreground">
+                                                LMS cohort ID: {mapping.lms_offering_id}
+                                            </div>
+                                            {(mapping.offering?.courses ?? []).length > 0 ? (
+                                                <div className="mt-2 text-xs text-muted-foreground">
+                                                    Courses: {(mapping.offering?.courses ?? []).map((course) => course.title).join(', ')}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                    {[
                                     [
                                         'Mapped LMS cohorts',
                                         learningSummary.metrics
@@ -435,20 +864,21 @@ export default function ProjectShow({
                                         learningSummary.metrics
                                             ?.active_teaching_assignments,
                                     ],
-                                ].map(([label, value]) => (
-                                    <div
-                                        key={label}
-                                        className="rounded-md border bg-slate-50 p-3"
-                                    >
-                                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                            {label}
+                                    ].map(([label, value]) => (
+                                        <div
+                                            key={label}
+                                            className="rounded-md border bg-slate-50 p-3"
+                                        >
+                                            <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                                                {label}
+                                            </div>
+                                            <div className="mt-1 text-lg font-semibold text-slate-900">
+                                                {value ?? 'No data yet'}
+                                            </div>
                                         </div>
-                                        <div className="mt-1 text-lg font-semibold text-slate-900">
-                                            {value ?? 'No data yet'}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            </>
                         ) : (
                             <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                                 {learningSummary.message ??
@@ -474,21 +904,22 @@ export default function ProjectShow({
                                     {(
                                         learningDelivery?.availableOfferings ??
                                         []
-                                    ).map((offering: any) => (
+                                    ).map((offering: LearningOffering) => (
                                         <option
                                             key={offering.id}
                                             value={offering.id}
                                         >
-                                            {offering.name} ·{' '}
-                                            {offering.programme?.name ??
-                                                'No programme'}{' '}
-                                            · {offering.status}
+                                            {offering.display_name ??
+                                                `${offering.programme?.name ?? 'No programme'} - ${offering.name}`}{' '}
+                                            · {(offering.courses ?? []).map((course) => course.title).join(', ') || 'No courses'} · {offering.status}
                                         </option>
                                     ))}
                                 </select>
                                 <button
                                     type="button"
-                                    disabled={!selectedOfferingId || learningBusy}
+                                    disabled={
+                                        !selectedOfferingId || learningBusy
+                                    }
                                     onClick={() =>
                                         postLearningAction(
                                             `/projects/${projectData.id}/learning/mappings`,
@@ -517,9 +948,48 @@ export default function ProjectShow({
                                             eligible of {learnerItems.length}{' '}
                                             project beneficiaries
                                         </div>
-                                        {learningDelivery?.learnerProvisioning?.metrics ? (
+                                        {learningDelivery?.learnerProvisioning
+                                            ?.metrics ? (
                                             <div className="mt-1 text-[11px] text-muted-foreground">
-                                                Active {learningDelivery.learnerProvisioning.metrics.active} · Pending {learningDelivery.learnerProvisioning.metrics.invitation_pending} · Expired {learningDelivery.learnerProvisioning.metrics.invitation_expired} · Not provisioned {learningDelivery.learnerProvisioning.metrics.not_provisioned}
+                                                Active{' '}
+                                                {
+                                                    learningDelivery
+                                                        .learnerProvisioning
+                                                        .metrics.active
+                                                }{' '}
+                                                · Enrolled{' '}
+                                                {
+                                                    learningDelivery
+                                                        .learnerProvisioning
+                                                        .metrics.enrolled
+                                                }{' '}
+                                                · Cohort pending{' '}
+                                                {
+                                                    learningDelivery
+                                                        .learnerProvisioning
+                                                        .metrics
+                                                        .cohort_enrollment_pending
+                                                }{' '}
+                                                · Pending{' '}
+                                                {
+                                                    learningDelivery
+                                                        .learnerProvisioning
+                                                        .metrics
+                                                        .invitation_pending
+                                                }{' '}
+                                                · Expired{' '}
+                                                {
+                                                    learningDelivery
+                                                        .learnerProvisioning
+                                                        .metrics
+                                                        .invitation_expired
+                                                }{' '}
+                                                · Not provisioned{' '}
+                                                {
+                                                    learningDelivery
+                                                        .learnerProvisioning
+                                                        .metrics.not_provisioned
+                                                }
                                             </div>
                                         ) : null}
                                     </div>
@@ -552,7 +1022,7 @@ export default function ProjectShow({
                                             No project beneficiaries available.
                                         </p>
                                     ) : (
-                                        learnerItems.map((item: any) => (
+                                        learnerItems.map((item) => (
                                             <div
                                                 key={item.erp_beneficiary_id}
                                                 className="rounded border bg-slate-50 p-2"
@@ -565,8 +1035,12 @@ export default function ProjectShow({
                                                         ? 'Ready to provision'
                                                         : item.reason}
                                                 </div>
-                                                <div className="mt-1 text-[11px] font-medium capitalize text-slate-600">
-                                                    LMS: {String(item.lms_status ?? 'unknown').replaceAll('_', ' ')}
+                                                <div className="mt-1 text-[11px] font-medium text-slate-600 capitalize">
+                                                    LMS:{' '}
+                                                    {String(
+                                                        item.lms_status ??
+                                                            'unknown',
+                                                    ).replaceAll('_', ' ')}
                                                 </div>
                                             </div>
                                         ))
@@ -582,12 +1056,40 @@ export default function ProjectShow({
                                         </div>
                                         <div className="text-xs text-muted-foreground">
                                             {eligibleFacilitatorIds.length}{' '}
-                                            eligible of {facilitatorItems.length}{' '}
-                                            project facilitators
+                                            eligible of{' '}
+                                            {facilitatorItems.length} project
+                                            facilitators
                                         </div>
-                                        {learningDelivery?.facilitatorProvisioning?.metrics ? (
+                                        {learningDelivery
+                                            ?.facilitatorProvisioning
+                                            ?.metrics ? (
                                             <div className="mt-1 text-[11px] text-muted-foreground">
-                                                Active {learningDelivery.facilitatorProvisioning.metrics.active} · Pending {learningDelivery.facilitatorProvisioning.metrics.invitation_pending} · Expired {learningDelivery.facilitatorProvisioning.metrics.invitation_expired} · Not provisioned {learningDelivery.facilitatorProvisioning.metrics.not_provisioned}
+                                                Active{' '}
+                                                {
+                                                    learningDelivery
+                                                        .facilitatorProvisioning
+                                                        .metrics.active
+                                                }{' '}
+                                                · Pending{' '}
+                                                {
+                                                    learningDelivery
+                                                        .facilitatorProvisioning
+                                                        .metrics
+                                                        .invitation_pending
+                                                }{' '}
+                                                · Expired{' '}
+                                                {
+                                                    learningDelivery
+                                                        .facilitatorProvisioning
+                                                        .metrics
+                                                        .invitation_expired
+                                                }{' '}
+                                                · Not provisioned{' '}
+                                                {
+                                                    learningDelivery
+                                                        .facilitatorProvisioning
+                                                        .metrics.not_provisioned
+                                                }
                                             </div>
                                         ) : null}
                                     </div>
@@ -620,7 +1122,7 @@ export default function ProjectShow({
                                             No project facilitators available.
                                         </p>
                                     ) : (
-                                        facilitatorItems.map((item: any) => (
+                                        facilitatorItems.map((item) => (
                                             <div
                                                 key={item.erp_facilitator_id}
                                                 className="flex items-center justify-between gap-2 rounded border bg-slate-50 p-2"
@@ -634,13 +1136,19 @@ export default function ProjectShow({
                                                             ? 'Eligible for LMS teaching'
                                                             : item.reason}
                                                     </div>
-                                                    <div className="mt-1 text-[11px] font-medium capitalize text-slate-600">
-                                                        LMS: {String(item.lms_status ?? 'unknown').replaceAll('_', ' ')}
+                                                    <div className="mt-1 text-[11px] font-medium text-slate-600 capitalize">
+                                                        LMS:{' '}
+                                                        {String(
+                                                            item.lms_status ??
+                                                                'unknown',
+                                                        ).replaceAll('_', ' ')}
                                                     </div>
                                                 </div>
                                                 {canManageProjects &&
                                                 item.eligible &&
-                                                String(item.lms_status ?? '') === 'active' ? (
+                                                String(
+                                                    item.lms_status ?? '',
+                                                ) === 'active' ? (
                                                     <button
                                                         type="button"
                                                         disabled={learningBusy}
@@ -657,9 +1165,18 @@ export default function ProjectShow({
                                                     >
                                                         Assign
                                                     </button>
-                                                ) : canManageProjects && item.eligible ? (
+                                                ) : canManageProjects &&
+                                                  item.eligible ? (
                                                     <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700">
-                                                        {['invitation_pending', 'invitation_expired'].includes(String(item.lms_status ?? ''))
+                                                        {[
+                                                            'invitation_pending',
+                                                            'invitation_expired',
+                                                        ].includes(
+                                                            String(
+                                                                item.lms_status ??
+                                                                    '',
+                                                            ),
+                                                        )
                                                             ? 'Awaiting LMS activation'
                                                             : 'Provision LMS access first'}
                                                     </span>
@@ -672,30 +1189,41 @@ export default function ProjectShow({
                         </div>
 
                         {learningStatus ? (
-                            <div className={`rounded-md border px-3 py-3 text-sm ${
-                                learningStatus.type === 'error'
-                                    ? 'border-rose-200 bg-rose-50 text-rose-700'
-                                    : learningStatus.type === 'running'
-                                        ? 'border-sky-200 bg-sky-50 text-sky-700'
-                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                            }`}>
+                            <div
+                                className={`rounded-md border px-3 py-3 text-sm ${
+                                    learningStatus.type === 'error'
+                                        ? 'border-rose-200 bg-rose-50 text-rose-700'
+                                        : learningStatus.type === 'running'
+                                          ? 'border-sky-200 bg-sky-50 text-sky-700'
+                                          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                }`}
+                            >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="font-medium">{learningStatus.phase}</div>
-                                    <div className="text-xs">{learningStatus.progress}%</div>
+                                    <div className="font-medium">
+                                        {learningStatus.phase}
+                                    </div>
+                                    <div className="text-xs">
+                                        {learningStatus.progress}%
+                                    </div>
                                 </div>
                                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70">
                                     <div
                                         className={`h-full rounded-full transition-all duration-300 ${
                                             learningStatus.type === 'error'
                                                 ? 'bg-rose-500'
-                                                : learningStatus.type === 'running'
-                                                    ? 'bg-sky-500'
-                                                    : 'bg-emerald-500'
+                                                : learningStatus.type ===
+                                                    'running'
+                                                  ? 'bg-sky-500'
+                                                  : 'bg-emerald-500'
                                         }`}
-                                        style={{ width: `${learningStatus.progress}%` }}
+                                        style={{
+                                            width: `${learningStatus.progress}%`,
+                                        }}
                                     />
                                 </div>
-                                <div className="mt-2">{learningStatus.message}</div>
+                                <div className="mt-2">
+                                    {learningStatus.message}
+                                </div>
                             </div>
                         ) : null}
                     </CardContent>
@@ -773,22 +1301,28 @@ export default function ProjectShow({
                         title="Completed Assessments by Location"
                         description="Highlights which delivery sites have progressed furthest through expected assessments."
                         items={locations
-                            .map((location) => ({
-                                label: location.location ?? 'Unnamed location',
-                                value:
-                                    location.expected_assessments > 0
-                                        ? Math.round(
-                                              ((location.completed_assessments ??
-                                                  0) /
-                                                  location.expected_assessments) *
-                                                  100,
-                                          )
-                                        : 0,
-                                hint: `${location.completed_assessments ?? 0}/${location.expected_assessments ?? 0} assessments`,
-                                colorClass: location.is_blocked
-                                    ? 'bg-amber-500'
-                                    : 'bg-emerald-500',
-                            }))
+                            .map((location) => {
+                                const expectedAssessments =
+                                    location.expected_assessments ?? 0;
+
+                                return {
+                                    label:
+                                        location.location ?? 'Unnamed location',
+                                    value:
+                                        expectedAssessments > 0
+                                            ? Math.round(
+                                                  ((location.completed_assessments ??
+                                                      0) /
+                                                      expectedAssessments) *
+                                                      100,
+                                              )
+                                            : 0,
+                                    hint: `${location.completed_assessments ?? 0}/${expectedAssessments} assessments`,
+                                    colorClass: location.is_blocked
+                                        ? 'bg-amber-500'
+                                        : 'bg-emerald-500',
+                                };
+                            })
                             .sort((a, b) => b.value - a.value)}
                         emptyMessage="No assessment data is available for project locations yet."
                     />
@@ -828,11 +1362,29 @@ export default function ProjectShow({
                                     onSubmit={handleBrochureVaultUpload}
                                     className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3"
                                 >
-                                    <input type="hidden" name="folder_id" value={brochureRepository.folder_id} />
-                                    <input type="hidden" name="document_type" value="brochure" />
-                                    <input type="hidden" name="audience_scope" value="all_staff" />
-                                    <input type="hidden" name="is_active" value="1" />
-                                    <div className="font-medium text-slate-900">Upload Brochure To Vault</div>
+                                    <input
+                                        type="hidden"
+                                        name="folder_id"
+                                        value={brochureRepository.folder_id}
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="document_type"
+                                        value="brochure"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="audience_scope"
+                                        value="all_staff"
+                                    />
+                                    <input
+                                        type="hidden"
+                                        name="is_active"
+                                        value="1"
+                                    />
+                                    <div className="font-medium text-slate-900">
+                                        Upload Brochure To Vault
+                                    </div>
                                     <input
                                         name="title"
                                         placeholder="Brochure title"
@@ -854,12 +1406,16 @@ export default function ProjectShow({
                                         <div className="rounded-md border bg-white p-2">
                                             <div className="flex items-center justify-between text-xs text-muted-foreground">
                                                 <span>Uploading brochure</span>
-                                                <span>{brochureUploadProgress}%</span>
+                                                <span>
+                                                    {brochureUploadProgress}%
+                                                </span>
                                             </div>
                                             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
                                                 <div
                                                     className="h-full rounded-full bg-red-600 transition-all"
-                                                    style={{ width: `${brochureUploadProgress}%` }}
+                                                    style={{
+                                                        width: `${brochureUploadProgress}%`,
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -870,7 +1426,9 @@ export default function ProjectShow({
                                             disabled={brochureVaultBusy}
                                             className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
-                                            {brochureVaultBusy ? 'Uploading...' : 'Upload And Publish'}
+                                            {brochureVaultBusy
+                                                ? 'Uploading...'
+                                                : 'Upload And Publish'}
                                         </button>
                                         <Link
                                             href={brochureRepository.href}
@@ -999,7 +1557,7 @@ export default function ProjectShow({
                                 {statusSummary?.allowed_transitions?.length ? (
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {statusSummary.allowed_transitions.map(
-                                            (transition: any) => (
+                                            (transition: StatusTransition) => (
                                                 <span
                                                     key={transition.status}
                                                     className={`rounded-full border px-2.5 py-1 text-xs font-medium ${readinessTone(transition.ready)}`}
@@ -1171,6 +1729,23 @@ export default function ProjectShow({
                                                 {loc.completed_assessments ?? 0}
                                                 /{loc.expected_assessments ?? 0}
                                             </div>
+
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                <Link
+                                                    href={`/project-locations/${loc.id}/progress`}
+                                                    className="inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
+                                                >
+                                                    <ClipboardCheck className="h-4 w-4" />
+                                                    Record milestone performance
+                                                </Link>
+                                                <Link
+                                                    href={`/project-locations/${loc.id}/attendance`}
+                                                    className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                                >
+                                                    <CalendarCheck2 className="h-4 w-4" />
+                                                    Open attendance
+                                                </Link>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1329,23 +1904,43 @@ export default function ProjectShow({
                             ) : null}
 
                             {milestones.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    No milestones attached yet.
-                                </p>
-                            ) : (
-                                <ul className="space-y-2 text-sm">
-                                    {milestones.map((m) => (
-                                        <li
-                                            key={m.id}
-                                            className="flex items-center justify-between"
+                                <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                    <p>
+                                        No milestones are attached to this
+                                        project yet. Program milestones must
+                                        exist before they can be attached here.
+                                    </p>
+                                    {canAttachMilestones &&
+                                    projectData.program_id ? (
+                                        <Link
+                                            href={`/milestone-templates/programs/${projectData.program_id}`}
+                                            className="inline-flex rounded-md border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-100"
                                         >
-                                            <span>{m.title}</span>
-                                            <span className="text-muted-foreground">
-                                                Max: {m.max_score ?? '-'}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
+                                            Manage program milestone templates
+                                        </Link>
+                                    ) : null}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <ul className="space-y-2 text-sm">
+                                        {milestones.map((m) => (
+                                            <li
+                                                key={m.id}
+                                                className="flex items-center justify-between rounded-md border px-3 py-2"
+                                            >
+                                                <span>{m.title}</span>
+                                                <span className="text-muted-foreground">
+                                                    Max: {m.max_score ?? '-'}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <p className="text-xs text-muted-foreground">
+                                        Use each location's Record milestone
+                                        performance action to score
+                                        beneficiaries against these milestones.
+                                    </p>
+                                </div>
                             )}
                         </CardContent>
                     </Card>

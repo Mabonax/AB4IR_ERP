@@ -18,6 +18,15 @@ class ProjectMilestone extends Model
         'description',
         'sort_order',
         'max_score',
+        'is_required',
+        'is_active',
+        'pass_mark',
+        'expected_timing',
+    ];
+
+    protected $casts = [
+        'is_required' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function project()

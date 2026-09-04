@@ -1,4 +1,4 @@
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import AppLayout from "@/layouts/app-layout";
 import { eventSeriesNav } from "@/pages/Events/navigation";
 import { type BreadcrumbItem } from "@/types";
+import { type SharedData } from "@/types";
 
 const statusLabels: Record<string, string> = {
   planned: "Planned",
@@ -34,8 +35,29 @@ export default function EventSeriesShow({
   series,
 }: {
   series: {
+    id: number;
+    name?: string;
+    slug: string;
     series_key: string;
     title: string | null;
+    description?: string | null;
+    objectives?: string | null;
+    default_title_pattern?: string | null;
+    default_event_type?: string | null;
+    default_format?: string | null;
+    default_theme?: string | null;
+    status?: string;
+    next_iteration_year?: number;
+    document_folder?: { id: number; name: string; href: string } | null;
+    assets?: Array<{
+      id: number;
+      asset_type: string;
+      label: string | null;
+      year: number | null;
+      is_featured: boolean;
+      document: { title: string; original_name: string; mime_type: string | null; download_url: string; preview_url: string } | null;
+    }>;
+    repository_files?: Array<{ id: number; title: string; original_name: string; mime_type: string | null; status: string | null }>;
     event_type: string | null;
     theme: string | null;
     track_name: string | null;
@@ -67,6 +89,8 @@ export default function EventSeriesShow({
     }>;
   };
 }) {
+  const { auth } = usePage<SharedData>().props;
+  const canManage = (auth?.user?.permissions ?? []).includes("domain.events.manage");
   const breadcrumbs: BreadcrumbItem[] = [
     { title: "Events", href: "/events" },
     { title: series.title ?? "Series", href: `/events/series/${series.series_key}` },
@@ -89,6 +113,16 @@ export default function EventSeriesShow({
           </div>
           <div className="flex items-center gap-3">
             <DomainNav items={eventSeriesNav(series.series_key)} />
+            {series.document_folder ? (
+              <Link href={series.document_folder.href}>
+                <Button variant="outline">Open Repository</Button>
+              </Link>
+            ) : null}
+            {series.id ? (
+              <Link href={`/event-series/${series.slug}/iterations/create`}>
+                <Button className="bg-red-600 text-white hover:bg-red-700">Create {series.next_iteration_year ?? "Next"} Iteration</Button>
+              </Link>
+            ) : null}
             <Link href="/events">
               <Button variant="outline">Back to Events</Button>
             </Link>
@@ -112,6 +146,85 @@ export default function EventSeriesShow({
             </Card>
           ))}
         </div>
+
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle>Series Identity and Assets</CardTitle>
+            <CardDescription>Reusable identity lives on the event line. Year-specific posters and media remain tied to their matching iteration or classified with a year.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 lg:grid-cols-[1fr,1.2fr]">
+            <div className="grid gap-3 text-sm">
+              {[
+                ["Status", series.status ?? "active"],
+                ["Default title", series.default_title_pattern ?? "-"],
+                ["Default type", series.default_event_type ?? series.event_type ?? "-"],
+                ["Default format", series.default_format ?? "-"],
+                ["Default theme", series.default_theme ?? series.theme ?? "-"],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+                  <div className="mt-1 font-medium text-slate-950">{String(value)}</div>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-3">
+              {canManage && (series.repository_files ?? []).length > 0 ? (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    router.post(`/event-series/${series.slug}/assets`, new FormData(event.currentTarget), {
+                      forceFormData: true,
+                      preserveScroll: true,
+                    });
+                  }}
+                  className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2"
+                >
+                  <select name="document_file_id" className="h-10 rounded-md border px-3 text-sm">
+                    {(series.repository_files ?? []).map((file) => (
+                      <option key={file.id} value={file.id}>{file.title}</option>
+                    ))}
+                  </select>
+                  <select name="asset_type" className="h-10 rounded-md border px-3 text-sm">
+                    <option value="logo">Logo</option>
+                    <option value="brand_guideline">Brand Guideline</option>
+                    <option value="historical_poster">Historical Poster</option>
+                    <option value="reusable_artwork">Reusable Artwork</option>
+                    <option value="sponsor_material">Sponsor Material</option>
+                    <option value="programme_template">Programme Template</option>
+                    <option value="media">Media</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input name="label" className="h-10 rounded-md border px-3 text-sm" placeholder="Display label" />
+                  <input name="year" type="number" className="h-10 rounded-md border px-3 text-sm" placeholder="Year, if applicable" />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="is_featured" value="1" />
+                    Featured asset
+                  </label>
+                  <Button type="submit" size="sm" className="bg-red-600 text-white hover:bg-red-700">Classify Asset</Button>
+                </form>
+              ) : null}
+              {(series.assets ?? []).length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">
+                  No reusable series assets have been classified yet. Upload files in the series repository, then classify logos, posters, artwork, or media here.
+                </div>
+              ) : (
+                (series.assets ?? []).slice(0, 6).map((asset) => (
+                  <a key={asset.id} href={asset.document?.download_url ?? "#"} className="block rounded-xl border border-slate-200 bg-white p-4 hover:border-orange-300">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-medium text-slate-950">{asset.label ?? asset.document?.title ?? "Series asset"}</div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {[asset.asset_type.replaceAll("_", " "), asset.year, asset.document?.original_name].filter(Boolean).join(" | ")}
+                        </div>
+                      </div>
+                      {asset.is_featured ? <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-700">Featured</span> : null}
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-slate-200 shadow-sm">
           <CardHeader>

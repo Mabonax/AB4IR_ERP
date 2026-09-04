@@ -1,12 +1,11 @@
 <?php
 
 use App\Domains\BusinessDevelopment\Adjudication\Models\AdjudicationAssessment;
-use App\Domains\BusinessDevelopment\Services\BdsApplicationService;
+use App\Domains\BusinessDevelopment\Services\BdsPitchSessionService;
 use App\Models\User;
 use Database\Seeders\AdjudicationSectionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -91,9 +90,31 @@ function scorePayload(): array
     ])->all();
 }
 
+function createPitchSessionForAdjudication(User $judge, int $smmeId): int
+{
+    grantPermissions($judge, ['business-development.adjudications.score']);
+
+    $chair = createUserWithBusinessDevelopmentPermission(asAdmin: true);
+
+    DB::table('bds_applications')->where('id', $smmeId)->update([
+        'assessment_status' => 'accepted',
+        'updated_at' => now(),
+    ]);
+
+    return app(BdsPitchSessionService::class)->createSession([
+        'title' => 'Adjudication Panel',
+        'scheduled_for' => now()->addDays(2)->toDateTimeString(),
+        'venue' => 'Boardroom',
+        'chair_panelist_id' => $chair->id,
+        'panelists' => [$chair->id, $judge->id],
+        'prospects' => [$smmeId],
+    ], $chair)->id;
+}
+
 test('judge can use adjudication resource routes', function () {
     $judge = createUserWithBusinessDevelopmentPermission();
     $smmeId = createSmmeApplication();
+    $pitchSessionId = createPitchSessionForAdjudication($judge, $smmeId);
 
     $this->actingAs($judge)
         ->get(route('business-development.adjudications.index'))
@@ -105,6 +126,7 @@ test('judge can use adjudication resource routes', function () {
 
     $storeResponse = $this->actingAs($judge)->post(route('business-development.adjudications.store'), [
         'smme_id' => $smmeId,
+        'pitch_session_id' => $pitchSessionId,
         'platform_name' => 'Acme Platform',
         'adjudication_date' => now()->toDateString(),
         'development_stage' => 'prototype',
@@ -127,6 +149,7 @@ test('judge can use adjudication resource routes', function () {
     $this->actingAs($judge)
         ->put(route('business-development.adjudications.update', $assessment), [
             'smme_id' => $smmeId,
+            'pitch_session_id' => $pitchSessionId,
             'platform_name' => 'Acme Platform Updated',
             'adjudication_date' => now()->toDateString(),
             'development_stage' => 'complete_product',
@@ -143,6 +166,7 @@ test('judge can use adjudication resource routes', function () {
 test('score-only panelist can use adjudication routes for owned assessments', function () {
     $judge = createScoreOnlyJudge();
     $smmeId = createSmmeApplication();
+    $pitchSessionId = createPitchSessionForAdjudication($judge, $smmeId);
 
     $this->actingAs($judge)
         ->get(route('business-development.adjudications.index'))
@@ -155,6 +179,7 @@ test('score-only panelist can use adjudication routes for owned assessments', fu
     $this->actingAs($judge)
         ->post(route('business-development.adjudications.store'), [
             'smme_id' => $smmeId,
+            'pitch_session_id' => $pitchSessionId,
             'platform_name' => 'Panel Platform',
             'adjudication_date' => now()->toDateString(),
             'development_stage' => 'prototype',
@@ -176,6 +201,7 @@ test('score-only panelist can use adjudication routes for owned assessments', fu
     $this->actingAs($judge)
         ->put(route('business-development.adjudications.update', $assessment), [
             'smme_id' => $smmeId,
+            'pitch_session_id' => $pitchSessionId,
             'platform_name' => 'Panel Platform Updated',
             'adjudication_date' => now()->toDateString(),
             'development_stage' => 'complete_product',
@@ -194,9 +220,11 @@ test('score-only panelist can use adjudication routes for owned assessments', fu
 test('assessment cannot be updated after submit', function () {
     $judge = createUserWithBusinessDevelopmentPermission();
     $smmeId = createSmmeApplication();
+    $pitchSessionId = createPitchSessionForAdjudication($judge, $smmeId);
 
     $assessment = AdjudicationAssessment::query()->create([
         'smme_id' => $smmeId,
+        'pitch_session_id' => $pitchSessionId,
         'judge_id' => $judge->id,
         'platform_name' => 'Locked Platform',
         'adjudication_date' => now()->toDateString(),
@@ -208,6 +236,7 @@ test('assessment cannot be updated after submit', function () {
     $this->actingAs($judge)
         ->put(route('business-development.adjudications.update', $assessment), [
             'smme_id' => $smmeId,
+            'pitch_session_id' => $pitchSessionId,
             'platform_name' => 'Before submit update',
             'adjudication_date' => now()->toDateString(),
             'development_stage' => 'prototype',
@@ -225,6 +254,7 @@ test('assessment cannot be updated after submit', function () {
     $this->actingAs($judge)
         ->put(route('business-development.adjudications.update', $assessment), [
             'smme_id' => $smmeId,
+            'pitch_session_id' => $pitchSessionId,
             'platform_name' => 'Should fail',
             'adjudication_date' => now()->toDateString(),
             'development_stage' => 'prototype',
@@ -234,12 +264,14 @@ test('assessment cannot be updated after submit', function () {
         ->assertForbidden();
 });
 
-test('submitting adjudication as incubated creates incubatee and updates application result', function () {
+test('submitting a pitch session scorecard does not create the final manager outcome', function () {
     $judge = createUserWithBusinessDevelopmentPermission();
     $smmeId = createSmmeApplication();
+    $pitchSessionId = createPitchSessionForAdjudication($judge, $smmeId);
 
     $assessment = AdjudicationAssessment::query()->create([
         'smme_id' => $smmeId,
+        'pitch_session_id' => $pitchSessionId,
         'judge_id' => $judge->id,
         'platform_name' => 'Outcome Platform',
         'adjudication_date' => now()->toDateString(),
@@ -256,22 +288,16 @@ test('submitting adjudication as incubated creates incubatee and updates applica
 
     $this->assertDatabaseHas('bds_applications', [
         'id' => $smmeId,
-        'adjudication_result' => 'incubated',
+        'adjudication_result' => null,
     ]);
 
-    $application = DB::table('bds_applications')->where('id', $smmeId)->first();
-
-    $this->assertDatabaseHas('bds_incubatees', [
-        'bds_application_id' => $smmeId,
-        'id_number' => $application->id_number,
-        'company_registration_number' => $application->company_registration_number,
-        'status' => 'active',
-    ]);
+    expect(DB::table('bds_incubatees')->where('bds_application_id', $smmeId)->exists())->toBeFalse();
 });
 
 test('score validation respects section max points', function () {
     $judge = createUserWithBusinessDevelopmentPermission();
     $smmeId = createSmmeApplication();
+    $pitchSessionId = createPitchSessionForAdjudication($judge, $smmeId);
 
     $scores = scorePayload();
     $scores[0]['score'] = 999;
@@ -279,6 +305,7 @@ test('score validation respects section max points', function () {
     $this->actingAs($judge)
         ->post(route('business-development.adjudications.store'), [
             'smme_id' => $smmeId,
+            'pitch_session_id' => $pitchSessionId,
             'platform_name' => 'Validation Platform',
             'adjudication_date' => now()->toDateString(),
             'development_stage' => 'prototype',
@@ -291,6 +318,7 @@ test('score validation respects section max points', function () {
 test('total score is recalculated server side', function () {
     $judge = createUserWithBusinessDevelopmentPermission();
     $smmeId = createSmmeApplication();
+    $pitchSessionId = createPitchSessionForAdjudication($judge, $smmeId);
 
     $scores = scorePayload();
     $scores[0]['score'] = 10;
@@ -300,6 +328,7 @@ test('total score is recalculated server side', function () {
 
     $this->actingAs($judge)->post(route('business-development.adjudications.store'), [
         'smme_id' => $smmeId,
+        'pitch_session_id' => $pitchSessionId,
         'platform_name' => 'Total Platform',
         'adjudication_date' => now()->toDateString(),
         'development_stage' => 'prototype',
@@ -316,9 +345,11 @@ test('admin can view all assessments and unlock submitted ones', function () {
     $judge = createUserWithBusinessDevelopmentPermission();
     $admin = createUserWithBusinessDevelopmentPermission(asAdmin: true);
     $smmeId = createSmmeApplication();
+    $pitchSessionId = createPitchSessionForAdjudication($judge, $smmeId);
 
     $assessment = AdjudicationAssessment::query()->create([
         'smme_id' => $smmeId,
+        'pitch_session_id' => $pitchSessionId,
         'judge_id' => $judge->id,
         'platform_name' => 'Submitted Platform',
         'adjudication_date' => now()->toDateString(),
@@ -375,21 +406,18 @@ test('applications with submitted adjudications cannot be reassessed', function 
         ->assertForbidden();
 });
 
-test('pitch scheduling must use a future date and time', function () {
+test('applications do not expose direct pitch scheduling routes', function () {
     $judge = createUserWithBusinessDevelopmentPermission(asAdmin: true);
     $smmeId = createSmmeApplication();
 
-    DB::table('bds_applications')->where('id', $smmeId)->update([
-        'assessment_status' => 'accepted',
-        'updated_at' => now(),
-    ]);
+    expect(app('router')->getRoutes()->hasNamedRoute('business-development.applications.schedule-pitch'))->toBeFalse();
 
-    $this->actingAs($judge);
-
-    expect(fn () => app(BdsApplicationService::class)->schedulePitch($smmeId, [
-        'pitch_scheduled_at' => now()->subDay()->toDateTimeString(),
-        'pitch_notes' => 'Too late',
-    ]))->toThrow(ValidationException::class);
+    $this->actingAs($judge)
+        ->post("/business-development/applications/{$smmeId}/schedule-pitch", [
+            'pitch_scheduled_at' => now()->addDay()->toDateTimeString(),
+            'pitch_notes' => 'Must be handled by pitch sessions.',
+        ])
+        ->assertNotFound();
 });
 
 test('application resource exposes workflow blockers before pitching and adjudication', function () {
@@ -405,6 +433,6 @@ test('application resource exposes workflow blockers before pitching and adjudic
     expect($application)->not->toBeNull();
     expect($application['workflow_summary']['pitch']['ready'])->toBeFalse();
     expect($application['workflow_summary']['adjudication']['ready'])->toBeFalse();
-    expect($application['workflow_summary']['pitch']['blockers'])->toContain('Only accepted applications can be scheduled for pitching.');
-    expect($application['workflow_summary']['adjudication']['blockers'])->toContain('A pitch must be scheduled before adjudication can start.');
+    expect($application['workflow_summary']['pitch']['blockers'])->toContain('Only accepted applications can be scheduled through a pitch session.');
+    expect($application['workflow_summary']['adjudication']['blockers'])->toContain('A pitch session must be scheduled before adjudication can start.');
 });

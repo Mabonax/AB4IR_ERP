@@ -21,6 +21,7 @@ class StoreBdsPitchSessionRequest extends FormRequest
             'notes' => ['nullable', 'string'],
             'panelists' => ['required', 'array', 'min:2'],
             'panelists.*' => ['integer', 'distinct', 'exists:users,id'],
+            'chair_panelist_id' => ['nullable', 'integer', 'exists:users,id'],
             'prospects' => ['required', 'array', 'min:1'],
             'prospects.*' => ['integer', 'distinct', 'exists:bds_applications,id'],
         ];

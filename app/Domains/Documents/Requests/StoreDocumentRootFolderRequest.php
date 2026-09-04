@@ -5,6 +5,7 @@ namespace App\Domains\Documents\Requests;
 use App\Domains\Assets\Models\Asset;
 use App\Domains\Beneficiaries\Models\Beneficiary;
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventSeries;
 use App\Domains\Marketing\Models\MarketingAsset;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Programs\Models\Program;
@@ -33,6 +34,7 @@ class StoreDocumentRootFolderRequest extends FormRequest
                 Project::class,
                 ProjectLocation::class,
                 Event::class,
+                EventSeries::class,
                 Beneficiary::class,
                 Stakeholder::class,
                 Asset::class,

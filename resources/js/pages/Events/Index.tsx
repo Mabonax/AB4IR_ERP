@@ -26,6 +26,7 @@ type EventRow = {
   title: string;
   event_type: string | null;
   event_year: number | null;
+  event_series_id: number | null;
   annual_series_key: string | null;
   location: string | null;
   venue_name: string | null;
@@ -51,6 +52,28 @@ type EventRow = {
   closure_report?: {
     id: number;
   } | null;
+};
+
+type EventSeriesRow = {
+  id: number;
+  name: string;
+  slug: string;
+  series_key: string;
+  status: string;
+  next_iteration_year: number;
+  latest_iteration: { event_type: string | null } | null;
+  stats: {
+    iterations: number;
+    completed_events: number;
+    active_events: number;
+    total_participants: number;
+    latest_year: number | null;
+  };
+  assets: Array<{
+    asset_type: string;
+    is_featured: boolean;
+    document: { preview_url: string; download_url: string; title: string; mime_type: string | null } | null;
+  }>;
 };
 
 const statusLabels: Record<string, string> = {
@@ -110,9 +133,11 @@ function formatDateRange(startDate?: string | null, endDate?: string | null): st
 
 export default function EventsIndex({
   events,
+  eventSeries = [],
   stats,
 }: {
   events: { data: EventRow[] };
+  eventSeries?: EventSeriesRow[];
   stats: {
     total_events: number;
     planned_events: number;
@@ -144,11 +169,35 @@ export default function EventsIndex({
         participants: number;
         completed: number;
         active: number;
+        status?: string;
+        latest_year?: number | null;
+        next_iteration_year?: number | null;
+        featured_asset?: EventSeriesRow["assets"][number]["document"];
+        iterations?: number;
+        is_database_backed?: boolean;
       }
     >();
 
+    for (const series of eventSeries) {
+      grouped.set(series.series_key, {
+        key: series.slug,
+        title: series.name,
+        event_type: series.latest_iteration?.event_type ?? null,
+        years: [],
+        participants: series.stats.total_participants,
+        completed: series.stats.completed_events,
+        active: series.stats.active_events,
+        status: series.status,
+        latest_year: series.stats.latest_year,
+        next_iteration_year: series.next_iteration_year,
+        featured_asset: series.assets.find((asset) => asset.is_featured && asset.document)?.document ?? null,
+        iterations: series.stats.iterations,
+        is_database_backed: true,
+      });
+    }
+
     for (const event of portfolio) {
-      if (!event.annual_series_key) {
+      if (!event.annual_series_key || event.event_series_id) {
         continue;
       }
 
@@ -179,8 +228,8 @@ export default function EventsIndex({
         ...series,
         years: [...series.years].sort((a, b) => (b.event_year ?? 0) - (a.event_year ?? 0)),
       }))
-      .sort((a, b) => (b.years[0]?.event_year ?? 0) - (a.years[0]?.event_year ?? 0));
-  }, [portfolio]);
+      .sort((a, b) => (b.latest_year ?? b.years[0]?.event_year ?? 0) - (a.latest_year ?? a.years[0]?.event_year ?? 0));
+  }, [eventSeries, portfolio]);
 
   const standaloneEvents = useMemo(
     () =>
@@ -233,10 +282,10 @@ export default function EventsIndex({
 
               <div className="flex flex-wrap items-center gap-3">
                 {canManage ? (
-                  <Link href="/events/create">
+                  <Link href="/event-series/create">
                     <Button className="bg-red-600 text-white hover:bg-red-700">
                       <Plus className="h-4 w-4" />
-                      Add Event
+                      Add Event Line
                     </Button>
                   </Link>
                 ) : null}
@@ -368,12 +417,19 @@ export default function EventsIndex({
                         <Link href={`/events/series/${series.key}`}>
                           <Button variant="outline" size="sm">Open Event Line</Button>
                         </Link>
+                        {canManage && series.is_database_backed ? (
+                          <Link href={`/event-series/${series.key}/iterations/create`}>
+                            <Button size="sm" className="bg-red-600 text-white hover:bg-red-700">
+                              Create {series.next_iteration_year ?? "Next"} Iteration
+                            </Button>
+                          </Link>
+                        ) : null}
                       </div>
 
                       <div className="mt-4 grid gap-3 sm:grid-cols-4">
                         <div className="rounded-xl bg-slate-50 p-3">
                           <div className="text-xs uppercase tracking-wide text-slate-500">Years</div>
-                          <div className="mt-1 text-sm font-medium text-slate-900">{series.years.length}</div>
+                          <div className="mt-1 text-sm font-medium text-slate-900">{series.iterations ?? series.years.length}</div>
                         </div>
                         <div className="rounded-xl bg-slate-50 p-3">
                           <div className="text-xs uppercase tracking-wide text-slate-500">Participants</div>
@@ -392,7 +448,9 @@ export default function EventsIndex({
                       <div className="mt-4">
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Choose a Year</div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {series.years.map((year) => (
+                          {series.years.length === 0 ? (
+                            <span className="text-sm text-slate-500">Open the event line for its database-backed iteration history.</span>
+                          ) : series.years.map((year) => (
                             <Link key={year.id} href={`/events/${year.id}`}>
                               <Button variant="outline" size="sm">
                                 {year.event_year ?? "Event"} • {statusLabels[year.status] ?? year.status.replaceAll("_", " ")}

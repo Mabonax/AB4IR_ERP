@@ -85,26 +85,48 @@ class ProjectService
         });
     }
 
-    public function syncProgramMilestones(Project $project): void
+    public function syncProgramMilestones(Project $project): array
     {
         $templates = ProgramMilestoneTemplate::where('program_id', $project->program_id)
+            ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
 
+        $added = 0;
+
         foreach ($templates as $template) {
-            ProjectMilestone::updateOrCreate(
+            $exists = ProjectMilestone::query()
+                ->where('project_id', $project->id)
+                ->where('program_milestone_template_id', $template->id)
+                ->exists();
+
+            if ($exists) {
+                continue;
+            }
+
+            ProjectMilestone::query()->create(
                 [
                     'project_id' => $project->id,
                     'program_milestone_template_id' => $template->id,
-                ],
-                [
                     'title' => $template->title,
                     'description' => $template->description,
                     'sort_order' => $template->sort_order,
                     'max_score' => $template->max_score,
+                    'is_required' => $template->is_required,
+                    'is_active' => $template->is_active,
+                    'pass_mark' => $template->pass_mark,
+                    'expected_timing' => $template->expected_timing,
                 ]
             );
+
+            $added++;
         }
+
+        return [
+            'available' => $templates->count(),
+            'attached' => ProjectMilestone::query()->where('project_id', $project->id)->count(),
+            'added' => $added,
+        ];
     }
 
     public function updateProject(int $id, array $data, ?User $actor = null): Project
@@ -290,7 +312,7 @@ class ProjectService
             $blockers[] = 'A project needs at least one location before it can become active.';
         }
 
-        if (! $project->milestones->isNotEmpty()) {
+        if (! $project->milestones->where('is_active', true)->isNotEmpty()) {
             $blockers[] = 'A project needs at least one milestone before it can become active.';
         }
 
@@ -310,7 +332,11 @@ class ProjectService
 
         $blockers = [...$blockers, ...$this->activationBlockers($project)];
 
-        $milestoneIds = $project->milestones->pluck('id')->all();
+        $milestoneIds = $project->milestones
+            ->where('is_active', true)
+            ->where('is_required', true)
+            ->pluck('id')
+            ->all();
 
         if ($milestoneIds === []) {
             return array_values(array_unique($blockers));

@@ -45,7 +45,7 @@ export default function CreateAdjudication({
 
   const form = useForm({
     smme_id: initial_smme_id ?? smmes[0]?.id ?? 0,
-    pitch_session_id: initial_pitch_session_id ?? "",
+    pitch_session_id: initial_pitch_session_id ?? pitch_sessions[0]?.id ?? 0,
     platform_name: "",
     adjudication_date: new Date().toISOString().slice(0, 10),
     development_stage: "mvp" as "mvp" | "prototype" | "complete_product",
@@ -146,12 +146,11 @@ export default function CreateAdjudication({
                 onChange={(e) =>
                   form.setData(
                     "pitch_session_id",
-                    e.currentTarget.value ? Number(e.currentTarget.value) : ""
+                    Number(e.currentTarget.value)
                   )
                 }
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">Independent adjudication</option>
                 {pitch_sessions.map((session) => (
                   <option key={session.id} value={session.id}>
                     {session.title}
@@ -159,6 +158,11 @@ export default function CreateAdjudication({
                   </option>
                 ))}
               </select>
+              {pitch_sessions.length === 0 ? (
+                <p className="mt-1 text-sm text-amber-700">
+                  You must be assigned to a scheduled pitch session before creating a scorecard.
+                </p>
+              ) : null}
             </div>
           </section>
 
@@ -227,7 +231,7 @@ export default function CreateAdjudication({
           </section>
 
           <div className="flex items-center gap-2">
-            <Button type="submit" disabled={form.processing}>
+            <Button type="submit" disabled={form.processing || pitch_sessions.length === 0}>
               Save Draft
             </Button>
           </div>

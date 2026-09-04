@@ -4,6 +4,9 @@ namespace App\Domains\BusinessDevelopment\Controllers;
 
 use App\Domains\BusinessDevelopment\Models\BdsApplication;
 use App\Domains\BusinessDevelopment\Models\BdsIncubatee;
+use App\Domains\BusinessDevelopment\Models\EnterpriseDevelopmentNeed;
+use App\Domains\BusinessDevelopment\Models\EnterpriseDevelopmentPlan;
+use App\Domains\BusinessDevelopment\Models\EnterpriseDiagnostic;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 
@@ -117,6 +120,16 @@ class BdsDashboardController extends Controller
                 'totalIncubatees' => BdsIncubatee::count(),
                 'activeIncubatees' => BdsIncubatee::where('status', 'active')->count(),
                 'inactiveIncubatees' => BdsIncubatee::where('status', 'inactive')->count(),
+                'baselinePending' => BdsIncubatee::whereDoesntHave('enterpriseDiagnostics', fn ($query) => $query->where('assessment_type', 'baseline'))->count(),
+                'diagnosticsInProgress' => EnterpriseDiagnostic::whereIn('status', ['draft', 'in_progress'])->count(),
+                'activeDevelopmentPlans' => EnterpriseDevelopmentPlan::where('status', 'active')->count(),
+                'highPriorityDevelopmentNeeds' => EnterpriseDevelopmentNeed::where('priority', 'high')->whereIn('status', ['open', 'planned', 'in_progress'])->count(),
+                'complianceAttentionRequired' => EnterpriseDiagnostic::query()
+                    ->where('status', 'completed')
+                    ->whereHas('criteria', fn ($query) => $query
+                        ->where('dimension_code', 'compliance_governance')
+                        ->whereIn('maturity_status', ['not_started', 'emerging', 'developing']))
+                    ->count(),
             ],
             'activities' => $activityRows,
         ]);

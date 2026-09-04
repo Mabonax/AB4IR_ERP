@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -279,6 +280,113 @@ test('milestone assessment service derives failed or completed status from score
         'score' => 8,
         'status' => 'completed',
     ]);
+});
+
+test('milestone assessment service uses the configured pass mark when deriving status', function () {
+    $graph = makeWorkflowGraph();
+    $graph['milestone']->update([
+        'max_score' => 10,
+        'pass_mark' => 8,
+    ]);
+    $service = app(ProjectMilestoneAssessmentService::class);
+
+    $assessment = $service->storeAssessment($graph['location'], $graph['milestone']->fresh(), [
+        'beneficiary_id' => $graph['beneficiary']->id,
+        'score' => 7,
+        'comments' => 'Below custom threshold',
+    ], $graph['facilitator']);
+
+    expect($assessment->status)->toBe('failed');
+
+    $assessment = $service->storeAssessment($graph['location'], $graph['milestone']->fresh(), [
+        'beneficiary_id' => $graph['beneficiary']->id,
+        'score' => 8,
+        'comments' => 'Meets custom threshold',
+    ], $graph['facilitator']);
+
+    expect($assessment->status)->toBe('completed');
+});
+
+test('milestone assessment service can save a milestone score for multiple beneficiaries at one location', function () {
+    $graph = makeWorkflowGraph();
+    $service = app(ProjectMilestoneAssessmentService::class);
+
+    $secondBeneficiary = \App\Domains\Beneficiaries\Models\Beneficiary::query()->create([
+        'name' => 'Beth',
+        'surname' => 'Second',
+        'dob' => now()->subYears(22),
+        'age' => 22,
+        'id_number' => fake()->unique()->numerify('#############'),
+        'email' => 'beneficiary-second-'.Str::lower(Str::random(8)).'@example.com',
+        'phone' => '0733333333',
+        'gender' => 'female',
+        'project_id' => $graph['project']->id,
+        'attendance_status' => 'active',
+        'next_of_kin_id' => \App\Models\NextOfKin::query()->value('id'),
+    ]);
+
+    ProjectEnrollment::query()->create([
+        'project_id' => $graph['project']->id,
+        'project_location_id' => $graph['location']->id,
+        'beneficiary_id' => $secondBeneficiary->id,
+        'status' => 'enrolled',
+        'enrolled_at' => now(),
+    ]);
+
+    $assessments = $service->storeBulkAssessments($graph['location']->fresh('project', 'enrollments.beneficiary'), $graph['milestone'], [
+        [
+            'beneficiary_id' => $graph['beneficiary']->id,
+            'score' => 9,
+            'comments' => 'Strong',
+        ],
+        [
+            'beneficiary_id' => $secondBeneficiary->id,
+            'score' => 4,
+            'comments' => 'Needs support',
+        ],
+    ], $graph['facilitator']);
+
+    expect($assessments)->toHaveCount(2);
+
+    $this->assertDatabaseHas('project_milestone_assessments', [
+        'beneficiary_id' => $graph['beneficiary']->id,
+        'status' => 'completed',
+    ]);
+
+    $this->assertDatabaseHas('project_milestone_assessments', [
+        'beneficiary_id' => $secondBeneficiary->id,
+        'status' => 'failed',
+    ]);
+});
+
+test('location progress page exposes milestone and beneficiary assessment workspace props', function () {
+    $graph = makeWorkflowGraph();
+    grantDomainAccess($graph['managerUser'], 'projects');
+
+    $service = app(ProjectMilestoneAssessmentService::class);
+    $service->storeAssessment($graph['location'], $graph['milestone'], [
+        'beneficiary_id' => $graph['beneficiary']->id,
+        'score' => 8,
+        'comments' => 'Ready',
+    ], $graph['facilitator']);
+
+    $this->actingAs($graph['managerUser'])
+        ->get(route('project-locations.progress', $graph['location']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('ProjectLocations/Progress')
+            ->where('location.id', $graph['location']->id)
+            ->where('summary.beneficiaries_enrolled', 1)
+            ->where('summary.milestones_attached', 1)
+            ->where('summary.assessments_completed', 1)
+            ->where('summary.passed_assessments', 1)
+            ->where('canAssess', true)
+            ->where('assessmentUnavailableMessage', null)
+            ->has('milestoneOptions', 1)
+            ->has('beneficiaries', 1)
+            ->where('beneficiaries.0.status', 'Passed')
+            ->where('beneficiaries.0.assessments.'.$graph['milestone']->id.'.status', 'completed')
+        );
 });
 
 test('milestone assessment service rejects scores above the milestone maximum', function () {

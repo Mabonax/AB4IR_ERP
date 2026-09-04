@@ -29,6 +29,13 @@ class EventTask extends Model
         'evidence_file_size',
         'evidence_url',
         'completed_at',
+        'completion_status',
+        'submitted_for_verification_at',
+        'submitted_by_user_id',
+        'manager_review_notes',
+        'reviewed_at',
+        'reviewed_by_user_id',
+        'returned_for_amendments_at',
         'sort_order',
     ];
 
@@ -36,10 +43,28 @@ class EventTask extends Model
         'due_date' => 'date:Y-m-d',
         'is_custom' => 'boolean',
         'completed_at' => 'datetime',
+        'submitted_for_verification_at' => 'datetime',
+        'reviewed_at' => 'datetime',
+        'returned_for_amendments_at' => 'datetime',
     ];
 
     public function workstream()
     {
         return $this->belongsTo(EventWorkstream::class, 'event_workstream_id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(EventTaskAttachment::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function submittedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'submitted_by_user_id');
+    }
+
+    public function reviewedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'reviewed_by_user_id');
     }
 }

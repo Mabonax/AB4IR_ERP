@@ -66,6 +66,17 @@ class ProjectLearningDeliveryService
         $items = $beneficiaries->map(function (Beneficiary $beneficiary) use ($project, $mapping) {
             $eligibility = $this->beneficiaryEligibility($project, $beneficiary);
             $summary = $this->lms->beneficiarySummary($beneficiary);
+            $lmsStatus = $summary['access_state'] ?? $summary['lms_access'] ?? 'unavailable';
+
+            if ($mapping && $lmsStatus === 'active') {
+                $currentOfferingIds = collect($summary['current_offerings'] ?? [])
+                    ->pluck('id')
+                    ->map(fn ($id) => (string) $id);
+
+                $lmsStatus = $currentOfferingIds->contains((string) $mapping->lms_offering_id)
+                    ? 'enrolled'
+                    : 'cohort_enrollment_pending';
+            }
 
             return [
                 'erp_beneficiary_id' => $beneficiary->id,
@@ -74,7 +85,7 @@ class ProjectLearningDeliveryService
                 'project_status' => $beneficiary->projectEnrollments->firstWhere('project_id', $project->id)?->status,
                 'eligible' => $eligibility['eligible'],
                 'reason' => $mapping ? $eligibility['reason'] : 'Project has no LMS learning delivery mapping.',
-                'lms_status' => $summary['access_state'] ?? $summary['lms_access'] ?? 'unavailable',
+                'lms_status' => $lmsStatus,
                 'invitation_status' => $summary['invitation_status'] ?? null,
             ];
         })->values();
@@ -253,6 +264,8 @@ class ProjectLearningDeliveryService
         return [
             'total' => $total,
             'active' => (int) ($states['active'] ?? 0),
+            'enrolled' => (int) ($states['enrolled'] ?? 0),
+            'cohort_enrollment_pending' => (int) ($states['cohort_enrollment_pending'] ?? 0),
             'suspended' => (int) ($states['suspended'] ?? 0),
             'invitation_pending' => (int) ($states['invitation_pending'] ?? 0),
             'invitation_expired' => (int) ($states['invitation_expired'] ?? 0),

@@ -1,7 +1,9 @@
 <?php
 
 use App\Domains\Programs\Models\Program;
+use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Domains\Projects\Models\Project;
+use App\Domains\Projects\Models\ProjectMilestone;
 use App\Domains\Staff\Models\StaffDepartment;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Stakeholders\Models\Stakeholder;
@@ -137,6 +139,79 @@ test('project show page exposes finalization entrypoint instead of embedded gove
             ->missing('reports')
             ->missing('canManageGovernance')
         );
+});
+
+test('attaching program milestones warns when the program has no milestone templates', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'projects');
+    $fixture = makeProjectPageWorkflowFixture();
+
+    $this->actingAs($user)
+        ->post("/projects/{$fixture['project']->id}/milestones/sync")
+        ->assertRedirect()
+        ->assertSessionHas('warning', 'No program milestone templates are configured for this project program. Create program milestones first, then attach them to the project.');
+
+    expect(ProjectMilestone::query()->where('project_id', $fixture['project']->id)->count())->toBe(0);
+});
+
+test('attaching program milestones reports the actual number of attached project milestones', function () {
+    $user = User::factory()->create();
+    grantDomainAccess($user, 'projects');
+    $fixture = makeProjectPageWorkflowFixture();
+
+    ProgramMilestoneTemplate::query()->create([
+        'program_id' => $fixture['program']->id,
+        'title' => 'Digital orientation',
+        'description' => 'Candidate orientation milestone',
+        'sort_order' => 1,
+        'max_score' => 100,
+        'pass_mark' => 70,
+        'expected_timing' => 'Week 1',
+    ]);
+
+    ProgramMilestoneTemplate::query()->create([
+        'program_id' => $fixture['program']->id,
+        'title' => 'Practical assessment',
+        'description' => 'Candidate practical assessment milestone',
+        'sort_order' => 2,
+        'max_score' => 100,
+        'is_required' => false,
+        'pass_mark' => 75,
+        'expected_timing' => 'Week 4',
+    ]);
+
+    $this->actingAs($user)
+        ->post("/projects/{$fixture['project']->id}/milestones/sync")
+        ->assertRedirect()
+        ->assertSessionHas('success', '2 new milestone(s) attached to this project.');
+
+    expect(ProjectMilestone::query()->where('project_id', $fixture['project']->id)->orderBy('sort_order')->pluck('title')->all())
+        ->toBe(['Digital orientation', 'Practical assessment']);
+
+    $this->assertDatabaseHas('project_milestones', [
+        'project_id' => $fixture['project']->id,
+        'title' => 'Digital orientation',
+        'pass_mark' => 70,
+        'expected_timing' => 'Week 1',
+        'is_required' => true,
+        'is_active' => true,
+    ]);
+
+    $this->assertDatabaseHas('project_milestones', [
+        'project_id' => $fixture['project']->id,
+        'title' => 'Practical assessment',
+        'pass_mark' => 75,
+        'expected_timing' => 'Week 4',
+        'is_required' => false,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->post("/projects/{$fixture['project']->id}/milestones/sync")
+        ->assertRedirect()
+        ->assertSessionHas('info', 'No new milestones were attached. All active program milestones are already available on this project.');
+
+    expect(ProjectMilestone::query()->where('project_id', $fixture['project']->id)->count())->toBe(2);
 });
 
 test('creating a project from the page redirects to the project file', function () {

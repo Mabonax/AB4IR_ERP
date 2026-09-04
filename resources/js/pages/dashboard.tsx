@@ -23,7 +23,7 @@ import {
     Users,
     XCircle,
 } from 'lucide-react';
-import { type ComponentType, type SVGProps, useMemo, useState } from 'react';
+import { type ComponentType, type SVGProps, useState } from 'react';
 
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
@@ -129,7 +129,10 @@ type Panel = {
 const isTicketCard = (item: TaskCard | TicketCard): item is TicketCard =>
     'responder_name' in item;
 
-const queryIncludes = (query: string, ...values: Array<string | number | null | undefined>) => {
+const queryIncludes = (
+    query: string,
+    ...values: Array<string | number | null | undefined>
+) => {
     if (!query) {
         return true;
     }
@@ -148,7 +151,8 @@ function DashboardTopbar({
 }) {
     const { auth, notifications } = usePage<SharedData>().props;
     const user = auth?.user;
-    const initials = (user?.name ?? 'Local Admin')
+    const displayName = user?.name?.trim() || 'there';
+    const initials = displayName
         .split(' ')
         .map((part) => part[0])
         .join('')
@@ -156,14 +160,16 @@ function DashboardTopbar({
         .toUpperCase();
 
     return (
-        <header className="sticky top-0 z-20 flex h-18 items-center justify-between border-b border-border bg-background/95 dark:border-white/[0.08] dark:bg-[#0a1017]/95 px-6 backdrop-blur">
+        <header className="sticky top-0 z-20 flex h-18 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur dark:border-white/[0.08] dark:bg-[#0a1017]/95">
             <div className="flex items-center gap-4">
-                <SidebarTrigger className="size-9 rounded-xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.04] text-orange-400 hover:bg-orange-500/10 hover:text-orange-300" />
+                <SidebarTrigger className="size-9 rounded-xl border border-border bg-card text-orange-400 hover:bg-orange-500/10 hover:text-orange-300 dark:border-white/[0.08] dark:bg-white/[0.04]" />
                 <div className="flex items-center gap-3">
                     <span className="flex size-9 items-center justify-center rounded-xl bg-orange-500/10 text-orange-400">
                         <LayoutDashboard className="size-5" />
                     </span>
-                    <span className="font-semibold text-foreground dark:text-white">Dashboard</span>
+                    <span className="font-semibold text-foreground dark:text-white">
+                        Dashboard
+                    </span>
                 </div>
             </div>
 
@@ -175,12 +181,12 @@ function DashboardTopbar({
                         value={query}
                         onChange={(event) => onQueryChange(event.target.value)}
                         placeholder="Search anything..."
-                        className="h-11 w-full rounded-xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.045] pr-12 pl-4 text-sm text-foreground outline-none dark:text-white transition placeholder:text-muted-foreground dark:placeholder:text-white/45 focus:border-orange-400/60 focus:ring-4 focus:ring-orange-500/10"
+                        className="h-11 w-full rounded-xl border border-border bg-card pr-12 pl-4 text-sm text-foreground transition outline-none placeholder:text-muted-foreground focus:border-orange-400/60 focus:ring-4 focus:ring-orange-500/10 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white dark:placeholder:text-white/45"
                         type="search"
                     />
                 </label>
 
-                <button className="relative flex size-10 items-center justify-center rounded-full text-muted-foreground dark:text-white/80 transition hover:bg-muted hover:text-foreground dark:hover:bg-white/[0.06] dark:hover:text-white">
+                <button className="relative flex size-10 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground dark:text-white/80 dark:hover:bg-white/[0.06] dark:hover:text-white">
                     <Bell className="size-5" />
                     {(notifications?.unread_count ?? 0) > 0 ? (
                         <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white">
@@ -188,11 +194,11 @@ function DashboardTopbar({
                         </span>
                     ) : null}
                 </button>
-                <div className="hidden items-center gap-2 rounded-full border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.035] p-1 lg:flex">
-                    <button className="flex size-8 items-center justify-center rounded-full text-muted-foreground dark:text-white/70 transition hover:bg-muted hover:text-foreground dark:hover:bg-white/[0.06] dark:hover:text-white">
+                <div className="hidden items-center gap-2 rounded-full border border-border bg-card p-1 lg:flex dark:border-white/[0.08] dark:bg-white/[0.035]">
+                    <button className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground dark:text-white/70 dark:hover:bg-white/[0.06] dark:hover:text-white">
                         <Sun className="size-4" />
                     </button>
-                    <button className="flex size-8 items-center justify-center rounded-full text-muted-foreground dark:text-white/70 transition hover:bg-muted hover:text-foreground dark:hover:bg-white/[0.06] dark:hover:text-white">
+                    <button className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground dark:text-white/70 dark:hover:bg-white/[0.06] dark:hover:text-white">
                         <Settings className="size-4" />
                     </button>
                 </div>
@@ -201,8 +207,12 @@ function DashboardTopbar({
                         {initials}
                     </span>
                     <div className="hidden text-right lg:block">
-                        <p className="text-sm font-semibold text-foreground dark:text-white">{user?.name ?? 'Local Super Admin'}</p>
-                        <p className="text-xs text-muted-foreground dark:text-white/55">{user?.roles?.[0] ?? 'Administrator'}</p>
+                        <p className="text-sm font-semibold text-foreground dark:text-white">
+                            {displayName}
+                        </p>
+                        <p className="text-xs text-muted-foreground dark:text-white/55">
+                            {user?.roles?.[0] ?? 'Administrator'}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -214,14 +224,20 @@ function MetricCard({ metric }: { metric: Metric }) {
     const Icon = metric.Icon;
 
     return (
-        <div className="rounded-xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.045] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-[0_20px_60px_rgba(0,0,0,0.22)] dark:border-white/[0.08] dark:bg-white/[0.045]">
             <div className="flex items-start gap-4">
-                <span className={`flex size-12 items-center justify-center rounded-full ${metric.tone}`}>
+                <span
+                    className={`flex size-12 items-center justify-center rounded-full ${metric.tone}`}
+                >
                     <Icon className="size-6" />
                 </span>
                 <div className="min-w-0">
-                    <p className="text-sm text-muted-foreground dark:text-white/78">{metric.label}</p>
-                    <p className="mt-1 text-3xl font-semibold text-foreground dark:text-white">{metric.value}</p>
+                    <p className="text-sm text-muted-foreground dark:text-white/78">
+                        {metric.label}
+                    </p>
+                    <p className="mt-1 text-3xl font-semibold text-foreground dark:text-white">
+                        {metric.value}
+                    </p>
                 </div>
             </div>
             <div className="mt-4 h-1 rounded-full bg-muted dark:bg-white/[0.06]">
@@ -233,7 +249,7 @@ function MetricCard({ metric }: { metric: Metric }) {
 
 function EmptyState({ message }: { message: string }) {
     return (
-        <div className="rounded-lg border border-border bg-muted/40 dark:border-white/[0.06] dark:bg-black/10 px-5 py-4 text-sm text-muted-foreground dark:text-white/58">
+        <div className="rounded-lg border border-border bg-muted/40 px-5 py-4 text-sm text-muted-foreground dark:border-white/[0.06] dark:bg-black/10 dark:text-white/58">
             {message}
         </div>
     );
@@ -243,18 +259,29 @@ function PanelCard({ panel }: { panel: Panel }) {
     const Icon = panel.Icon;
 
     return (
-        <section className={`rounded-xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.035] p-5 shadow-[0_18px_55px_rgba(0,0,0,0.2)] ${panel.accent}`}>
+        <section
+            className={`rounded-xl border border-border bg-card p-5 shadow-[0_18px_55px_rgba(0,0,0,0.2)] dark:border-white/[0.08] dark:bg-white/[0.035] ${panel.accent}`}
+        >
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                    <span className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${panel.tone}`}>
+                    <span
+                        className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ${panel.tone}`}
+                    >
                         <Icon className="size-5" />
                     </span>
                     <div>
-                        <h3 className="font-semibold text-foreground dark:text-white">{panel.title}</h3>
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground dark:text-white/55">{panel.description}</p>
+                        <h3 className="font-semibold text-foreground dark:text-white">
+                            {panel.title}
+                        </h3>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground dark:text-white/55">
+                            {panel.description}
+                        </p>
                     </div>
                 </div>
-                <button className="rounded-md p-1 text-muted-foreground dark:text-white/50 transition hover:bg-muted hover:text-foreground dark:hover:bg-white/[0.06] dark:hover:text-white" aria-label={`${panel.title} options`}>
+                <button
+                    className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground dark:text-white/50 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    aria-label={`${panel.title} options`}
+                >
                     <MoreVertical className="size-5" />
                 </button>
             </div>
@@ -265,20 +292,33 @@ function PanelCard({ panel }: { panel: Panel }) {
                 ) : (
                     <div className="space-y-3">
                         {panel.items.map((item) => (
-                            <div key={`${panel.key}-${item.id}`} className="rounded-lg border border-border bg-muted/40 dark:border-white/[0.06] dark:bg-black/10 p-4">
+                            <div
+                                key={`${panel.key}-${item.id}`}
+                                className="rounded-lg border border-border bg-muted/40 p-4 dark:border-white/[0.06] dark:bg-black/10"
+                            >
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
-                                        <p className="font-medium text-foreground dark:text-white">{item.title}</p>
+                                        <p className="font-medium text-foreground dark:text-white">
+                                            {item.title}
+                                        </p>
                                         <p className="mt-1 text-xs text-muted-foreground dark:text-white/52">
-                                            {item.priority.toUpperCase()} | {item.status.replaceAll('_', ' ')}
-                                            {'due_date' in item && item.due_date ? ` | Due ${item.due_date}` : ''}
-                                            {'age_hours' in item ? ` | Age ${item.age_hours}h` : ''}
+                                            {item.priority.toUpperCase()} |{' '}
+                                            {item.status.replaceAll('_', ' ')}
+                                            {'due_date' in item && item.due_date
+                                                ? ` | Due ${item.due_date}`
+                                                : ''}
+                                            {'age_hours' in item
+                                                ? ` | Age ${item.age_hours}h`
+                                                : ''}
                                         </p>
                                     </div>
                                     <p className="text-right text-xs text-muted-foreground dark:text-white/46">
                                         {isTicketCard(item)
-                                            ? (item.responder_name ?? 'Unassigned')
-                                            : (item.assignee_name ?? item.department_name ?? 'Queue')}
+                                            ? (item.responder_name ??
+                                              'Unassigned')
+                                            : (item.assignee_name ??
+                                              item.department_name ??
+                                              'Queue')}
                                     </p>
                                 </div>
                             </div>
@@ -292,56 +332,162 @@ function PanelCard({ panel }: { panel: Panel }) {
 
 function TicketMetrics({ dashboard }: { dashboard: DashboardPayload }) {
     const metrics: Metric[] = [
-        { label: 'Visible tickets', value: dashboard.tickets.summary.total, Icon: Headphones, tone: 'bg-orange-500/12 text-orange-400', bar: 'bg-orange-500' },
-        { label: 'Assigned to me', value: dashboard.tickets.summary.assigned_to_me, Icon: Users, tone: 'bg-muted dark:bg-white/[0.08] text-muted-foreground dark:text-white/70', bar: 'bg-white/25' },
-        { label: 'Requested by me', value: dashboard.tickets.summary.requested_by_me, Icon: PlusCircle, tone: 'bg-muted dark:bg-white/[0.08] text-muted-foreground dark:text-white/70', bar: 'bg-white/25' },
-        { label: 'Overdue', value: dashboard.tickets.summary.overdue, Icon: Clock3, tone: 'bg-red-500/12 text-red-400', bar: 'bg-red-500' },
-        { label: 'Queue intake', value: dashboard.tickets.summary.unassigned_queue, Icon: Inbox, tone: 'bg-blue-500/12 text-blue-400', bar: 'bg-blue-500' },
+        {
+            label: 'Visible tickets',
+            value: dashboard.tickets.summary.total,
+            Icon: Headphones,
+            tone: 'bg-orange-500/12 text-orange-400',
+            bar: 'bg-orange-500',
+        },
+        {
+            label: 'Assigned to me',
+            value: dashboard.tickets.summary.assigned_to_me,
+            Icon: Users,
+            tone: 'bg-muted dark:bg-white/[0.08] text-muted-foreground dark:text-white/70',
+            bar: 'bg-white/25',
+        },
+        {
+            label: 'Requested by me',
+            value: dashboard.tickets.summary.requested_by_me,
+            Icon: PlusCircle,
+            tone: 'bg-muted dark:bg-white/[0.08] text-muted-foreground dark:text-white/70',
+            bar: 'bg-white/25',
+        },
+        {
+            label: 'Overdue',
+            value: dashboard.tickets.summary.overdue,
+            Icon: Clock3,
+            tone: 'bg-red-500/12 text-red-400',
+            bar: 'bg-red-500',
+        },
+        {
+            label: 'Queue intake',
+            value: dashboard.tickets.summary.unassigned_queue,
+            Icon: Inbox,
+            tone: 'bg-blue-500/12 text-blue-400',
+            bar: 'bg-blue-500',
+        },
     ];
 
     return (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {metrics.map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.035] p-4">
-                    <p className="text-xs text-muted-foreground dark:text-white/58">{metric.label}</p>
-                    <p className="mt-2 text-3xl font-semibold text-foreground dark:text-white">{metric.value}</p>
+                <div
+                    key={metric.label}
+                    className="rounded-xl border border-border bg-card p-4 dark:border-white/[0.08] dark:bg-white/[0.035]"
+                >
+                    <p className="text-xs text-muted-foreground dark:text-white/58">
+                        {metric.label}
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold text-foreground dark:text-white">
+                        {metric.value}
+                    </p>
                 </div>
             ))}
         </div>
     );
 }
 
-function RolePanel({ widget, Icon, tone }: { widget: Widget; Icon: IconType; tone: string }) {
+function RolePanel({
+    widget,
+    Icon,
+    tone,
+}: {
+    widget: Widget;
+    Icon: IconType;
+    tone: string;
+}) {
     return (
-        <Link href={widget.href} className="block rounded-xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.035] p-4 transition hover:border-orange-500/45 hover:bg-orange-500/5">
+        <Link
+            href={widget.href}
+            className="block rounded-xl border border-border bg-card p-4 transition hover:border-orange-500/45 hover:bg-orange-500/5 dark:border-white/[0.08] dark:bg-white/[0.035]"
+        >
             <div className="flex items-center gap-4">
-                <span className={`flex size-10 items-center justify-center rounded-lg ${tone}`}>
+                <span
+                    className={`flex size-10 items-center justify-center rounded-lg ${tone}`}
+                >
                     <Icon className="size-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-foreground dark:text-white">{widget.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground dark:text-white/55">{widget.description}</p>
+                    <p className="font-semibold text-foreground dark:text-white">
+                        {widget.title}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground dark:text-white/55">
+                        {widget.description}
+                    </p>
                 </div>
-                <span className="text-2xl font-semibold text-foreground dark:text-white">{widget.value}</span>
+                <span className="text-2xl font-semibold text-foreground dark:text-white">
+                    {widget.value}
+                </span>
             </div>
         </Link>
     );
 }
 
-export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }) {
+export default function Dashboard({
+    dashboard,
+}: {
+    dashboard: DashboardPayload;
+}) {
+    const { auth } = usePage<SharedData>().props;
+    const displayName = auth?.user?.name?.trim() || 'there';
     const [query, setQuery] = useState('');
     const normalizedQuery = query.trim().toLowerCase();
     const managerView = dashboard.tasks.persona === 'manager';
-    const responderView = dashboard.tickets.can_respond && dashboard.tickets.persona === 'technical_responder';
+    const responderView =
+        dashboard.tickets.can_respond &&
+        dashboard.tickets.persona === 'technical_responder';
 
     const taskMetrics: Metric[] = [
-        { label: 'Visible tasks', value: dashboard.tasks.summary.total, Icon: Eye, tone: 'bg-orange-500/12 text-orange-400', bar: 'bg-orange-500' },
-        { label: 'Assigned to me', value: dashboard.tasks.summary.assigned_to_me, Icon: Users, tone: 'bg-orange-500/12 text-orange-400', bar: 'bg-orange-500' },
-        { label: 'Created by me', value: dashboard.tasks.summary.created_by_me, Icon: PlusCircle, tone: 'bg-red-500/12 text-red-400', bar: 'bg-red-500' },
-        { label: 'Overdue', value: dashboard.tasks.summary.overdue, Icon: Clock3, tone: 'bg-red-500/12 text-red-400', bar: 'bg-red-500' },
-        { label: 'Awaiting review', value: dashboard.tasks.summary.pending_review, Icon: Loader2, tone: 'bg-amber-500/12 text-amber-400', bar: 'bg-amber-500' },
-        { label: 'Returned', value: dashboard.tasks.summary.changes_requested, Icon: RotateCcw, tone: 'bg-purple-500/12 text-purple-400', bar: 'bg-purple-500' },
-        { label: 'Queue intake', value: dashboard.tasks.summary.unassigned_queue, Icon: Inbox, tone: 'bg-blue-500/12 text-blue-400', bar: 'bg-blue-500' },
+        {
+            label: 'Visible tasks',
+            value: dashboard.tasks.summary.total,
+            Icon: Eye,
+            tone: 'bg-orange-500/12 text-orange-400',
+            bar: 'bg-orange-500',
+        },
+        {
+            label: 'Assigned to me',
+            value: dashboard.tasks.summary.assigned_to_me,
+            Icon: Users,
+            tone: 'bg-orange-500/12 text-orange-400',
+            bar: 'bg-orange-500',
+        },
+        {
+            label: 'Created by me',
+            value: dashboard.tasks.summary.created_by_me,
+            Icon: PlusCircle,
+            tone: 'bg-red-500/12 text-red-400',
+            bar: 'bg-red-500',
+        },
+        {
+            label: 'Overdue',
+            value: dashboard.tasks.summary.overdue,
+            Icon: Clock3,
+            tone: 'bg-red-500/12 text-red-400',
+            bar: 'bg-red-500',
+        },
+        {
+            label: 'Awaiting review',
+            value: dashboard.tasks.summary.pending_review,
+            Icon: Loader2,
+            tone: 'bg-amber-500/12 text-amber-400',
+            bar: 'bg-amber-500',
+        },
+        {
+            label: 'Returned',
+            value: dashboard.tasks.summary.changes_requested,
+            Icon: RotateCcw,
+            tone: 'bg-purple-500/12 text-purple-400',
+            bar: 'bg-purple-500',
+        },
+        {
+            label: 'Queue intake',
+            value: dashboard.tasks.summary.unassigned_queue,
+            Icon: Inbox,
+            tone: 'bg-blue-500/12 text-blue-400',
+            bar: 'bg-blue-500',
+        },
     ];
 
     const taskPanels: Panel[] = [
@@ -358,7 +504,8 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
         {
             key: 'overdue',
             title: 'Overdue tasks',
-            description: 'Anything past due in your current task visibility scope.',
+            description:
+                'Anything past due in your current task visibility scope.',
             Icon: Clock3,
             tone: 'text-red-400',
             accent: 'border-l-2 border-l-red-500',
@@ -392,13 +539,15 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
             Icon: Folder,
             tone: 'text-blue-400',
             accent: 'border-l-2 border-l-blue-500',
-            emptyMessage: 'No unassigned queue work is waiting in your department.',
+            emptyMessage:
+                'No unassigned queue work is waiting in your department.',
             items: managerView ? dashboard.tasks.queue : [],
         },
         {
             key: 'returned',
             title: 'Returned for amendments',
-            description: 'Work sent back to assignees that still needs correction.',
+            description:
+                'Work sent back to assignees that still needs correction.',
             Icon: RotateCcw,
             tone: 'text-orange-400',
             accent: 'border-l-2 border-l-orange-500',
@@ -410,7 +559,9 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
     const ticketPanels: Panel[] = [
         {
             key: 'assigned-incidents',
-            title: dashboard.tickets.can_respond ? 'Assigned incidents' : 'Assigned tickets',
+            title: dashboard.tickets.can_respond
+                ? 'Assigned incidents'
+                : 'Assigned tickets',
             description: dashboard.tickets.can_respond
                 ? 'The support work that currently needs responder action.'
                 : 'The support work that currently needs your response.',
@@ -458,7 +609,14 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
         },
     ];
 
-    const roleIcons = [CalendarDays, BriefcaseBusiness, BriefcaseBusiness, Box, Users, Clock3];
+    const roleIcons = [
+        CalendarDays,
+        BriefcaseBusiness,
+        BriefcaseBusiness,
+        Box,
+        Users,
+        Clock3,
+    ];
     const roleTones = [
         'bg-amber-500/12 text-amber-400',
         'bg-purple-500/12 text-purple-400',
@@ -468,34 +626,45 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
         'bg-orange-500/12 text-orange-400',
     ];
 
-    const visibleTaskMetrics = useMemo(
-        () => taskMetrics.filter((metric) => queryIncludes(normalizedQuery, metric.label, metric.value, 'task')),
-        [normalizedQuery],
+    const visibleTaskMetrics = taskMetrics.filter((metric) =>
+        queryIncludes(normalizedQuery, metric.label, metric.value, 'task'),
     );
-    const visibleTaskPanels = useMemo(
-        () =>
-            taskPanels.filter((panel) =>
-                queryIncludes(normalizedQuery, panel.title, panel.description, panel.emptyMessage, panel.items.map((item) => item.title).join(' ')),
-            ),
-        [normalizedQuery],
+    const visibleTaskPanels = taskPanels.filter((panel) =>
+        queryIncludes(
+            normalizedQuery,
+            panel.title,
+            panel.description,
+            panel.emptyMessage,
+            panel.items.map((item) => item.title).join(' '),
+        ),
     );
-    const visibleTicketPanels = useMemo(
-        () =>
-            ticketPanels.filter((panel) =>
-                queryIncludes(normalizedQuery, panel.title, panel.description, panel.emptyMessage, panel.items.map((item) => item.title).join(' ')),
-            ),
-        [normalizedQuery],
+    const visibleTicketPanels = ticketPanels.filter((panel) =>
+        queryIncludes(
+            normalizedQuery,
+            panel.title,
+            panel.description,
+            panel.emptyMessage,
+            panel.items.map((item) => item.title).join(' '),
+        ),
     );
-    const visibleRolePanels = useMemo(
-        () => dashboard.secondary.filter((widget) => queryIncludes(normalizedQuery, widget.title, widget.description, widget.value, 'role panel')),
-        [dashboard.secondary, normalizedQuery],
+    const visibleRolePanels = dashboard.secondary.filter((widget) =>
+        queryIncludes(
+            normalizedQuery,
+            widget.title,
+            widget.description,
+            widget.value,
+            'role panel',
+        ),
     );
 
     return (
         <AppShell variant="sidebar">
             <Head title="Dashboard" />
             <AppSidebar />
-            <AppContent variant="sidebar" className="overflow-x-hidden bg-background text-foreground dark:bg-[#0a1017] dark:text-white">
+            <AppContent
+                variant="sidebar"
+                className="overflow-x-hidden bg-background text-foreground dark:bg-[#0a1017] dark:text-white"
+            >
                 <DashboardTopbar query={query} onQueryChange={setQuery} />
                 <FlashMessages />
                 <StaffAttendancePrompt />
@@ -507,9 +676,11 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                             <Search className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 text-muted-foreground dark:text-white/70" />
                             <input
                                 value={query}
-                                onChange={(event) => setQuery(event.target.value)}
+                                onChange={(event) =>
+                                    setQuery(event.target.value)
+                                }
                                 placeholder="Search anything..."
-                                className="h-11 w-full rounded-xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.045] pr-12 pl-4 text-sm text-foreground outline-none dark:text-white placeholder:text-muted-foreground dark:placeholder:text-white/45 focus:border-orange-400/60"
+                                className="h-11 w-full rounded-xl border border-border bg-card pr-12 pl-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-orange-400/60 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white dark:placeholder:text-white/45"
                                 type="search"
                             />
                         </label>
@@ -517,7 +688,9 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
 
                     <section className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-semibold tracking-tight text-foreground dark:text-white">Welcome back, Super Admin 👋</h1>
+                            <h1 className="text-3xl font-semibold tracking-tight text-foreground dark:text-white">
+                                Welcome back, {displayName}
+                            </h1>
                             <p className="mt-2 text-sm text-muted-foreground dark:text-white/60">
                                 {managerView
                                     ? 'Operational delivery, team workload, and escalation pressure are prioritized for managers.'
@@ -533,12 +706,14 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                                     className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 px-5 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(255,75,0,0.25)] transition hover:from-red-500 hover:to-orange-400"
                                 >
                                     <CheckCircle2 className="size-4" />
-                                    {dashboard.tasks.can_create ? 'Open task board' : 'View my tasks'}
+                                    {dashboard.tasks.can_create
+                                        ? 'Open task board'
+                                        : 'View my tasks'}
                                 </Link>
                             ) : null}
                             <Link
                                 href={dashboard.tickets.href}
-                                className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-card dark:border-white/[0.12] dark:bg-white/[0.03] px-5 text-sm font-semibold text-foreground dark:text-white transition hover:border-orange-500/50 hover:bg-orange-500/10"
+                                className="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-card px-5 text-sm font-semibold text-foreground transition hover:border-orange-500/50 hover:bg-orange-500/10 dark:border-white/[0.12] dark:bg-white/[0.03] dark:text-white"
                             >
                                 <LifeBuoy className="size-4 text-orange-400" />
                                 Open support tickets
@@ -549,9 +724,13 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                     {normalizedQuery ? (
                         <div className="flex items-center justify-between rounded-xl border border-orange-500/20 bg-orange-500/[0.08] px-4 py-3 text-sm text-orange-100">
                             <span>
-                                Searching for <strong>{query}</strong>. Matching dashboard sections are shown below.
+                                Searching for <strong>{query}</strong>. Matching
+                                dashboard sections are shown below.
                             </span>
-                            <button onClick={() => setQuery('')} className="rounded-lg px-3 py-1 text-orange-200 transition hover:bg-orange-500/15">
+                            <button
+                                onClick={() => setQuery('')}
+                                className="rounded-lg px-3 py-1 text-orange-200 transition hover:bg-orange-500/15"
+                            >
                                 Clear
                             </button>
                         </div>
@@ -560,7 +739,10 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                     {dashboard.tasks.available ? (
                         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                             {visibleTaskMetrics.map((metric) => (
-                                <MetricCard key={metric.label} metric={metric} />
+                                <MetricCard
+                                    key={metric.label}
+                                    metric={metric}
+                                />
                             ))}
                         </section>
                     ) : null}
@@ -576,14 +758,16 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                     )}
 
                     <section className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(24rem,1fr)]">
-                        <div className="rounded-2xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.035] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
+                        <div className="rounded-2xl border border-border bg-card p-5 shadow-[0_24px_70px_rgba(0,0,0,0.24)] dark:border-white/[0.08] dark:bg-white/[0.035]">
                             <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div className="flex items-start gap-4">
                                     <span className="flex size-10 items-center justify-center rounded-xl bg-orange-500/12 text-orange-400">
                                         <Headphones className="size-6" />
                                     </span>
                                     <div>
-                                        <h2 className="text-lg font-semibold text-foreground dark:text-white">Support tickets</h2>
+                                        <h2 className="text-lg font-semibold text-foreground dark:text-white">
+                                            Support tickets
+                                        </h2>
                                         <p className="mt-2 text-xs leading-5 text-muted-foreground dark:text-white/55">
                                             {dashboard.tickets.can_respond
                                                 ? 'Incident queue exposure, SLA pressure, and responder workload are prioritized here.'
@@ -593,7 +777,7 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                                 </div>
                                 <Link
                                     href={dashboard.tickets.href}
-                                    className="rounded-xl border border-border dark:border-white/[0.12] px-5 py-2 text-sm font-semibold text-foreground dark:text-white transition hover:border-orange-500/50 hover:bg-orange-500/10"
+                                    className="rounded-xl border border-border px-5 py-2 text-sm font-semibold text-foreground transition hover:border-orange-500/50 hover:bg-orange-500/10 dark:border-white/[0.12] dark:text-white"
                                 >
                                     View queue
                                 </Link>
@@ -610,15 +794,18 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                             </div>
                         </div>
 
-                        <aside className="rounded-2xl border border-border bg-card dark:border-white/[0.08] dark:bg-white/[0.035] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.24)]">
+                        <aside className="rounded-2xl border border-border bg-card p-5 shadow-[0_24px_70px_rgba(0,0,0,0.24)] dark:border-white/[0.08] dark:bg-white/[0.035]">
                             <div className="flex items-start gap-4">
                                 <span className="flex size-10 items-center justify-center rounded-xl bg-orange-500/12 text-orange-400">
                                     <Users className="size-6" />
                                 </span>
                                 <div>
-                                    <h2 className="text-lg font-semibold text-foreground dark:text-white">Role-specific panels</h2>
+                                    <h2 className="text-lg font-semibold text-foreground dark:text-white">
+                                        Role-specific panels
+                                    </h2>
                                     <p className="mt-2 text-xs leading-5 text-muted-foreground dark:text-white/55">
-                                        Secondary data only appears when your permissions make it actionable.
+                                        Secondary data only appears when your
+                                        permissions make it actionable.
                                     </p>
                                 </div>
                             </div>
@@ -631,8 +818,16 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                                         <RolePanel
                                             key={widget.key}
                                             widget={widget}
-                                            Icon={roleIcons[index % roleIcons.length]}
-                                            tone={roleTones[index % roleTones.length]}
+                                            Icon={
+                                                roleIcons[
+                                                    index % roleIcons.length
+                                                ]
+                                            }
+                                            tone={
+                                                roleTones[
+                                                    index % roleTones.length
+                                                ]
+                                            }
                                         />
                                     ))
                                 )}
@@ -645,10 +840,15 @@ export default function Dashboard({ dashboard }: { dashboard: DashboardPayload }
                     visibleTaskPanels.length === 0 &&
                     visibleTicketPanels.length === 0 &&
                     visibleRolePanels.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-border dark:border-white/[0.14] p-8 text-center">
+                        <div className="rounded-2xl border border-dashed border-border p-8 text-center dark:border-white/[0.14]">
                             <XCircle className="mx-auto size-8 text-muted-foreground dark:text-white/45" />
-                            <p className="mt-3 font-semibold text-foreground dark:text-white">No dashboard results found</p>
-                            <p className="mt-1 text-sm text-muted-foreground dark:text-white/55">Try searching for tasks, tickets, queue, overdue, review, or a panel name.</p>
+                            <p className="mt-3 font-semibold text-foreground dark:text-white">
+                                No dashboard results found
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground dark:text-white/55">
+                                Try searching for tasks, tickets, queue,
+                                overdue, review, or a panel name.
+                            </p>
                         </div>
                     ) : null}
                 </div>

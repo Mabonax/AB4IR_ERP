@@ -14,6 +14,7 @@ type EventFormData = {
   title: string;
   event_type: string;
   event_format: string;
+  event_series_id: string;
   annual_series_key: string;
   event_year: string;
   is_annual: string;
@@ -56,6 +57,7 @@ type Props = {
   initialData: EventFormData;
   staffMembers: Array<{ id: number; name: string }>;
   stakeholders: Array<{ id: number; name: string }>;
+  eventSeries?: Array<{ id: number; name: string; series_key: string; slug: string }>;
   backHref?: string;
 };
 
@@ -96,6 +98,7 @@ export function EventFormPage({
   initialData,
   staffMembers,
   stakeholders,
+  eventSeries = [],
   backHref = "/events",
 }: Props) {
   const form = useForm<EventFormData>(initialData);
@@ -167,6 +170,38 @@ export function EventFormPage({
                       <SelectItem value="physical">Physical</SelectItem>
                       <SelectItem value="virtual">Virtual</SelectItem>
                       <SelectItem value="hybrid">Hybrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Event Line" error={form.errors.event_series_id}>
+                  <Select
+                    value={form.data.event_series_id || "none"}
+                    onValueChange={(value) => {
+                      if (value === "none") {
+                        form.setData({
+                          ...form.data,
+                          event_series_id: "",
+                        });
+                        return;
+                      }
+
+                      const selected = eventSeries.find((series) => String(series.id) === value);
+                      form.setData({
+                        ...form.data,
+                        event_series_id: value,
+                        annual_series_key: selected?.series_key ?? form.data.annual_series_key,
+                        is_annual: "1",
+                      });
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Standalone or select line" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Standalone / legacy key</SelectItem>
+                      {eventSeries.map((series) => (
+                        <SelectItem key={series.id} value={String(series.id)}>
+                          {series.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </Field>

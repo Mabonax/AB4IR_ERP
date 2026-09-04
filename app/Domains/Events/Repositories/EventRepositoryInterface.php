@@ -19,4 +19,6 @@ interface EventRepositoryInterface
     public function delete(Event $event): bool;
 
     public function seriesHistory(string $seriesKey): Collection;
+
+    public function seriesHistoryById(int $seriesId): Collection;
 }

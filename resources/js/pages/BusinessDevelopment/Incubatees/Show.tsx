@@ -135,7 +135,7 @@ export default function BdsIncubateeShow({
     overdue: 0,
     health: "unassigned" as const,
   };
-  const kpis = incubateeData.kpis ?? [];
+  const kpis = useMemo(() => incubateeData.kpis ?? [], [incubateeData.kpis]);
   const latestReviews = kpis
     .map((kpi) => ({ kpi, review: kpi.latest_review }))
     .filter((item): item is { kpi: IncubateeKpi; review: KpiReview } => Boolean(item.review))
@@ -227,6 +227,12 @@ export default function BdsIncubateeShow({
           </div>
           <div className="flex items-center gap-2">
             <DomainNav items={businessDevelopmentNavItems} />
+            <Link
+              href={`/business-development/incubatees/${incubateeData.id}/enterprise-development`}
+              className="rounded-md bg-orange-500 px-3 py-2 text-sm text-white hover:bg-orange-600"
+            >
+              Enterprise Development
+            </Link>
             <Link
               href="/business-development/incubatees"
               className="rounded-md border border-orange-500 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500 hover:text-white"
@@ -354,7 +360,7 @@ export default function BdsIncubateeShow({
                     <div>
                       <div className="font-semibold">{kpi.definition.name ?? "KPI"}</div>
                       <div className="text-xs text-muted-foreground">
-                        {formatLabel(kpi.definition.category)} • Target: {kpi.target_value ?? "-"} {kpi.definition.unit ?? ""}
+                        {formatLabel(kpi.definition.category)} - Target: {kpi.target_value ?? "-"} {kpi.definition.unit ?? ""}
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -490,7 +496,7 @@ export default function BdsIncubateeShow({
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {review.review_date ?? review.created_at ?? "No date"} • Reviewed by {review.reviewed_by?.name ?? "-"}
+                    {review.review_date ?? review.created_at ?? "No date"} - Reviewed by {review.reviewed_by?.name ?? "-"}
                   </div>
                   <p className="mt-2 text-muted-foreground">{review.mentor_comments ?? review.evidence_notes ?? "No notes captured."}</p>
                 </div>

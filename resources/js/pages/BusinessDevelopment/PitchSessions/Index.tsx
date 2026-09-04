@@ -29,6 +29,8 @@ type PanelistOption = {
   id: number;
   name: string;
   email: string | null;
+  can_chair: boolean;
+  is_current_user: boolean;
 };
 
 type ProspectOption = {
@@ -69,6 +71,7 @@ export default function PitchSessionsIndex({
     expected_prospect_count: "",
     notes: "",
     panelists: [] as number[],
+    chair_panelist_id: "" as number | "",
     prospects: [] as number[],
   });
 
@@ -78,12 +81,27 @@ export default function PitchSessionsIndex({
     return [];
   }, [sessions.links, sessions.meta?.links]);
 
-  const toggleSelection = (field: "panelists" | "prospects", value: number) => {
-    const current = form.data[field];
-    form.setData(
-      field,
-      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
-    );
+  const togglePanelist = (panelist: PanelistOption) => {
+    const current = form.data.panelists;
+    const selected = current.includes(panelist.id);
+    const nextPanelists = selected ? current.filter((item) => item !== panelist.id) : [...current, panelist.id];
+    const selectedChairStillPresent =
+      form.data.chair_panelist_id !== "" && nextPanelists.includes(Number(form.data.chair_panelist_id));
+
+    form.setData({
+      ...form.data,
+      panelists: nextPanelists,
+      chair_panelist_id: selectedChairStillPresent
+        ? form.data.chair_panelist_id
+        : !selected && panelist.can_chair
+          ? panelist.id
+          : "",
+    });
+  };
+
+  const toggleProspect = (value: number) => {
+    const current = form.data.prospects;
+    form.setData("prospects", current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
   };
 
   return (
@@ -188,21 +206,42 @@ export default function PitchSessionsIndex({
               <div>
                 <label className="mb-2 block text-sm font-medium">Panel Members</label>
                 <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-3">
-                  {panelists.map((panelist) => (
-                    <label key={panelist.id} className="flex items-start gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={form.data.panelists.includes(panelist.id)}
-                        onChange={() => toggleSelection("panelists", panelist.id)}
-                      />
-                      <span>
-                        <span className="font-medium">{panelist.name}</span>
-                        <span className="block text-xs text-muted-foreground">{panelist.email ?? "No email"}</span>
-                      </span>
-                    </label>
-                  ))}
+                  {panelists.map((panelist) => {
+                    const isSelected = form.data.panelists.includes(panelist.id);
+
+                    return (
+                      <div key={panelist.id} className="flex items-start justify-between gap-3 text-sm">
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => togglePanelist(panelist)}
+                          />
+                          <span>
+                            <span className="font-medium">{panelist.name}</span>
+                            <span className="block text-xs text-muted-foreground">{panelist.email ?? "No email"}</span>
+                          </span>
+                        </label>
+                        {panelist.can_chair ? (
+                          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <input
+                              type="radio"
+                              name="chair_panelist_id"
+                              checked={form.data.chair_panelist_id === panelist.id}
+                              disabled={!isSelected}
+                              onChange={() => form.setData("chair_panelist_id", panelist.id)}
+                            />
+                            Chair
+                          </label>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
                 {form.errors.panelists ? <p className="mt-1 text-sm text-red-600">{form.errors.panelists}</p> : null}
+                {form.errors.chair_panelist_id ? (
+                  <p className="mt-1 text-sm text-red-600">{form.errors.chair_panelist_id}</p>
+                ) : null}
               </div>
 
               <div>
@@ -213,7 +252,7 @@ export default function PitchSessionsIndex({
                       <input
                         type="checkbox"
                         checked={form.data.prospects.includes(prospect.id)}
-                        onChange={() => toggleSelection("prospects", prospect.id)}
+                        onChange={() => toggleProspect(prospect.id)}
                       />
                       <span>
                         <span className="font-medium">{prospect.company_name}</span>

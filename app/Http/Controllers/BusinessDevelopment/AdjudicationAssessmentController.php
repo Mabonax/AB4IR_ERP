@@ -78,6 +78,7 @@ class AdjudicationAssessmentController extends Controller
             'initial_pitch_session_id' => $initialPitchSessionId,
             'pitch_sessions' => BdsPitchSession::query()
                 ->whereIn('status', ['scheduled', 'in_progress', 'consolidated'])
+                ->whereHas('panelists', fn ($panelists) => $panelists->where('user_id', (int) $request->user()->id))
                 ->orderBy('scheduled_for')
                 ->get(['id', 'title', 'scheduled_for'])
                 ->map(fn (BdsPitchSession $session) => [

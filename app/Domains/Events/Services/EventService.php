@@ -8,7 +8,9 @@ use App\Domains\Events\Models\EventClosureAsset;
 use App\Domains\Events\Models\EventHistory;
 use App\Domains\Events\Models\EventOutcomeReport;
 use App\Domains\Events\Models\EventParticipant;
+use App\Domains\Events\Models\EventSeries;
 use App\Domains\Events\Models\EventTask;
+use App\Domains\Events\Models\EventTaskAttachment;
 use App\Domains\Events\Models\EventWorkstream;
 use App\Domains\Events\Notifications\EventLifecycleNotification;
 use App\Domains\Events\Repositories\EventRepositoryInterface;
@@ -104,7 +106,10 @@ class EventService
     {
         return DB::transaction(function () use ($data) {
             $partnerIds = array_values(array_filter(array_map('intval', $data['partner_stakeholder_ids'] ?? [])));
+            $skipPlanningTemplate = (bool) ($data['_skip_planning_template'] ?? false);
             unset($data['partner_stakeholder_ids']);
+            unset($data['_skip_planning_template']);
+            $data = $this->normalizeSeriesFields($data);
 
             $event = $this->repository->create($data);
 
@@ -113,7 +118,9 @@ class EventService
             }
 
             $this->documentFolderService->createDefaultEventFolders($event);
-            $this->ensurePlanningTemplate($event);
+            if (! $skipPlanningTemplate) {
+                $this->ensurePlanningTemplate($event);
+            }
 
             return $event->fresh(['owner', 'participants', 'partners', 'workstreams.tasks']);
         });
@@ -126,6 +133,7 @@ class EventService
         return DB::transaction(function () use ($event, $data) {
             $partnerIds = array_values(array_filter(array_map('intval', $data['partner_stakeholder_ids'] ?? [])));
             unset($data['partner_stakeholder_ids']);
+            $data = $this->normalizeSeriesFields($data);
 
             $updated = $this->repository->update($event, $data);
             $updated->partners()->sync($partnerIds);
@@ -506,11 +514,13 @@ class EventService
         $workstream->delete();
     }
 
-    public function addTask(Event $event, array $data, ?UploadedFile $evidenceFile = null): EventTask
+    public function addTask(Event $event, array $data, ?UploadedFile $evidenceFile = null, array $attachments = [], ?User $actor = null): EventTask
     {
         $workstream = $event->workstreams()->findOrFail((int) $data['event_workstream_id']);
 
-        return DB::transaction(function () use ($event, $workstream, $data, $evidenceFile) {
+        return DB::transaction(function () use ($event, $workstream, $data, $evidenceFile, $attachments, $actor) {
+            $status = $data['status'] === 'completed' ? 'in_progress' : $data['status'];
+
             $task = $workstream->tasks()->create([
                 'phase' => $data['phase'],
                 'task_group' => $data['task_group'],
@@ -519,28 +529,39 @@ class EventService
                 'due_date' => $data['due_date'] ?? null,
                 'responsible_person' => $data['responsible_person'] ?? null,
                 'outcome' => $data['outcome'] ?? null,
-                'status' => $data['status'],
+                'status' => $status,
                 'comment' => $data['comment'] ?? null,
                 'evidence_url' => $data['evidence_url'] ?? null,
-                'completed_at' => ($data['status'] ?? null) === 'completed' ? now() : null,
+                'completed_at' => null,
                 'sort_order' => $data['sort_order'] ?? (($workstream->tasks()->where('phase', $data['phase'])->max('sort_order') ?? 0) + 1),
             ]);
 
             $this->syncTaskEvidence($event, $task, $data, $evidenceFile);
+            $this->addTaskAttachments($event, $task, $attachments);
 
-            return $task->fresh('workstream');
+            if ($data['status'] === 'completed') {
+                $this->submitTaskForVerification($task, $actor);
+            }
+
+            return $task->fresh(['workstream', 'attachments']);
         });
     }
 
-    public function updateTask(Event $event, int $taskId, array $data, ?UploadedFile $evidenceFile = null): EventTask
+    public function updateTask(Event $event, int $taskId, array $data, ?UploadedFile $evidenceFile = null, array $attachments = [], ?User $actor = null): EventTask
     {
         $task = EventTask::query()
+            ->with('attachments')
             ->whereHas('workstream', fn ($query) => $query->where('event_id', $event->id))
             ->findOrFail($taskId);
 
         $event->workstreams()->findOrFail((int) $data['event_workstream_id']);
 
-        return DB::transaction(function () use ($event, $task, $data, $evidenceFile) {
+        return DB::transaction(function () use ($event, $task, $data, $evidenceFile, $attachments, $actor) {
+            $requestedStatus = $data['status'];
+            $status = $requestedStatus === 'completed' && $task->completion_status !== 'approved'
+                ? 'in_progress'
+                : $requestedStatus;
+
             $task->update([
                 'event_workstream_id' => (int) $data['event_workstream_id'],
                 'phase' => $data['phase'],
@@ -550,19 +571,86 @@ class EventService
                 'due_date' => $data['due_date'] ?? null,
                 'responsible_person' => $data['responsible_person'] ?? null,
                 'outcome' => $data['outcome'] ?? null,
-                'status' => $data['status'],
+                'status' => $status,
                 'comment' => $data['comment'] ?? null,
                 'evidence_url' => $data['evidence_url'] ?? $task->evidence_url,
-                'completed_at' => $data['status'] === 'completed'
+                'completed_at' => $requestedStatus === 'completed' && $task->completion_status === 'approved'
                     ? ($task->completed_at ?? now())
                     : null,
                 'sort_order' => $data['sort_order'] ?? $task->sort_order,
             ]);
 
+            $this->removeTaskAttachments($task, $data['remove_attachment_ids'] ?? []);
             $this->syncTaskEvidence($event, $task, $data, $evidenceFile);
+            $this->addTaskAttachments($event, $task, $attachments);
 
-            return $task->fresh('workstream');
+            if ($requestedStatus === 'completed' && $task->completion_status !== 'approved') {
+                $this->submitTaskForVerification($task, $actor);
+            } elseif ($requestedStatus !== 'completed' && $task->completion_status === 'approved') {
+                $task->forceFill([
+                    'completion_status' => 'not_submitted',
+                    'submitted_for_verification_at' => null,
+                    'submitted_by_user_id' => null,
+                    'manager_review_notes' => null,
+                    'reviewed_at' => null,
+                    'reviewed_by_user_id' => null,
+                    'returned_for_amendments_at' => null,
+                    'completed_at' => null,
+                ])->save();
+            }
+
+            return $task->fresh(['workstream', 'attachments']);
         });
+    }
+
+    public function approveTaskCompletion(Event $event, int $taskId, array $data, User $actor): EventTask
+    {
+        $task = EventTask::query()
+            ->whereHas('workstream', fn ($query) => $query->where('event_id', $event->id))
+            ->findOrFail($taskId);
+
+        if ($task->completion_status !== 'submitted') {
+            throw ValidationException::withMessages([
+                'completion_status' => ['Only tasks submitted for verification can be approved.'],
+            ]);
+        }
+
+        $task->forceFill([
+            'status' => 'completed',
+            'completion_status' => 'approved',
+            'manager_review_notes' => $data['manager_review_notes'] ?? null,
+            'reviewed_at' => now(),
+            'reviewed_by_user_id' => $actor->id,
+            'returned_for_amendments_at' => null,
+            'completed_at' => now(),
+        ])->save();
+
+        return $task->fresh(['workstream', 'attachments']);
+    }
+
+    public function returnTaskForAmendments(Event $event, int $taskId, array $data, User $actor): EventTask
+    {
+        $task = EventTask::query()
+            ->whereHas('workstream', fn ($query) => $query->where('event_id', $event->id))
+            ->findOrFail($taskId);
+
+        if ($task->completion_status !== 'submitted') {
+            throw ValidationException::withMessages([
+                'completion_status' => ['Only tasks submitted for verification can be returned for amendments.'],
+            ]);
+        }
+
+        $task->forceFill([
+            'status' => 'in_progress',
+            'completion_status' => 'changes_requested',
+            'manager_review_notes' => $data['manager_review_notes'] ?? null,
+            'reviewed_at' => now(),
+            'reviewed_by_user_id' => $actor->id,
+            'returned_for_amendments_at' => now(),
+            'completed_at' => null,
+        ])->save();
+
+        return $task->fresh(['workstream', 'attachments']);
     }
 
     public function removeTask(Event $event, int $taskId): void
@@ -573,6 +661,10 @@ class EventService
 
         if ($task->evidence_path && $task->evidence_disk) {
             Storage::disk($task->evidence_disk)->delete($task->evidence_path);
+        }
+
+        foreach ($task->attachments as $attachment) {
+            Storage::disk($attachment->disk)->delete($attachment->path);
         }
 
         $task->delete();
@@ -589,8 +681,23 @@ class EventService
         return Storage::disk($task->evidence_disk)->download($task->evidence_path, $task->evidence_file_name);
     }
 
+    public function downloadTaskAttachment(Event $event, int $taskId, int $attachmentId)
+    {
+        $attachment = EventTaskAttachment::query()
+            ->whereKey($attachmentId)
+            ->whereHas('task.workstream', fn ($query) => $query->where('event_id', $event->id))
+            ->where('event_task_id', $taskId)
+            ->firstOrFail();
+
+        return Storage::disk($attachment->disk)->download($attachment->path, $attachment->file_name);
+    }
+
     public function seriesHistory(Event $event): Collection
     {
+        if ($event->event_series_id) {
+            return $this->repository->seriesHistoryById($event->event_series_id);
+        }
+
         if (! $event->annual_series_key) {
             return collect();
         }
@@ -625,11 +732,23 @@ class EventService
         $lead = $history->first();
 
         return [
+            'id' => null,
+            'name' => $lead?->title,
+            'slug' => $seriesKey,
             'series_key' => $seriesKey,
             'title' => $lead?->title,
             'event_type' => $lead?->event_type,
             'theme' => $lead?->theme,
             'track_name' => $lead?->track_name,
+            'default_title_pattern' => null,
+            'default_event_type' => $lead?->event_type,
+            'default_format' => $lead?->event_format,
+            'default_theme' => $lead?->theme,
+            'status' => 'legacy',
+            'next_iteration_year' => ($history->max('event_year') ?: now()->year) + 1,
+            'document_folder' => null,
+            'assets' => [],
+            'repository_files' => [],
             'stats' => [
                 'years_run' => $history->count(),
                 'completed_events' => $history->where('status', 'completed')->count(),
@@ -665,6 +784,26 @@ class EventService
         ];
     }
 
+    public function participantSummaryForSeries(Event $event): array
+    {
+        return $this->participantSummary($event);
+    }
+
+    public function planningSummaryForSeries(Event $event): array
+    {
+        return $this->planningSummary($event);
+    }
+
+    public function eventDaySummaryForSeries(Event $event): array
+    {
+        return $this->eventDaySummary($event);
+    }
+
+    public function outcomeReportForSeries(Event $event): array
+    {
+        return $this->outcomeReportPayload($event);
+    }
+
     public function mapEvent(Event $event): array
     {
         $participantSummary = $this->participantSummary($event);
@@ -678,6 +817,9 @@ class EventService
             'title' => $event->title,
             'event_type' => $event->event_type,
             'event_format' => $event->event_format,
+            'event_series_id' => $event->event_series_id,
+            'event_series_name' => $event->eventSeries?->name,
+            'event_series_slug' => $event->eventSeries?->slug,
             'annual_series_key' => $event->annual_series_key,
             'event_year' => $event->event_year,
             'is_annual' => $event->is_annual,
@@ -758,6 +900,23 @@ class EventService
                             'evidence_file_name' => $task->evidence_file_name,
                             'evidence_url' => $task->evidence_url,
                             'has_evidence_file' => filled($task->evidence_path),
+                            'completion_status' => $task->completion_status ?? 'not_submitted',
+                            'submitted_for_verification_at' => $task->submitted_for_verification_at?->toDateTimeString(),
+                            'submitted_by_user_id' => $task->submitted_by_user_id,
+                            'submitted_by_name' => $task->submittedBy?->name,
+                            'manager_review_notes' => $task->manager_review_notes,
+                            'reviewed_at' => $task->reviewed_at?->toDateTimeString(),
+                            'reviewed_by_user_id' => $task->reviewed_by_user_id,
+                            'reviewed_by_name' => $task->reviewedBy?->name,
+                            'returned_for_amendments_at' => $task->returned_for_amendments_at?->toDateTimeString(),
+                            'attachment_count' => $task->attachments->count(),
+                            'attachments' => $task->attachments->map(fn (EventTaskAttachment $attachment) => [
+                                'id' => $attachment->id,
+                                'file_name' => $attachment->file_name,
+                                'mime_type' => $attachment->mime_type,
+                                'file_size' => $attachment->file_size,
+                                'attachment_type' => $attachment->attachment_type,
+                            ])->values(),
                             'completed_at' => $task->completed_at?->toDateTimeString(),
                             'sort_order' => $task->sort_order,
                         ];
@@ -1695,6 +1854,63 @@ class EventService
         ])->save();
     }
 
+    protected function submitTaskForVerification(EventTask $task, ?User $actor = null): void
+    {
+        $task->forceFill([
+            'status' => 'in_progress',
+            'completion_status' => 'submitted',
+            'submitted_for_verification_at' => now(),
+            'submitted_by_user_id' => $actor?->id,
+            'manager_review_notes' => null,
+            'reviewed_at' => null,
+            'reviewed_by_user_id' => null,
+            'returned_for_amendments_at' => null,
+            'completed_at' => null,
+        ])->save();
+    }
+
+    protected function addTaskAttachments(Event $event, EventTask $task, array $attachments): void
+    {
+        $sortOrder = ((int) $task->attachments()->max('sort_order')) + 1;
+
+        foreach ($attachments as $attachment) {
+            if (! $attachment instanceof UploadedFile) {
+                continue;
+            }
+
+            $path = $attachment->store("event-task-attachments/{$event->id}/{$task->id}", 'local');
+
+            $task->attachments()->create([
+                'disk' => 'local',
+                'path' => $path,
+                'file_name' => $attachment->getClientOriginalName(),
+                'mime_type' => $attachment->getClientMimeType(),
+                'file_size' => $attachment->getSize(),
+                'attachment_type' => 'supporting_document',
+                'sort_order' => $sortOrder++,
+            ]);
+        }
+    }
+
+    protected function removeTaskAttachments(EventTask $task, array $attachmentIds): void
+    {
+        $ids = collect($attachmentIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $attachments = $task->attachments()->whereKey($ids)->get();
+
+        foreach ($attachments as $attachment) {
+            Storage::disk($attachment->disk)->delete($attachment->path);
+            $attachment->delete();
+        }
+    }
+
     protected function transitionEvent(
         Event $event,
         User $actor,
@@ -1750,6 +1966,33 @@ class EventService
         ]);
     }
 
+    protected function normalizeSeriesFields(array $data): array
+    {
+        if (! empty($data['event_series_id'])) {
+            $series = EventSeries::query()->find($data['event_series_id']);
+            if ($series) {
+                $data['annual_series_key'] = $series->series_key;
+                $data['is_annual'] = true;
+            }
+
+            return $data;
+        }
+
+        if (! empty($data['annual_series_key'])) {
+            $series = EventSeries::query()
+                ->where('series_key', Str::slug((string) $data['annual_series_key']))
+                ->orWhere('slug', Str::slug((string) $data['annual_series_key']))
+                ->first();
+
+            if ($series) {
+                $data['event_series_id'] = $series->id;
+                $data['annual_series_key'] = $series->series_key;
+            }
+        }
+
+        return $data;
+    }
+
     protected function notifyManagers(Event $event, User $actor, string $title, string $message): void
     {
         User::query()
@@ -1762,10 +2005,13 @@ class EventService
     protected function eventRelations(): array
     {
         return [
+            'eventSeries',
             'owner',
             'participants',
             'partners',
-            'workstreams.tasks',
+            'workstreams.tasks.attachments',
+            'workstreams.tasks.submittedBy',
+            'workstreams.tasks.reviewedBy',
             'outcomeReport.reporter',
             'closureReport.assets.uploadedBy',
             'closureReport.closedBy',

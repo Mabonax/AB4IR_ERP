@@ -47,12 +47,4 @@ class BdsApplicationPolicy
             && ! $application->has_submitted_adjudication;
     }
 
-    public function schedulePitch(User $user, BdsApplication $application): bool
-    {
-        return $this->canManageDomain($user)
-            && $this->hasWorkflowRole($user)
-            && $application->assessment_status === 'accepted'
-            && $application->adjudication_result === null
-            && ! $application->has_submitted_adjudication;
-    }
 }

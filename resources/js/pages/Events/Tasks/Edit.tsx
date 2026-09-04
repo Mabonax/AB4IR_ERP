@@ -23,6 +23,7 @@ export default function EventTaskEdit({
       breadcrumbs={breadcrumbs}
       event={event}
       submitRoute={{ url: `/events/${event.id}/tasks/${task.id}`, method: "put" }}
+      reviewUrl={`/events/${event.id}/tasks/${task.id}`}
       initialData={{
         event_workstream_id: String(task.event_workstream_id ?? ""),
         phase: task.phase ?? "pre_event",
@@ -36,6 +37,9 @@ export default function EventTaskEdit({
         comment: task.comment ?? "",
         evidence_url: task.evidence_url ?? "",
         evidence_file: null,
+        evidence_attachments: [],
+        attachments: task.attachments ?? [],
+        remove_attachment_ids: [],
         evidence_file_name: task.evidence_file_name ?? null,
         has_evidence_file: Boolean(task.has_evidence_file),
         remove_evidence_file: false,

@@ -102,7 +102,14 @@ test('ERP project can map to an LMS offering and records history', function () {
         'https://lms.example.test/integrations/erp/project-mappings' => Http::response([
             'status' => 'mapped',
             'mapping' => [
-                'offering' => ['id' => 12, 'name' => 'Drone Cohort A', 'status' => 'active'],
+                'offering' => [
+                    'id' => 12,
+                    'name' => 'Drone Cohort A',
+                    'display_name' => 'Drone Technology & Piloting - Drone Cohort A',
+                    'status' => 'active',
+                    'programme' => ['id' => 2, 'name' => 'Drone Technology & Piloting'],
+                    'courses' => [['id' => 7, 'title' => 'Intro to Drone Technology']],
+                ],
             ],
         ]),
     ]);
@@ -120,6 +127,60 @@ test('ERP project can map to an LMS offering and records history', function () {
         'project_id' => $fixture['project']->id,
         'action' => 'lms_mapping_updated',
     ]);
+});
+
+test('learner provisioning workspace distinguishes active LMS account from mapped cohort enrollment', function () {
+    config(['services.lms.app_url' => 'https://lms.example.test', 'services.lms_bridge.token' => 'bridge-token']);
+    $fixture = createProjectLearningFixture();
+    $fixture['project']->learningMappings()->create([
+        'lms_offering_id' => '12',
+        'status' => 'active',
+        'mapped_at' => now(),
+    ]);
+
+    Http::fake([
+        "https://lms.example.test/integrations/erp/beneficiaries/{$fixture['beneficiary']->id}/learning-summary" => Http::response([
+            'data' => [
+                'access_state' => 'active',
+                'current_offerings' => [
+                    ['id' => 99, 'name' => 'Wrong Cohort'],
+                ],
+            ],
+        ]),
+    ]);
+
+    $workspace = app(\App\Domains\Projects\Services\ProjectLearningDeliveryService::class)
+        ->learnerProvisioningWorkspace($fixture['project']);
+
+    expect($workspace['items'][0]['lms_status'])->toBe('cohort_enrollment_pending');
+    expect($workspace['metrics']['cohort_enrollment_pending'])->toBe(1);
+});
+
+test('learner provisioning workspace reports enrolled when account is in mapped cohort', function () {
+    config(['services.lms.app_url' => 'https://lms.example.test', 'services.lms_bridge.token' => 'bridge-token']);
+    $fixture = createProjectLearningFixture();
+    $fixture['project']->learningMappings()->create([
+        'lms_offering_id' => '12',
+        'status' => 'active',
+        'mapped_at' => now(),
+    ]);
+
+    Http::fake([
+        "https://lms.example.test/integrations/erp/beneficiaries/{$fixture['beneficiary']->id}/learning-summary" => Http::response([
+            'data' => [
+                'access_state' => 'active',
+                'current_offerings' => [
+                    ['id' => 12, 'name' => 'Mapped Cohort'],
+                ],
+            ],
+        ]),
+    ]);
+
+    $workspace = app(\App\Domains\Projects\Services\ProjectLearningDeliveryService::class)
+        ->learnerProvisioningWorkspace($fixture['project']);
+
+    expect($workspace['items'][0]['lms_status'])->toBe('enrolled');
+    expect($workspace['metrics']['enrolled'])->toBe(1);
 });
 
 test('ERP project mapping rejects failed LMS bridge responses without creating local mapping', function () {

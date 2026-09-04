@@ -81,8 +81,8 @@ export default function BdsApplicationShow({
     { label: "Assessment Status", value: appData.assessment_status_label },
     { label: "Assessed By", value: appData.assessor_name },
     { label: "Assessed At", value: appData.assessed_at },
-    { label: "Pitch Scheduled At", value: appData.pitch_scheduled_at },
-    { label: "Pitch Notes", value: appData.pitch_notes },
+    { label: "Pitch Session Scheduled At", value: appData.pitch_scheduled_at },
+    { label: "Pitch Session Notes", value: appData.pitch_notes },
     { label: "Adjudication Result", value: appData.adjudication_result },
     { label: "Adjudicated At", value: appData.adjudicated_at },
   ];
@@ -123,7 +123,7 @@ export default function BdsApplicationShow({
                 )}
               </div>
               <div className="rounded-lg border p-3">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Pitch</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Pitch Session</div>
                 <div className="mt-1 text-sm font-medium">
                   {appData.workflow_summary.pitch.ready ? "Ready" : "Blocked"}
                 </div>

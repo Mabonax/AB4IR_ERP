@@ -59,6 +59,17 @@ class AccessControlSeeder extends Seeder
 
         $businessDevelopmentWorkflowPermissions = [
             'business-development.adjudications.score',
+            'enterprise-development.profile.view',
+            'enterprise-development.framework.view',
+            'enterprise-development.framework.manage',
+            'enterprise-development.diagnostics.create',
+            'enterprise-development.diagnostics.edit',
+            'enterprise-development.diagnostics.complete',
+            'enterprise-development.compliance.view',
+            'enterprise-development.compliance.verify',
+            'enterprise-development.needs.manage',
+            'enterprise-development.plans.manage',
+            'enterprise-development.history.view',
         ];
 
         $technicalTicketPermissions = [
@@ -220,7 +231,31 @@ class AccessControlSeeder extends Seeder
 
             if (in_array('business-development', $mappedDomains, true)) {
                 $domainAdminPermissions[] = 'business-development.adjudications.score';
+                $domainAdminPermissions[] = 'enterprise-development.profile.view';
+                $domainAdminPermissions[] = 'enterprise-development.framework.view';
+                $domainAdminPermissions[] = 'enterprise-development.framework.manage';
+                $domainAdminPermissions[] = 'enterprise-development.diagnostics.create';
+                $domainAdminPermissions[] = 'enterprise-development.diagnostics.edit';
+                $domainAdminPermissions[] = 'enterprise-development.diagnostics.complete';
+                $domainAdminPermissions[] = 'enterprise-development.compliance.view';
+                $domainAdminPermissions[] = 'enterprise-development.compliance.verify';
+                $domainAdminPermissions[] = 'enterprise-development.needs.manage';
+                $domainAdminPermissions[] = 'enterprise-development.plans.manage';
+                $domainAdminPermissions[] = 'enterprise-development.history.view';
                 $departmentManagerPermissions[] = 'business-development.adjudications.score';
+                $departmentManagerPermissions[] = 'enterprise-development.profile.view';
+                $departmentManagerPermissions[] = 'enterprise-development.framework.view';
+                $departmentManagerPermissions[] = 'enterprise-development.diagnostics.create';
+                $departmentManagerPermissions[] = 'enterprise-development.diagnostics.edit';
+                $departmentManagerPermissions[] = 'enterprise-development.diagnostics.complete';
+                $departmentManagerPermissions[] = 'enterprise-development.compliance.view';
+                $departmentManagerPermissions[] = 'enterprise-development.compliance.verify';
+                $departmentManagerPermissions[] = 'enterprise-development.needs.manage';
+                $departmentManagerPermissions[] = 'enterprise-development.plans.manage';
+                $departmentManagerPermissions[] = 'enterprise-development.history.view';
+                $departmentUserPermissions[] = 'enterprise-development.profile.view';
+                $departmentUserPermissions[] = 'enterprise-development.compliance.view';
+                $departmentUserPermissions[] = 'enterprise-development.history.view';
             }
 
             if ($departmentName === 'technical') {

@@ -58,8 +58,13 @@ class BdsPitchSessionService
         return DB::transaction(function () use ($data, $actor) {
             $panelists = collect($data['panelists'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
             $prospects = collect($data['prospects'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
+            $chairPanelistId = $this->resolveChairPanelistId(
+                $panelists,
+                $actor,
+                isset($data['chair_panelist_id']) ? (int) $data['chair_panelist_id'] : null
+            );
 
-            $this->assertPanelComposition($panelists, $actor);
+            $this->assertPanelComposition($panelists, $chairPanelistId);
 
             if ($prospects->isEmpty()) {
                 throw ValidationException::withMessages([
@@ -70,6 +75,7 @@ class BdsPitchSessionService
             $scheduledFor = Carbon::parse($data['scheduled_for']);
             $applications = BdsApplication::query()
                 ->whereIn('id', $prospects->all())
+                ->withExists(['pitchSessionProspects as has_pitch_session'])
                 ->withExists([
                     'adjudications as has_submitted_adjudication' => fn ($query) => $query->where('status', 'submitted'),
                 ])
@@ -99,7 +105,7 @@ class BdsPitchSessionService
 
             foreach ($panelists->values() as $panelistId) {
                 $panelist = User::query()->findOrFail($panelistId);
-                $isChair = (int) $panelist->id === (int) $actor->id;
+                $isChair = (int) $panelist->id === $chairPanelistId;
 
                 $session->panelists()->create([
                     'user_id' => $panelistId,
@@ -301,7 +307,34 @@ class BdsPitchSessionService
         ]);
     }
 
-    protected function assertPanelComposition($panelists, User $actor): void
+    protected function resolveChairPanelistId($panelists, User $actor, ?int $requestedChairPanelistId): int
+    {
+        if ($requestedChairPanelistId !== null) {
+            return $requestedChairPanelistId;
+        }
+
+        if ($panelists->contains((int) $actor->id)) {
+            return (int) $actor->id;
+        }
+
+        $managerIds = User::query()
+            ->whereIn('id', $panelists->all())
+            ->get()
+            ->filter(fn (User $panelist) => $this->hasWorkflowRole($panelist) && $panelist->can('domain.business-development.manage'))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        if ($managerIds->count() === 1) {
+            return (int) $managerIds->first();
+        }
+
+        throw ValidationException::withMessages([
+            'chair_panelist_id' => ['Select the BDS manager who will chair this pitch session.'],
+        ]);
+    }
+
+    protected function assertPanelComposition($panelists, int $chairPanelistId): void
     {
         if ($panelists->count() < 2) {
             throw ValidationException::withMessages([
@@ -309,9 +342,9 @@ class BdsPitchSessionService
             ]);
         }
 
-        if (! $panelists->contains((int) $actor->id)) {
+        if (! $panelists->contains($chairPanelistId)) {
             throw ValidationException::withMessages([
-                'panelists' => ['The BDS manager scheduling the session must be included as the chair panelist.'],
+                'chair_panelist_id' => ['The selected chair must also be included as a panel member.'],
             ]);
         }
 
@@ -339,6 +372,13 @@ class BdsPitchSessionService
 
             throw ValidationException::withMessages([
                 'panelists' => ["{$panelist->name} does not have permission to score BDS adjudications."],
+            ]);
+        }
+
+        $chair = $users->get($chairPanelistId);
+        if (! $chair || ! $this->hasWorkflowRole($chair) || ! $chair->can('domain.business-development.manage')) {
+            throw ValidationException::withMessages([
+                'chair_panelist_id' => ['The chair panelist must be a Business Development manager.'],
             ]);
         }
     }
@@ -375,6 +415,12 @@ class BdsPitchSessionService
         if ((bool) ($application->has_submitted_adjudication ?? false)) {
             throw ValidationException::withMessages([
                 'prospects' => ["{$application->company_name} already has a submitted adjudication panel scorecard."],
+            ]);
+        }
+
+        if ((bool) ($application->has_pitch_session ?? false)) {
+            throw ValidationException::withMessages([
+                'prospects' => ["{$application->company_name} is already attached to a pitch session."],
             ]);
         }
     }

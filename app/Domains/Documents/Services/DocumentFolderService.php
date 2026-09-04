@@ -7,6 +7,7 @@ use App\Domains\Documents\Models\DocumentFile;
 use App\Domains\Documents\Models\DocumentFolder;
 use App\Domains\Documents\Repositories\DocumentFolderRepositoryInterface;
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventSeries;
 use App\Domains\Marketing\Models\MarketingAsset;
 use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Organization\Models\OrganizationProfile;
@@ -307,10 +308,24 @@ class DocumentFolderService
                 fn ($query) => $query->when(
                     $ownerType === Event::class,
                     fn ($eventQuery) => $eventQuery->where('folder_type', DocumentFolder::TYPE_EVENT_ROOT),
-                    fn ($defaultQuery) => $defaultQuery->where('folder_type', DocumentFolder::TYPE_PROJECT_ROOT)
+                    fn ($defaultQuery) => $defaultQuery->when(
+                        $ownerType === EventSeries::class,
+                        fn ($seriesQuery) => $seriesQuery->where('folder_type', DocumentFolder::TYPE_EVENT_SERIES_ROOT),
+                        fn ($projectQuery) => $projectQuery->where('folder_type', DocumentFolder::TYPE_PROJECT_ROOT)
+                    )
                 )
             )
             ->first();
+    }
+
+    public function ensureLibraryGroupForOwner(string $name, ?User $actor = null): DocumentFolder
+    {
+        return $this->ensureLibraryGroup($name, $actor);
+    }
+
+    public function ensureOwnedChildFoldersForOwner(DocumentFolder $root, array $names, ?User $actor = null): void
+    {
+        $this->ensureOwnedChildFolders($root, $names, $actor);
     }
 
     protected function ensureLibraryGroup(string $name, ?User $actor = null): DocumentFolder
@@ -355,6 +370,7 @@ class DocumentFolderService
             Project::class,
             ProjectLocation::class,
             Event::class,
+            EventSeries::class,
             Beneficiary::class,
             Stakeholder::class,
             Asset::class,
@@ -377,6 +393,7 @@ class DocumentFolderService
             Project::class => 'Projects',
             ProjectLocation::class => 'Project Locations',
             Event::class => 'Events',
+            EventSeries::class => 'Events',
             Beneficiary::class => 'Beneficiaries',
             Stakeholder::class => 'Stakeholders',
             Asset::class => 'Assets',

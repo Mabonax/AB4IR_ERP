@@ -7,7 +7,9 @@ use App\Domains\Events\Models\EventClosureAsset;
 use App\Domains\Events\Requests\CompleteEventRequest;
 use App\Domains\Events\Requests\EventClosureAssetUploadRequest;
 use App\Domains\Events\Requests\EventLifecycleActionRequest;
+use App\Domains\Events\Models\EventTask;
 use App\Domains\Events\Models\EventWorkstream;
+use App\Domains\Events\Services\EventSeriesService;
 use App\Domains\Events\Services\EventService;
 use App\Domains\Staff\Models\StaffMember;
 use App\Domains\Stakeholders\Models\Stakeholder;
@@ -20,7 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class EventController extends Controller
 {
     public function __construct(
-        protected EventService $service
+        protected EventService $service,
+        protected EventSeriesService $seriesService,
     ) {}
 
     public function index()
@@ -32,6 +35,7 @@ class EventController extends Controller
 
         return Inertia::render('Events/Index', [
             'events' => $events->through(fn (Event $event) => $this->service->mapEvent($event)),
+            'eventSeries' => $this->seriesService->allWithSummary()->map(fn ($series) => $this->seriesService->seriesOverview($series))->values(),
             'stats' => $stats,
             'staffMembers' => StaffMember::query()
                 ->select('id', 'first_name', 'last_name')
@@ -59,6 +63,7 @@ class EventController extends Controller
         return Inertia::render('Events/Create', [
             'staffMembers' => $this->staffMembers(),
             'stakeholders' => $this->stakeholders(),
+            'eventSeries' => $this->seriesOptions(),
         ]);
     }
 
@@ -88,8 +93,12 @@ class EventController extends Controller
     {
         $this->authorize('viewAny', Event::class);
 
+        $series = $this->seriesService->resolveSeriesForLegacyKey($seriesKey);
+
         return Inertia::render('Events/Series', [
-            'series' => $this->service->seriesOverview($seriesKey),
+            'series' => $series
+                ? $this->seriesService->seriesOverview($series)
+                : $this->service->seriesOverview($seriesKey),
         ]);
     }
 
@@ -102,6 +111,7 @@ class EventController extends Controller
             'event' => $this->service->mapEvent($model),
             'staffMembers' => $this->staffMembers(),
             'stakeholders' => $this->stakeholders(),
+            'eventSeries' => $this->seriesOptions(),
         ]);
     }
 
@@ -186,33 +196,28 @@ class EventController extends Controller
         $model = $this->service->getEvent($event);
         $this->authorize('update', $model);
 
-        $taskModel = $model->workstreams()
-            ->with('tasks')
-            ->get()
-            ->flatMap->tasks
-            ->firstWhere('id', $task);
+        $taskModel = $this->eventTask($model, $task);
 
         abort_if(! $taskModel, 404);
 
         return Inertia::render('Events/Tasks/Edit', [
             'event' => $this->service->mapEvent($model),
-            'task' => [
-                'id' => $taskModel->id,
-                'event_workstream_id' => $taskModel->event_workstream_id,
-                'phase' => $taskModel->phase,
-                'task_group' => $taskModel->task_group,
-                'is_custom' => $taskModel->is_custom,
-                'duty' => $taskModel->duty,
-                'due_date' => $taskModel->due_date?->format('Y-m-d'),
-                'responsible_person' => $taskModel->responsible_person,
-                'outcome' => $taskModel->outcome,
-                'status' => $taskModel->status,
-                'comment' => $taskModel->comment,
-                'evidence_url' => $taskModel->evidence_url,
-                'evidence_file_name' => $taskModel->evidence_file_name,
-                'has_evidence_file' => filled($taskModel->evidence_path),
-                'sort_order' => $taskModel->sort_order,
-            ],
+            'task' => $this->mapEventTask($taskModel),
+        ]);
+    }
+
+    public function showTaskPage(int $event, int $task)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('view', $model);
+
+        $taskModel = $this->eventTask($model, $task);
+
+        abort_if(! $taskModel, 404);
+
+        return Inertia::render('Events/Tasks/Show', [
+            'event' => $this->service->mapEvent($model),
+            'task' => $this->mapEventTask($taskModel),
         ]);
     }
 
@@ -600,7 +605,7 @@ class EventController extends Controller
         $this->authorize('update', $model);
 
         $data = $this->validateTask($request);
-        $this->service->addTask($model, $data, $request->file('evidence_file'));
+        $this->service->addTask($model, $data, $request->file('evidence_file'), $request->file('evidence_attachments', []), $request->user());
 
         return redirect()->back()->with('success', 'Event task added.');
     }
@@ -611,9 +616,29 @@ class EventController extends Controller
         $this->authorize('update', $model);
 
         $data = $this->validateTask($request);
-        $this->service->updateTask($model, $task, $data, $request->file('evidence_file'));
+        $this->service->updateTask($model, $task, $data, $request->file('evidence_file'), $request->file('evidence_attachments', []), $request->user());
 
         return redirect()->back()->with('success', 'Event task updated.');
+    }
+
+    public function approveTask(Request $request, int $event, int $task)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('update', $model);
+
+        $this->service->approveTaskCompletion($model, $task, $this->validateTaskReview($request), $request->user());
+
+        return redirect()->back()->with('success', 'Event task verified and approved.');
+    }
+
+    public function returnTask(Request $request, int $event, int $task)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('update', $model);
+
+        $this->service->returnTaskForAmendments($model, $task, $this->validateTaskReview($request), $request->user());
+
+        return redirect()->back()->with('success', 'Event task returned for amendments.');
     }
 
     public function destroyTask(int $event, int $task)
@@ -633,12 +658,21 @@ class EventController extends Controller
         return $this->service->downloadTaskEvidence($model, $task);
     }
 
+    public function downloadTaskAttachment(int $event, int $task, int $attachment)
+    {
+        $model = $this->service->getEvent($event);
+        $this->authorize('view', $model);
+
+        return $this->service->downloadTaskAttachment($model, $task, $attachment);
+    }
+
     protected function validateEvent(Request $request): array
     {
         return $request->validate([
             'title' => 'required|string|max:255',
             'event_type' => 'nullable|string|max:255',
             'event_format' => 'nullable|in:physical,virtual,hybrid',
+            'event_series_id' => 'nullable|integer|exists:event_series,id',
             'annual_series_key' => 'nullable|string|max:255',
             'event_year' => 'nullable|integer|min:2000|max:2100',
             'is_annual' => 'nullable|boolean',
@@ -682,9 +716,28 @@ class EventController extends Controller
             'comment' => 'nullable|string|max:4000',
             'evidence_url' => 'nullable|url|max:2048',
             'evidence_file' => 'nullable|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,csv,txt,png,jpg,jpeg,webp',
+            'evidence_attachments' => 'nullable|array',
+            'evidence_attachments.*' => 'file|max:51200|mimes:pdf,doc,docx,xls,xlsx,csv,txt,png,jpg,jpeg,webp',
+            'remove_attachment_ids' => 'nullable|array',
+            'remove_attachment_ids.*' => 'integer|exists:event_task_attachments,id',
             'remove_evidence_file' => 'nullable|boolean',
             'sort_order' => 'nullable|integer|min:1|max:1000',
             'is_custom' => 'nullable|boolean',
+        ], [], [
+            'event_workstream_id' => 'department',
+            'task_group' => 'task group',
+            'duty' => 'task',
+            'due_date' => 'due date',
+            'responsible_person' => 'responsible person',
+            'evidence_url' => 'evidence link',
+            'evidence_file' => 'evidence file',
+            'evidence_attachments' => 'supporting attachments',
+            'evidence_attachments.*' => 'supporting attachment',
+            'remove_attachment_ids' => 'attachments to remove',
+            'remove_attachment_ids.*' => 'attachment to remove',
+            'remove_evidence_file' => 'remove existing file',
+            'sort_order' => 'sort order',
+            'is_custom' => 'custom task',
         ]);
 
         if (! filled($validated['task_group'] ?? null)) {
@@ -696,6 +749,61 @@ class EventController extends Controller
         }
 
         return $validated;
+    }
+
+    protected function validateTaskReview(Request $request): array
+    {
+        return $request->validate([
+            'manager_review_notes' => 'nullable|string|max:4000',
+        ], [], [
+            'manager_review_notes' => 'review notes',
+        ]);
+    }
+
+    protected function eventTask(Event $event, int $task): ?EventTask
+    {
+        return $event->workstreams()
+            ->with(['tasks.attachments', 'tasks.submittedBy', 'tasks.reviewedBy'])
+            ->get()
+            ->flatMap->tasks
+            ->firstWhere('id', $task);
+    }
+
+    protected function mapEventTask(EventTask $task): array
+    {
+        return [
+            'id' => $task->id,
+            'event_workstream_id' => $task->event_workstream_id,
+            'workstream_name' => $task->workstream?->name,
+            'phase' => $task->phase,
+            'task_group' => $task->task_group,
+            'is_custom' => $task->is_custom,
+            'duty' => $task->duty,
+            'due_date' => $task->due_date?->format('Y-m-d'),
+            'responsible_person' => $task->responsible_person,
+            'outcome' => $task->outcome,
+            'status' => $task->status,
+            'comment' => $task->comment,
+            'evidence_url' => $task->evidence_url,
+            'evidence_file_name' => $task->evidence_file_name,
+            'has_evidence_file' => filled($task->evidence_path),
+            'completion_status' => $task->completion_status ?? 'not_submitted',
+            'submitted_for_verification_at' => $task->submitted_for_verification_at?->toDateTimeString(),
+            'submitted_by_user_id' => $task->submitted_by_user_id,
+            'submitted_by_name' => $task->submittedBy?->name,
+            'manager_review_notes' => $task->manager_review_notes,
+            'reviewed_at' => $task->reviewed_at?->toDateTimeString(),
+            'reviewed_by_user_id' => $task->reviewed_by_user_id,
+            'reviewed_by_name' => $task->reviewedBy?->name,
+            'returned_for_amendments_at' => $task->returned_for_amendments_at?->toDateTimeString(),
+            'attachments' => $task->attachments->map(fn ($attachment) => [
+                'id' => $attachment->id,
+                'file_name' => $attachment->file_name,
+                'mime_type' => $attachment->mime_type,
+                'file_size' => $attachment->file_size,
+            ])->values(),
+            'sort_order' => $task->sort_order,
+        ];
     }
 
     protected function validateParticipant(Request $request): array
@@ -728,6 +836,18 @@ class EventController extends Controller
                 'id' => $staff->id,
                 'name' => trim($staff->first_name.' '.$staff->last_name),
             ])->values();
+    }
+
+    protected function seriesOptions()
+    {
+        return $this->seriesService->allWithSummary()
+            ->map(fn ($series) => [
+                'id' => $series->id,
+                'name' => $series->name,
+                'series_key' => $series->series_key,
+                'slug' => $series->slug,
+            ])
+            ->values();
     }
 
     protected function stakeholders()

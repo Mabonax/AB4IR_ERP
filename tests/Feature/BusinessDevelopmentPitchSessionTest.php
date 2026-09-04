@@ -7,6 +7,7 @@ use App\Models\User;
 use Database\Seeders\AdjudicationSectionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -49,6 +50,23 @@ function createBusinessDevelopmentPanelist(): User
         'domain.business-development.manage',
         'business-development.adjudications.score',
     ]);
+
+    return $user;
+}
+
+function createBusinessDevelopmentAdminScheduler(): User
+{
+    $user = User::factory()->create();
+
+    Permission::firstOrCreate(['name' => 'domain.business-development.view', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'domain.business-development.manage', 'guard_name' => 'web']);
+    $role = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
+    $role->givePermissionTo([
+        'domain.business-development.view',
+        'domain.business-development.manage',
+    ]);
+
+    $user->assignRole($role);
 
     return $user;
 }
@@ -121,6 +139,51 @@ test('pitch session scheduling attaches panelists and prospects and updates pitc
     ]);
 
     expect(DB::table('bds_applications')->where('id', $prospectId)->value('pitch_scheduled_at'))->not->toBeNull();
+});
+
+test('pitch session scheduling accepts an explicitly selected bds manager chair', function () {
+    $scheduler = createBusinessDevelopmentAdminScheduler();
+    $manager = createBusinessDevelopmentManager();
+    $panelist = createBusinessDevelopmentPanelist();
+    $prospectId = createAcceptedProspect('Chair Prospect');
+
+    $session = app(BdsPitchSessionService::class)->createSession([
+        'title' => 'Chair Selected Panel',
+        'scheduled_for' => now()->addDays(4)->toDateTimeString(),
+        'venue' => 'Boardroom B',
+        'chair_panelist_id' => $manager->id,
+        'panelists' => [$manager->id, $panelist->id],
+        'prospects' => [$prospectId],
+    ], $scheduler);
+
+    $this->assertDatabaseHas('bd_pitch_session_panelists', [
+        'pitch_session_id' => $session->id,
+        'user_id' => $manager->id,
+        'is_chair' => true,
+        'panel_role' => 'bds',
+    ]);
+});
+
+test('pitch session scheduling rejects prospects already attached to another session', function () {
+    $manager = createBusinessDevelopmentManager();
+    $panelist = createBusinessDevelopmentPanelist();
+    $prospectId = createAcceptedProspect('Duplicate Session Prospect');
+
+    app(BdsPitchSessionService::class)->createSession([
+        'title' => 'First Panel',
+        'scheduled_for' => now()->addDays(4)->toDateTimeString(),
+        'venue' => 'Boardroom B',
+        'panelists' => [$manager->id, $panelist->id],
+        'prospects' => [$prospectId],
+    ], $manager);
+
+    expect(fn () => app(BdsPitchSessionService::class)->createSession([
+        'title' => 'Second Panel',
+        'scheduled_for' => now()->addDays(5)->toDateTimeString(),
+        'venue' => 'Boardroom C',
+        'panelists' => [$manager->id, $panelist->id],
+        'prospects' => [$prospectId],
+    ], $manager))->toThrow(ValidationException::class, 'Duplicate Session Prospect is already attached to a pitch session.');
 });
 
 test('pitch session consolidation aggregates submitted panel scorecards and manager approval incubates the prospect', function () {

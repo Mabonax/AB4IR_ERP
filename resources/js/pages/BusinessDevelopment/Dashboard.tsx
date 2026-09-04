@@ -1,5 +1,5 @@
 import { Head } from "@inertiajs/react";
-import { BriefcaseBusiness, CalendarClock, CheckCircle2, CircleDollarSign, FileText, TrendingUp, UserRoundCheck, XCircle } from "lucide-react";
+import { BriefcaseBusiness, CalendarClock, CheckCircle2, CircleDollarSign, FileText, ListChecks, TrendingUp, UserRoundCheck, XCircle } from "lucide-react";
 
 import { DomainNav } from "@/components/domain-nav";
 import { businessDevelopmentNavItems } from "@/config/domain-nav/business-development";
@@ -35,6 +35,11 @@ export default function BusinessDevelopmentDashboard({
     totalIncubatees: number;
     activeIncubatees: number;
     inactiveIncubatees: number;
+    baselinePending: number;
+    diagnosticsInProgress: number;
+    activeDevelopmentPlans: number;
+    highPriorityDevelopmentNeeds: number;
+    complianceAttentionRequired: number;
   };
   activities: ActivityRow[];
 }) {
@@ -69,6 +74,11 @@ export default function BusinessDevelopmentDashboard({
             { label: "Incubatees", sub: "Total records", value: stats.totalIncubatees, icon: UserRoundCheck, tone: "bg-violet-50 text-violet-600" },
             { label: "Active Incubatees", sub: "Currently active", value: stats.activeIncubatees, icon: TrendingUp, tone: "bg-lime-50 text-lime-600" },
             { label: "Inactive Incubatees", sub: "Currently inactive", value: stats.inactiveIncubatees, icon: CircleDollarSign, tone: "bg-slate-100 text-slate-600" },
+            { label: "Baseline Pending", sub: "Incubatees without baseline", value: stats.baselinePending, icon: ListChecks, tone: "bg-amber-50 text-amber-700" },
+            { label: "Diagnostics In Progress", sub: "Draft or in-progress", value: stats.diagnosticsInProgress, icon: ListChecks, tone: "bg-blue-50 text-blue-700" },
+            { label: "Active Plans", sub: "Development plans", value: stats.activeDevelopmentPlans, icon: ListChecks, tone: "bg-emerald-50 text-emerald-700" },
+            { label: "High Priority Needs", sub: "Open/planned/in progress", value: stats.highPriorityDevelopmentNeeds, icon: ListChecks, tone: "bg-red-50 text-red-700" },
+            { label: "Compliance Attention", sub: "Completed diagnostics with gaps", value: stats.complianceAttentionRequired, icon: ListChecks, tone: "bg-orange-50 text-orange-700" },
           ].map((item) => (
             <section key={item.label} className="rounded-lg border bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">

@@ -33,9 +33,13 @@ use App\Domains\Documents\Repositories\DocumentFileRepositoryInterface;
 use App\Domains\Documents\Repositories\DocumentFolderRepository;
 use App\Domains\Documents\Repositories\DocumentFolderRepositoryInterface;
 use App\Domains\Events\Models\Event;
+use App\Domains\Events\Models\EventSeries;
 use App\Domains\Events\Policies\EventPolicy;
+use App\Domains\Events\Policies\EventSeriesPolicy;
 use App\Domains\Events\Repositories\EventRepository;
 use App\Domains\Events\Repositories\EventRepositoryInterface;
+use App\Domains\Events\Repositories\EventSeriesRepository;
+use App\Domains\Events\Repositories\EventSeriesRepositoryInterface;
 use App\Domains\Facilitators\Models\Facilitator;
 use App\Domains\Facilitators\Policies\FacilitatorPolicy;
 use App\Domains\Facilitators\Repositories\FacilitatorRepository;
@@ -212,6 +216,11 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            EventSeriesRepositoryInterface::class,
+            EventSeriesRepository::class
+        );
+
+        $this->app->bind(
             DocumentFolderRepositoryInterface::class,
             DocumentFolderRepository::class
         );
@@ -231,6 +240,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(OrganizationProfile::class, OrganizationProfilePolicy::class);
         Gate::policy(OrganizationDocument::class, OrganizationDocumentPolicy::class);
         Gate::policy(Event::class, EventPolicy::class);
+        Gate::policy(EventSeries::class, EventSeriesPolicy::class);
         Gate::policy(Project::class, ProjectPolicy::class);
         Gate::policy(BdsApplication::class, BdsApplicationPolicy::class);
         Gate::policy(BdsPitchSession::class, BdsPitchSessionPolicy::class);

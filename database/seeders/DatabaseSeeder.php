@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             StaffDepartmentsSeeder::class,
             AccessControlSeeder::class,
             AdjudicationSectionsSeeder::class,
+            EnterpriseDevelopmentFrameworkSeeder::class,
             SuperAdminUserSeeder::class,
             OrganizationEventsSeeder::class,
         ]);

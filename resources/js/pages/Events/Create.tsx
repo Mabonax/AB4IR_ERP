@@ -9,9 +9,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function EventsCreate({
   staffMembers,
   stakeholders,
+  eventSeries,
 }: {
   staffMembers: Array<{ id: number; name: string }>;
   stakeholders: Array<{ id: number; name: string }>;
+  eventSeries: Array<{ id: number; name: string; series_key: string; slug: string }>;
 }) {
   return (
     <EventFormPage
@@ -23,10 +25,12 @@ export default function EventsCreate({
       submitRoute={{ url: "/events", method: "post" }}
       staffMembers={staffMembers}
       stakeholders={stakeholders}
+      eventSeries={eventSeries}
       initialData={{
         title: "",
         event_type: "",
         event_format: "",
+        event_series_id: "",
         annual_series_key: "",
         event_year: "",
         is_annual: "1",

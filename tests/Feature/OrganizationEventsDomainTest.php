@@ -2,8 +2,14 @@
 
 use App\Domains\Events\Models\Event;
 use App\Domains\Events\Models\EventClosureAsset;
+use App\Domains\Events\Models\EventSeries;
+use App\Domains\Events\Models\EventSeriesAsset;
 use App\Domains\Events\Models\EventTask;
+use App\Domains\Events\Models\EventTaskAttachment;
 use App\Domains\Events\Models\EventWorkstream;
+use App\Domains\Documents\Models\DocumentFile;
+use App\Domains\Documents\Models\DocumentFolder;
+use App\Domains\Documents\Models\DocumentLink;
 use App\Domains\Organization\Models\OrganizationDocument;
 use App\Domains\Organization\Models\OrganizationProfile;
 use App\Domains\Staff\Models\StaffDepartment;
@@ -577,6 +583,11 @@ test('event managers can manage workstreams and planning tasks', function () {
         'outcome' => 'Exhibitor packs ready for setup',
         'status' => 'pending',
         'comment' => 'Awaiting final branding assets',
+        'evidence_attachments' => [
+            UploadedFile::fake()->create('quotation-a.pdf', 18, 'application/pdf'),
+            UploadedFile::fake()->create('quotation-b.pdf', 18, 'application/pdf'),
+            UploadedFile::fake()->create('deviation-motivation.pdf', 18, 'application/pdf'),
+        ],
         'sort_order' => 1,
     ]);
 
@@ -584,9 +595,14 @@ test('event managers can manage workstreams and planning tasks', function () {
     $createTask->assertSessionHas('success', 'Event task added.');
 
     $task = EventTask::query()
+        ->with('attachments')
         ->whereHas('workstream', fn ($query) => $query->where('event_id', $event->id))
         ->where('duty', 'Finalize exhibitor packs')
         ->firstOrFail();
+
+    expect($task->attachments)->toHaveCount(3);
+
+    $removedAttachment = $task->attachments->first();
 
     $updateTask = $this->actingAs($graph['user'])->put(route('events.tasks.update', [
         'event' => $event->id,
@@ -603,6 +619,10 @@ test('event managers can manage workstreams and planning tasks', function () {
         'comment' => 'Branding assets received and printing started',
         'evidence_url' => 'https://example.com/quotation/live-streaming',
         'evidence_file' => UploadedFile::fake()->create('quotation.pdf', 24, 'application/pdf'),
+        'evidence_attachments' => [
+            UploadedFile::fake()->create('late-quotation.pdf', 20, 'application/pdf'),
+        ],
+        'remove_attachment_ids' => [$removedAttachment->id],
         'sort_order' => 2,
     ]);
 
@@ -620,6 +640,24 @@ test('event managers can manage workstreams and planning tasks', function () {
     $task = $task->fresh();
     expect($task->evidence_path)->not->toBeNull();
     Storage::disk('local')->assertExists($task->evidence_path);
+    expect($task->attachments()->count())->toBe(3);
+    $this->assertDatabaseMissing('event_task_attachments', [
+        'id' => $removedAttachment->id,
+    ]);
+    Storage::disk('local')->assertMissing($removedAttachment->path);
+
+    $attachment = EventTaskAttachment::query()
+        ->where('event_task_id', $task->id)
+        ->where('file_name', 'late-quotation.pdf')
+        ->firstOrFail();
+
+    $downloadAttachment = $this->actingAs($graph['user'])->get(route('events.tasks.attachments.download', [
+        'event' => $event->id,
+        'task' => $task->id,
+        'attachment' => $attachment->id,
+    ]));
+
+    $downloadAttachment->assertOk();
 
     $show = $this->actingAs($graph['user'])->get(route('events.show', $event->id));
     $show->assertOk()
@@ -629,6 +667,7 @@ test('event managers can manage workstreams and planning tasks', function () {
             ->where('event.workstreams.4.tasks.0.duty', 'Finalize exhibitor packs')
             ->where('event.workstreams.4.tasks.0.status', 'in_progress')
             ->where('event.workstreams.4.tasks.0.has_evidence_file', true)
+            ->where('event.workstreams.4.tasks.0.attachment_count', 3)
         );
 
     $downloadEvidence = $this->actingAs($graph['user'])->get(route('events.tasks.evidence', [
@@ -649,6 +688,205 @@ test('event managers can manage workstreams and planning tasks', function () {
     $this->assertDatabaseMissing('event_tasks', [
         'id' => $task->id,
     ]);
+});
+
+test('event task validation uses visible field names', function () {
+    $graph = makeEventOwnerGraph();
+    grantDomainAccess($graph['user'], 'events');
+
+    $event = Event::query()->create([
+        'title' => 'Task Validation Event',
+        'event_type' => 'Conference',
+        'start_date' => '2026-08-20',
+        'status' => 'planned',
+        'owner_staff_member_id' => $graph['staff']->id,
+    ]);
+
+    $workstream = $event->workstreams()->create([
+        'name' => 'Operations',
+        'sort_order' => 1,
+    ]);
+
+    $response = $this->actingAs($graph['user'])->from(route('events.tasks.create', $event->id))->post(route('events.tasks.store', $event->id), [
+        'event_workstream_id' => $workstream->id,
+        'phase' => 'preparations',
+        'duty' => '',
+        'status' => 'pending',
+    ]);
+
+    $response->assertRedirect(route('events.tasks.create', $event->id));
+    $response->assertSessionHasErrors([
+        'duty' => 'The task field is required.',
+    ]);
+});
+
+test('event task completion requires manager verification before it counts as completed', function () {
+    $graph = makeEventOwnerGraph();
+    grantDomainAccess($graph['user'], 'events');
+
+    $event = Event::query()->create([
+        'title' => 'Verification Event',
+        'event_type' => 'Conference',
+        'start_date' => '2026-08-20',
+        'status' => 'planned',
+        'owner_staff_member_id' => $graph['staff']->id,
+    ]);
+
+    $workstream = $event->workstreams()->create([
+        'name' => 'Operations',
+        'sort_order' => 1,
+    ]);
+
+    $task = $workstream->tasks()->create([
+        'phase' => 'preparations',
+        'task_group' => 'Quotations',
+        'duty' => 'Source venue quotations',
+        'status' => 'in_progress',
+        'sort_order' => 1,
+    ]);
+
+    $submit = $this->actingAs($graph['user'])->put(route('events.tasks.update', [
+        'event' => $event->id,
+        'task' => $task->id,
+    ]), [
+        'event_workstream_id' => $workstream->id,
+        'phase' => 'preparations',
+        'task_group' => 'Quotations',
+        'duty' => 'Source venue quotations',
+        'status' => 'completed',
+        'comment' => 'Three quotations attached for verification.',
+        'sort_order' => 1,
+    ]);
+
+    $submit->assertRedirect();
+
+    $task = $task->fresh();
+    expect($task->status)->toBe('in_progress')
+        ->and($task->completion_status)->toBe('submitted')
+        ->and($task->submitted_for_verification_at)->not->toBeNull()
+        ->and($task->submitted_by_user_id)->toBe($graph['user']->id)
+        ->and($task->completed_at)->toBeNull();
+
+    $approve = $this->actingAs($graph['user'])->post(route('events.tasks.approve', [
+        'event' => $event->id,
+        'task' => $task->id,
+    ]), [
+        'manager_review_notes' => 'Verified against procurement evidence.',
+    ]);
+
+    $approve->assertRedirect();
+    $approve->assertSessionHas('success', 'Event task verified and approved.');
+
+    $task = $task->fresh();
+    expect($task->status)->toBe('completed')
+        ->and($task->completion_status)->toBe('approved')
+        ->and($task->reviewed_by_user_id)->toBe($graph['user']->id)
+        ->and($task->manager_review_notes)->toBe('Verified against procurement evidence.')
+        ->and($task->completed_at)->not->toBeNull();
+});
+
+test('event task review page shows verification and evidence details', function () {
+    Storage::fake('local');
+
+    $graph = makeEventOwnerGraph();
+    grantDomainAccess($graph['user'], 'events');
+
+    $event = Event::query()->create([
+        'title' => 'Task Review Event',
+        'event_type' => 'Conference',
+        'start_date' => '2026-08-20',
+        'status' => 'planned',
+        'owner_staff_member_id' => $graph['staff']->id,
+    ]);
+
+    $workstream = $event->workstreams()->create([
+        'name' => 'Operations',
+        'sort_order' => 1,
+    ]);
+
+    $task = $workstream->tasks()->create([
+        'phase' => 'preparations',
+        'task_group' => 'Quotations',
+        'duty' => 'Review venue quotations',
+        'responsible_person' => 'Events manager',
+        'outcome' => 'Venue recommendation approved',
+        'status' => 'in_progress',
+        'completion_status' => 'submitted',
+        'submitted_for_verification_at' => now(),
+        'submitted_by_user_id' => $graph['user']->id,
+        'comment' => 'Quotations uploaded for manager verification.',
+        'sort_order' => 1,
+    ]);
+
+    $task->attachments()->create([
+        'disk' => 'local',
+        'path' => 'event-task-attachments/quotation-a.pdf',
+        'file_name' => 'quotation-a.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size' => 12,
+        'attachment_type' => 'supporting_document',
+        'sort_order' => 1,
+    ]);
+
+    $show = $this->actingAs($graph['user'])->get(route('events.tasks.show', [
+        'event' => $event->id,
+        'task' => $task->id,
+    ]));
+
+    $show->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Events/Tasks/Show')
+            ->where('task.duty', 'Review venue quotations')
+            ->where('task.completion_status', 'submitted')
+            ->where('task.attachments.0.file_name', 'quotation-a.pdf')
+            ->where('task.submitted_by_name', $graph['user']->name)
+        );
+});
+
+test('event managers can return submitted event tasks for amendments', function () {
+    $graph = makeEventOwnerGraph();
+    grantDomainAccess($graph['user'], 'events');
+
+    $event = Event::query()->create([
+        'title' => 'Returned Verification Event',
+        'event_type' => 'Conference',
+        'start_date' => '2026-08-20',
+        'status' => 'planned',
+        'owner_staff_member_id' => $graph['staff']->id,
+    ]);
+
+    $workstream = $event->workstreams()->create([
+        'name' => 'Operations',
+        'sort_order' => 1,
+    ]);
+
+    $task = $workstream->tasks()->create([
+        'phase' => 'preparations',
+        'task_group' => 'Quotations',
+        'duty' => 'Source venue quotations',
+        'status' => 'in_progress',
+        'completion_status' => 'submitted',
+        'submitted_for_verification_at' => now(),
+        'submitted_by_user_id' => $graph['user']->id,
+        'sort_order' => 1,
+    ]);
+
+    $return = $this->actingAs($graph['user'])->post(route('events.tasks.return', [
+        'event' => $event->id,
+        'task' => $task->id,
+    ]), [
+        'manager_review_notes' => 'Attach the deviation motivation before approval.',
+    ]);
+
+    $return->assertRedirect();
+    $return->assertSessionHas('success', 'Event task returned for amendments.');
+
+    $task = $task->fresh();
+    expect($task->status)->toBe('in_progress')
+        ->and($task->completion_status)->toBe('changes_requested')
+        ->and($task->reviewed_by_user_id)->toBe($graph['user']->id)
+        ->and($task->returned_for_amendments_at)->not->toBeNull()
+        ->and($task->completed_at)->toBeNull();
 });
 
 test('event report pdf can be downloaded for an annual series event', function () {
@@ -1030,4 +1268,259 @@ test('event series and dedicated workflow pages can be viewed', function () {
             ->component('Events/EventDay')
             ->where('event.id', $event->id)
         );
+});
+
+test('event managers can create first class event series with a document repository', function () {
+    $user = grantDomainAccess(User::factory()->create(), 'events');
+
+    $response = $this->actingAs($user)->post(route('event-series.store'), [
+        'name' => 'Digital Youth Festival',
+        'series_key' => 'digital-youth-festival',
+        'slug' => 'digital-youth-festival',
+        'description' => 'Annual youth innovation festival.',
+        'objectives' => 'Showcase digital talent.',
+        'default_title_pattern' => 'Digital Youth Festival {year}',
+        'default_event_type' => 'Festival',
+        'default_format' => 'hybrid',
+        'default_theme' => 'Youth innovation',
+        'status' => 'active',
+    ]);
+
+    $series = EventSeries::query()->firstOrFail();
+
+    $response->assertRedirect(route('events.series.show', $series->slug));
+
+    $this->assertDatabaseHas('event_series', [
+        'name' => 'Digital Youth Festival',
+        'series_key' => 'digital-youth-festival',
+        'slug' => 'digital-youth-festival',
+    ]);
+
+    $root = DocumentFolder::query()
+        ->where('owner_type', EventSeries::class)
+        ->where('owner_id', $series->id)
+        ->where('folder_type', DocumentFolder::TYPE_EVENT_SERIES_ROOT)
+        ->firstOrFail();
+
+    foreach (['Brand Identity', 'Logos', 'Historical Posters', 'Reusable Artwork', 'Media Archive'] as $folder) {
+        $this->assertDatabaseHas('document_folders', [
+            'parent_id' => $root->id,
+            'owner_type' => EventSeries::class,
+            'owner_id' => $series->id,
+            'name' => $folder,
+        ]);
+    }
+});
+
+test('legacy annual series keys can be backfilled and duplicate years are reported', function () {
+    Event::query()->create([
+        'title' => 'Digital Youth Festival 2025',
+        'annual_series_key' => 'digital-youth-festival',
+        'event_year' => 2025,
+        'is_annual' => true,
+        'start_date' => '2025-06-01',
+        'status' => 'completed',
+    ]);
+
+    Event::query()->create([
+        'title' => 'Digital Youth Festival 2026',
+        'annual_series_key' => 'Digital Youth Festival',
+        'event_year' => 2026,
+        'is_annual' => true,
+        'start_date' => '2026-06-01',
+        'status' => 'planned',
+    ]);
+
+    $this->artisan('events:backfill-series')
+        ->expectsOutput('Event series backfill complete.')
+        ->assertSuccessful();
+
+    $series = EventSeries::query()->where('series_key', 'digital-youth-festival')->firstOrFail();
+    expect($series->events()->count())->toBe(2);
+
+    Event::query()->create([
+        'title' => 'Duplicate 2026',
+        'annual_series_key' => 'digital-youth-festival',
+        'event_year' => 2026,
+        'is_annual' => true,
+        'start_date' => '2026-07-01',
+        'status' => 'planned',
+    ]);
+
+    $this->artisan('events:backfill-series --dry-run')
+        ->expectsOutput('Duplicate series/year combinations were detected. No records were changed.')
+        ->assertFailed();
+});
+
+test('standalone events can share a year without belonging to a series', function () {
+    Event::query()->create([
+        'title' => 'Standalone Workshop A',
+        'event_year' => 2026,
+        'is_annual' => false,
+        'start_date' => '2026-05-01',
+        'status' => 'planned',
+    ]);
+
+    Event::query()->create([
+        'title' => 'Standalone Workshop B',
+        'event_year' => 2026,
+        'is_annual' => false,
+        'start_date' => '2026-08-01',
+        'status' => 'planned',
+    ]);
+
+    expect(Event::query()->whereNull('event_series_id')->where('event_year', 2026)->count())->toBe(2);
+});
+
+test('event iteration creation copies templates but resets operational records', function () {
+    $graph = makeEventOwnerGraph();
+    grantDomainAccess($graph['user'], 'events');
+
+    $series = app(\App\Domains\Events\Services\EventSeriesService::class)->createSeries([
+        'name' => 'Digital Youth Festival',
+        'series_key' => 'digital-youth-festival',
+        'default_title_pattern' => 'Digital Youth Festival {year}',
+        'default_event_type' => 'Festival',
+        'default_format' => 'hybrid',
+        'default_theme' => 'Innovation',
+        'status' => 'active',
+    ], $graph['user']);
+
+    $partner = Stakeholder::query()->create([
+        'organization_name' => 'Innovation Partner',
+        'name' => 'Partnership Desk',
+        'email' => 'partner@example.com',
+        'contact_number' => '0711111111',
+        'status' => 'active',
+    ]);
+
+    $source = Event::query()->create([
+        'event_series_id' => $series->id,
+        'title' => 'Digital Youth Festival 2026',
+        'event_type' => 'Festival',
+        'event_format' => 'hybrid',
+        'annual_series_key' => 'digital-youth-festival',
+        'event_year' => 2026,
+        'is_annual' => true,
+        'theme' => 'Youth innovation',
+        'location' => 'Johannesburg',
+        'start_date' => '2026-06-01',
+        'status' => 'completed',
+        'registration_link' => 'https://events.example.com/2026',
+        'zoom_join_url' => 'https://zoom.example.com/2026',
+        'completed_at' => now(),
+        'owner_staff_member_id' => $graph['staff']->id,
+    ]);
+    $source->partners()->sync([$partner->id]);
+    $source->participants()->create([
+        'category' => 'attendee',
+        'name' => 'Historic Attendee',
+        'attendance_type' => 'In-person',
+        'attendance_status' => 'checked_in',
+        'checked_in_at' => now(),
+    ]);
+    $workstream = $source->workstreams()->create(['name' => 'Marketing', 'sort_order' => 1]);
+    $workstream->tasks()->create([
+        'phase' => 'pre_event',
+        'task_group' => 'Graphic Design',
+        'duty' => 'Prepare poster',
+        'responsible_person' => 'Marketing team',
+        'status' => 'completed',
+        'outcome' => 'Poster approved',
+        'comment' => 'Done',
+        'evidence_disk' => 'local',
+        'evidence_path' => 'event-task-evidence/old.pdf',
+        'evidence_file_name' => 'old.pdf',
+        'completed_at' => now(),
+        'sort_order' => 1,
+    ]);
+
+    $response = $this->actingAs($graph['user'])->post(route('event-series.iterations.store', $series), [
+        'event_year' => 2027,
+        'source' => 'latest_iteration',
+        'start_date' => '2027-06-01',
+        'copy_partners' => true,
+        'copy_workstreams' => true,
+        'copy_task_templates' => true,
+    ]);
+
+    $created = Event::query()->where('event_year', 2027)->firstOrFail();
+    $response->assertRedirect(route('events.show', $created->id));
+
+    expect($created->title)->toBe('Digital Youth Festival 2027');
+    expect($created->status)->toBe('planned');
+    expect($created->registration_link)->toBeNull();
+    expect($created->zoom_join_url)->toBeNull();
+    expect($created->completed_at)->toBeNull();
+    expect($created->participants()->count())->toBe(0);
+    expect($created->partners()->pluck('stakeholders.id')->all())->toBe([$partner->id]);
+
+    $copiedTask = $created->workstreams()->firstOrFail()->tasks()->firstOrFail();
+    expect($copiedTask->status)->toBe('pending');
+    expect($copiedTask->outcome)->toBeNull();
+    expect($copiedTask->comment)->toBeNull();
+    expect($copiedTask->evidence_path)->toBeNull();
+    expect($created->closureReport)->toBeNull();
+});
+
+test('event series asset classification references document library files', function () {
+    $user = grantDomainAccess(User::factory()->create(), 'events');
+    $series = app(\App\Domains\Events\Services\EventSeriesService::class)->createSeries([
+        'name' => 'Worldwide Women in Innovation, Incubation and Technology Summit',
+        'series_key' => 'wwiit-summit',
+        'status' => 'active',
+    ], $user);
+
+    $logos = DocumentFolder::query()
+        ->where('owner_type', EventSeries::class)
+        ->where('owner_id', $series->id)
+        ->where('name', 'Logos')
+        ->firstOrFail();
+
+    $file = DocumentFile::query()->create([
+        'folder_id' => $logos->id,
+        'title' => 'WWIIT primary logo',
+        'disk' => 'local',
+        'file_path' => 'document-library/'.$logos->id.'/wwiit-logo.png',
+        'original_name' => 'wwiit-logo.png',
+        'mime_type' => 'image/png',
+        'size_bytes' => 1200,
+        'uploaded_by' => $user->id,
+    ]);
+
+    $this->actingAs($user)->post(route('event-series.assets.store', $series), [
+        'document_file_id' => $file->id,
+        'asset_type' => 'logo',
+        'label' => 'Primary logo',
+        'is_featured' => true,
+        'display_order' => 1,
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('event_series_assets', [
+        'event_series_id' => $series->id,
+        'document_file_id' => $file->id,
+        'asset_type' => 'logo',
+        'label' => 'Primary logo',
+        'is_featured' => true,
+    ]);
+
+    expect(DocumentLink::query()
+        ->where('document_id', $file->id)
+        ->where('linkable_type', EventSeries::class)
+        ->where('linkable_id', $series->id)
+        ->exists())->toBeTrue();
+});
+
+test('event viewers cannot create iterations', function () {
+    $viewer = grantDomainAccess(User::factory()->create(), 'events', false);
+    $series = EventSeries::query()->create([
+        'name' => 'Digital Youth Festival',
+        'slug' => 'digital-youth-festival',
+        'series_key' => 'digital-youth-festival',
+        'status' => 'active',
+    ]);
+
+    $this->actingAs($viewer)
+        ->get(route('event-series.iterations.create', $series))
+        ->assertForbidden();
 });

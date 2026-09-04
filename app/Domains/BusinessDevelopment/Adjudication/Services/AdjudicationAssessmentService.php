@@ -352,7 +352,9 @@ class AdjudicationAssessmentService
     protected function assertPitchSessionEligibility(?BdsPitchSession $session, int $smmeId, User $actor): void
     {
         if (! $session) {
-            return;
+            throw ValidationException::withMessages([
+                'pitch_session_id' => ['Select the pitch session this scorecard belongs to.'],
+            ]);
         }
 
         if (! in_array($session->status, ['scheduled', 'in_progress', 'consolidated'], true)) {

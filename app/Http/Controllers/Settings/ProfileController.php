@@ -53,9 +53,13 @@ class ProfileController extends Controller
                 'manager' => $staff->manager
                     ? trim($staff->manager->first_name.' '.$staff->manager->last_name)
                     : null,
+                'phone' => $staff->phone,
+                'status' => $staff->status,
                 'start_date' => $staff->start_date?->format('Y-m-d'),
                 'is_ceo' => (bool) $staff->is_ceo,
                 'is_board_member' => (bool) $staff->is_board_member,
+                'is_manager' => (bool) $staff->is_manager,
+                'is_intern' => (bool) $staff->is_intern,
             ] : null,
             'leaveAccount' => $leaveAccount,
             'myRequests' => $myRequests->map(fn ($leave) => $this->leaveManagementService->mapLeave($leave))->values(),

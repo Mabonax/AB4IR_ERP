@@ -5,7 +5,6 @@ namespace App\Domains\BusinessDevelopment\Controllers;
 use App\Domains\BusinessDevelopment\Models\BdsApplication;
 use App\Domains\BusinessDevelopment\Requests\AssessBdsApplicationRequest;
 use App\Domains\BusinessDevelopment\Requests\ImportBdsApplicationRequest;
-use App\Domains\BusinessDevelopment\Requests\ScheduleBdsPitchRequest;
 use App\Domains\BusinessDevelopment\Resources\BdsApplicationResource;
 use App\Domains\BusinessDevelopment\Services\BdsApplicationService;
 use App\Http\Controllers\Controller;
@@ -62,13 +61,5 @@ class BdsApplicationController extends Controller
         $this->service->assess($bds_application, $request->validated());
 
         return redirect()->back()->with('success', 'Assessment saved.');
-    }
-
-    public function schedulePitch(ScheduleBdsPitchRequest $request, int $bds_application)
-    {
-        $this->authorize('schedulePitch', $this->service->getById($bds_application));
-        $this->service->schedulePitch($bds_application, $request->validated());
-
-        return redirect()->back()->with('success', 'Pitch scheduled.');
     }
 }

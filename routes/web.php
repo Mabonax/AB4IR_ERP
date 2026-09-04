@@ -14,8 +14,11 @@ use App\Domains\BusinessDevelopment\Controllers\BdsDashboardController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeController;
 use App\Domains\BusinessDevelopment\Controllers\BdsIncubateeKpiController;
 use App\Domains\BusinessDevelopment\Controllers\BdsPitchSessionController;
+use App\Domains\BusinessDevelopment\Controllers\EnterpriseDevelopmentController;
+use App\Domains\BusinessDevelopment\Controllers\EnterpriseDevelopmentFrameworkController;
 use App\Domains\Documents\Controllers\DocumentLibraryController;
 use App\Domains\Events\Controllers\EventController;
+use App\Domains\Events\Controllers\EventSeriesController;
 use App\Domains\Facilitators\Controllers\FacilitatorController;
 use App\Domains\Facilitators\Controllers\LmsFacilitatorLookupController;
 use App\Domains\Finance\Controllers\TravelClaimController;
@@ -384,10 +387,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.business-development.manage')
         ->whereNumber('bds_application')
         ->name('business-development.applications.assess');
-    Route::post('business-development/applications/{bds_application}/schedule-pitch', [BdsApplicationController::class, 'schedulePitch'])
-        ->middleware('permission:domain.business-development.manage')
-        ->whereNumber('bds_application')
-        ->name('business-development.applications.schedule-pitch');
     Route::get('business-development/pitch-sessions', [BdsPitchSessionController::class, 'index'])
         ->middleware('permission:domain.business-development.view|domain.business-development.manage')
         ->name('business-development.pitch-sessions.index');
@@ -412,6 +411,56 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('pitch_session')
         ->whereNumber('prospect')
         ->name('business-development.pitch-sessions.prospects.approve');
+    Route::get('business-development/development-framework', [EnterpriseDevelopmentFrameworkController::class, 'index'])
+        ->middleware('permission:domain.business-development.view|domain.business-development.manage|enterprise-development.framework.view')
+        ->name('business-development.development-framework.index');
+    Route::post('business-development/development-framework/dimensions', [EnterpriseDevelopmentFrameworkController::class, 'storeDimension'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.framework.manage')
+        ->name('business-development.development-framework.dimensions.store');
+    Route::put('business-development/development-framework/dimensions/{dimension}', [EnterpriseDevelopmentFrameworkController::class, 'updateDimension'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.framework.manage')
+        ->whereNumber('dimension')
+        ->name('business-development.development-framework.dimensions.update');
+    Route::post('business-development/development-framework/dimensions/{dimension}/criteria', [EnterpriseDevelopmentFrameworkController::class, 'storeCriterion'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.framework.manage')
+        ->whereNumber('dimension')
+        ->name('business-development.development-framework.criteria.store');
+    Route::put('business-development/development-framework/criteria/{criterion}', [EnterpriseDevelopmentFrameworkController::class, 'updateCriterion'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.framework.manage')
+        ->whereNumber('criterion')
+        ->name('business-development.development-framework.criteria.update');
+    Route::get('business-development/incubatees/{incubatee}/enterprise-development', [EnterpriseDevelopmentController::class, 'show'])
+        ->middleware('permission:domain.business-development.view|domain.business-development.manage|enterprise-development.profile.view')
+        ->whereNumber('incubatee')
+        ->name('business-development.incubatees.enterprise-development.show');
+    Route::post('business-development/incubatees/{incubatee}/enterprise-development/diagnostics', [EnterpriseDevelopmentController::class, 'storeDiagnostic'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.diagnostics.create')
+        ->whereNumber('incubatee')
+        ->name('business-development.incubatees.enterprise-development.diagnostics.store');
+    Route::post('business-development/enterprise-development/diagnostics/{diagnostic}/criteria', [EnterpriseDevelopmentController::class, 'saveCriteria'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.diagnostics.edit')
+        ->whereNumber('diagnostic')
+        ->name('business-development.enterprise-development.diagnostics.criteria.save');
+    Route::post('business-development/enterprise-development/diagnostics/{diagnostic}/complete', [EnterpriseDevelopmentController::class, 'completeDiagnostic'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.diagnostics.complete')
+        ->whereNumber('diagnostic')
+        ->name('business-development.enterprise-development.diagnostics.complete');
+    Route::post('business-development/enterprise-development/gaps/{gap}/needs', [EnterpriseDevelopmentController::class, 'createNeed'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.needs.manage')
+        ->whereNumber('gap')
+        ->name('business-development.enterprise-development.gaps.needs.store');
+    Route::put('business-development/enterprise-development/needs/{need}', [EnterpriseDevelopmentController::class, 'updateNeed'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.needs.manage')
+        ->whereNumber('need')
+        ->name('business-development.enterprise-development.needs.update');
+    Route::post('business-development/incubatees/{incubatee}/enterprise-development/plans', [EnterpriseDevelopmentController::class, 'createPlan'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.plans.manage')
+        ->whereNumber('incubatee')
+        ->name('business-development.incubatees.enterprise-development.plans.store');
+    Route::put('business-development/enterprise-development/plan-items/{item}', [EnterpriseDevelopmentController::class, 'updatePlanItem'])
+        ->middleware('permission:domain.business-development.manage|enterprise-development.plans.manage')
+        ->whereNumber('item')
+        ->name('business-development.enterprise-development.plan-items.update');
     Route::resource('business-development/incubatees', BdsIncubateeController::class)
         ->parameters(['incubatees' => 'incubatee'])
         ->middlewareFor(['index', 'show'], $viewPermission('business-development'))
@@ -589,6 +638,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('auth')
         ->whereNumber('document')
         ->name('organization.documents.destroy');
+    Route::get('event-series/create', [EventSeriesController::class, 'create'])
+        ->middleware($managePermission('events'))
+        ->name('event-series.create');
+    Route::post('event-series', [EventSeriesController::class, 'store'])
+        ->middleware($managePermission('events'))
+        ->name('event-series.store');
+    Route::get('event-series/{eventSeries:slug}', [EventSeriesController::class, 'show'])
+        ->middleware($viewPermission('events'))
+        ->name('event-series.show');
+    Route::get('event-series/{eventSeries:slug}/iterations/create', [EventSeriesController::class, 'createIteration'])
+        ->middleware($managePermission('events'))
+        ->name('event-series.iterations.create');
+    Route::post('event-series/{eventSeries:slug}/iterations', [EventSeriesController::class, 'storeIteration'])
+        ->middleware($managePermission('events'))
+        ->name('event-series.iterations.store');
+    Route::post('event-series/{eventSeries:slug}/assets', [EventSeriesController::class, 'storeAsset'])
+        ->middleware($managePermission('events'))
+        ->name('event-series.assets.store');
     Route::get('events/series/{seriesKey}', [EventController::class, 'series'])
         ->middleware($viewPermission('events'))
         ->name('events.series.show');
@@ -617,6 +684,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware($managePermission('events'))
         ->whereNumber('event')
         ->name('events.tasks.create');
+    Route::get('events/{event}/tasks/{task}', [EventController::class, 'showTaskPage'])
+        ->middleware($viewPermission('events'))
+        ->whereNumber('event')
+        ->whereNumber('task')
+        ->name('events.tasks.show');
     Route::get('events/{event}/tasks/{task}/edit', [EventController::class, 'editTaskPage'])
         ->middleware($managePermission('events'))
         ->whereNumber('event')
@@ -747,11 +819,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('event')
         ->whereNumber('task')
         ->name('events.tasks.update');
+    Route::post('events/{event}/tasks/{task}/approve', [EventController::class, 'approveTask'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->whereNumber('task')
+        ->name('events.tasks.approve');
+    Route::post('events/{event}/tasks/{task}/return', [EventController::class, 'returnTask'])
+        ->middleware($managePermission('events'))
+        ->whereNumber('event')
+        ->whereNumber('task')
+        ->name('events.tasks.return');
     Route::get('events/{event}/tasks/{task}/evidence', [EventController::class, 'downloadTaskEvidence'])
         ->middleware($viewPermission('events'))
         ->whereNumber('event')
         ->whereNumber('task')
         ->name('events.tasks.evidence');
+    Route::get('events/{event}/tasks/{task}/attachments/{attachment}', [EventController::class, 'downloadTaskAttachment'])
+        ->middleware($viewPermission('events'))
+        ->whereNumber('event')
+        ->whereNumber('task')
+        ->whereNumber('attachment')
+        ->name('events.tasks.attachments.download');
     Route::delete('events/{event}/tasks/{task}', [EventController::class, 'destroyTask'])
         ->middleware($managePermission('events'))
         ->whereNumber('event')
@@ -1019,6 +1107,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:domain.projects.manage|project-activities.manage')
         ->whereNumber('project_location')
         ->name('project-locations.assessments.store');
+    Route::post('project-locations/{project_location}/assessments/bulk', [ProjectMilestoneAssessmentController::class, 'bulkStore'])
+        ->middleware('permission:domain.projects.manage|project-activities.manage')
+        ->whereNumber('project_location')
+        ->name('project-locations.assessments.bulk-store');
     Route::get('projects/attendance-summary', [ProjectAttendanceController::class, 'projectSummary'])
         ->middleware('permission:domain.projects.view|domain.projects.manage')
         ->name('projects.attendance-summary');

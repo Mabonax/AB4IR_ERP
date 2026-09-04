@@ -9,7 +9,7 @@ import { type BreadcrumbItem } from "@/types";
 const taskStatusOptions = [
   { value: "pending", label: "Pending" },
   { value: "in_progress", label: "In Progress" },
-  { value: "completed", label: "Completed" },
+  { value: "completed", label: "Submit for Verification" },
   { value: "on_going", label: "On Going" },
   { value: "blocked", label: "Blocked" },
   { value: "cancelled", label: "Cancelled" },

@@ -33,14 +33,19 @@ class BdsPitchSessionController extends Controller
             'panelists' => User::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'email'])
+                ->filter(fn (User $user) => $this->canScorePitchSession($user) || $this->canChairPitchSession($user))
+                ->values()
                 ->map(fn (User $user) => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'can_chair' => $this->canChairPitchSession($user),
+                    'is_current_user' => (int) $request->user()->id === (int) $user->id,
                 ]),
             'prospects' => BdsApplication::query()
                 ->where('assessment_status', 'accepted')
                 ->whereNull('adjudication_result')
+                ->whereDoesntHave('pitchSessionProspects')
                 ->orderBy('company_name')
                 ->get(['id', 'company_name', 'full_name', 'pitch_scheduled_at'])
                 ->map(fn (BdsApplication $application) => [
@@ -66,6 +71,24 @@ class BdsPitchSessionController extends Controller
                 'approve' => auth()->user()?->can('approve', $pitch_session) ?? false,
             ],
         ]);
+    }
+
+    protected function canChairPitchSession(User $user): bool
+    {
+        return method_exists($user, 'hasAnyRole')
+            && $user->hasAnyRole([
+                'super-admin',
+                'super admin',
+                'admin',
+                'domain-admin-business-development',
+                'department-manager-business-development',
+            ])
+            && $user->can('domain.business-development.manage');
+    }
+
+    protected function canScorePitchSession(User $user): bool
+    {
+        return $user->can('business-development.adjudications.score');
     }
 
     public function store(StoreBdsPitchSessionRequest $request)

@@ -6,6 +6,7 @@ use App\Domains\Programs\Models\Program;
 use App\Domains\Projects\Models\ProgramMilestoneTemplate;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class MilestoneTemplateController extends Controller
@@ -31,6 +32,7 @@ class MilestoneTemplateController extends Controller
         $programModel = Program::findOrFail($program);
 
         $templates = ProgramMilestoneTemplate::with('program')
+            ->withCount('projectMilestones')
             ->where('program_id', $programModel->id)
             ->orderBy('sort_order')
             ->paginate(15)
@@ -43,6 +45,11 @@ class MilestoneTemplateController extends Controller
                     'description' => $template->description,
                     'sort_order' => $template->sort_order,
                     'max_score' => $template->max_score,
+                    'is_required' => (bool) $template->is_required,
+                    'is_active' => (bool) $template->is_active,
+                    'pass_mark' => $template->pass_mark,
+                    'expected_timing' => $template->expected_timing,
+                    'projects_using_count' => (int) ($template->project_milestones_count ?? 0),
                 ];
             });
 
@@ -63,7 +70,12 @@ class MilestoneTemplateController extends Controller
             'description' => 'nullable|string|max:2000',
             'sort_order' => 'nullable|integer|min:0',
             'max_score' => 'nullable|integer|min:0',
+            'is_required' => 'boolean',
+            'is_active' => 'boolean',
+            'pass_mark' => 'nullable|integer|min:0',
+            'expected_timing' => 'nullable|string|max:255',
         ]);
+        $this->ensurePassMarkWithinMaximum($data);
 
         ProgramMilestoneTemplate::create($data);
 
@@ -80,7 +92,12 @@ class MilestoneTemplateController extends Controller
             'description' => 'nullable|string|max:2000',
             'sort_order' => 'nullable|integer|min:0',
             'max_score' => 'nullable|integer|min:0',
+            'is_required' => 'boolean',
+            'is_active' => 'boolean',
+            'pass_mark' => 'nullable|integer|min:0',
+            'expected_timing' => 'nullable|string|max:255',
         ]);
+        $this->ensurePassMarkWithinMaximum($data);
 
         $template->update($data);
 
@@ -93,5 +110,22 @@ class MilestoneTemplateController extends Controller
         $template->delete();
 
         return redirect()->back()->with('success', 'Milestone template deleted');
+    }
+
+    protected function ensurePassMarkWithinMaximum(array $data): void
+    {
+        if (($data['pass_mark'] ?? null) === null) {
+            return;
+        }
+
+        $maxScore = (int) ($data['max_score'] ?? 100);
+
+        if ((int) $data['pass_mark'] <= $maxScore) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'pass_mark' => "The pass mark may not be greater than the maximum score of {$maxScore}.",
+        ]);
     }
 }

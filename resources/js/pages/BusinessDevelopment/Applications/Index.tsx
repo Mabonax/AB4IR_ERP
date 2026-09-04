@@ -72,15 +72,6 @@ export default function BdsApplicationsIndex({
   }>({
     assessment_status: "accepted",
   });
-  const pitchForm = useForm({
-    pitch_scheduled_at: "",
-    pitch_notes: "",
-  });
-
-  const selectedCanPitch = useMemo(
-    () => selected?.workflow_summary.pitch.ready ?? false,
-    [selected]
-  );
   const paginationLinks = useMemo(() => {
     if (Array.isArray(applications.links)) return applications.links;
     if (Array.isArray(applications.meta?.links)) return applications.meta.links;
@@ -103,19 +94,6 @@ export default function BdsApplicationsIndex({
       preserveScroll: true,
       onSuccess: () => setSelected(null),
     });
-  };
-
-  const submitPitch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selected) return;
-
-    pitchForm.post(
-      businessDevelopment.applications.schedulePitch(selected.id).url,
-      {
-        preserveScroll: true,
-        onSuccess: () => setSelected(null),
-      }
-    );
   };
 
   return (
@@ -215,7 +193,7 @@ export default function BdsApplicationsIndex({
                 <th className="px-3 py-2 text-left font-medium">Province</th>
                 <th className="px-3 py-2 text-left font-medium">Status</th>
                 <th className="px-3 py-2 text-left font-medium">Workflow</th>
-                <th className="px-3 py-2 text-left font-medium">Pitch</th>
+                <th className="px-3 py-2 text-left font-medium">Pitch Session</th>
                 <th className="px-3 py-2 text-left font-medium">Adjudication</th>
                 <th className="px-3 py-2 text-left font-medium">Action</th>
               </tr>
@@ -279,15 +257,13 @@ export default function BdsApplicationsIndex({
                         View
                       </button>
                       {row.adjudication_result === null ? (
-                        row.workflow_summary.adjudication.ready ? (
+                        row.assessment_status === "accepted" ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              router.visit(`/business-development/adjudications/create?smme_id=${row.id}`)
-                            }
+                            onClick={() => router.visit(businessDevelopment.pitchSessions.index().url)}
                             className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
                           >
-                            Start Adjudication
+                            Schedule Session
                           </button>
                         ) : (
                           <button
@@ -297,16 +273,10 @@ export default function BdsApplicationsIndex({
                               assessForm.setData({
                                 assessment_status: row.assessment_status === "rejected" ? "rejected" : "accepted",
                               });
-                              pitchForm.setData({
-                                pitch_scheduled_at: row.pitch_scheduled_at
-                                  ? row.pitch_scheduled_at.slice(0, 16)
-                                  : "",
-                                pitch_notes: row.pitch_notes ?? "",
-                              });
                             }}
                             className="rounded-md border border-orange-500 px-3 py-1.5 text-xs text-orange-600 hover:bg-orange-500 hover:text-white"
                           >
-                            Assess / Pitch
+                            Assess
                           </button>
                         )
                       ) : null}
@@ -349,8 +319,8 @@ export default function BdsApplicationsIndex({
         </div>
 
         {selected ? (
-          <section className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm md:grid-cols-2">
-            <div>
+          <section className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="max-w-2xl">
               <h3 className="text-base font-semibold">Assessment</h3>
               <p className="mb-3 text-sm text-muted-foreground">
                 {selected.full_name} | {selected.company_name}
@@ -393,59 +363,6 @@ export default function BdsApplicationsIndex({
                 >
                   {assessForm.processing ? "Saving..." : "Save Assessment"}
                 </button>
-              </form>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold">Pitch Scheduling</h3>
-              <p className="mb-3 text-sm text-muted-foreground">
-                Only accepted applications can be scheduled.
-              </p>
-              {!selected.workflow_summary.pitch.ready ? (
-                <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  {selected.workflow_summary.pitch.blockers.join(" ")}
-                </div>
-              ) : null}
-              <form onSubmit={submitPitch} className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Pitch Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    value={pitchForm.data.pitch_scheduled_at}
-                    onChange={(e) => pitchForm.setData("pitch_scheduled_at", e.currentTarget.value)}
-                    className="w-full rounded-md border px-3 py-2 text-sm"
-                    required
-                    disabled={!selectedCanPitch}
-                  />
-                  {pitchForm.errors.pitch_scheduled_at ? (
-                    <p className="mt-1 text-sm text-red-600">{pitchForm.errors.pitch_scheduled_at}</p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Pitch Notes</label>
-                  <textarea
-                    rows={3}
-                    value={pitchForm.data.pitch_notes}
-                    onChange={(e) => pitchForm.setData("pitch_notes", e.currentTarget.value)}
-                    className="w-full rounded-md border px-3 py-2 text-sm"
-                    disabled={!selectedCanPitch}
-                  />
-                  {pitchForm.errors.pitch_notes ? (
-                    <p className="mt-1 text-sm text-red-600">{pitchForm.errors.pitch_notes}</p>
-                  ) : null}
-                </div>
-                <button
-                  type="submit"
-                  disabled={pitchForm.processing || !selectedCanPitch}
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  {pitchForm.processing ? "Scheduling..." : "Schedule Pitch"}
-                </button>
-                {!selectedCanPitch ? (
-                  <p className="text-sm text-amber-700">
-                    {selected.workflow_summary.pitch.blockers[0] ?? "Set assessment status to accepted first."}
-                  </p>
-                ) : null}
               </form>
             </div>
           </section>

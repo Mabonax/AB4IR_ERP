@@ -30,6 +30,8 @@ class DocumentFolder extends Model
 
     public const TYPE_EVENT_ROOT = 'event_root';
 
+    public const TYPE_EVENT_SERIES_ROOT = 'event_series_root';
+
     public const TYPE_STANDARD = 'standard';
 
     public function parent(): BelongsTo

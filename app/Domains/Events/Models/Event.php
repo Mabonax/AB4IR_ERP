@@ -28,6 +28,7 @@ class Event extends Model
         'title',
         'event_type',
         'event_format',
+        'event_series_id',
         'annual_series_key',
         'event_year',
         'is_annual',
@@ -78,6 +79,11 @@ class Event extends Model
     public function owner()
     {
         return $this->belongsTo(StaffMember::class, 'owner_staff_member_id');
+    }
+
+    public function eventSeries()
+    {
+        return $this->belongsTo(EventSeries::class, 'event_series_id');
     }
 
     public function speakers()
